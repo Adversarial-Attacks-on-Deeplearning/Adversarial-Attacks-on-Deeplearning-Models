@@ -1,6 +1,5 @@
 import torch
-from util import write_results
-from yolo_detector import prepare_image
+from util import write_results,prepare_image
 
 
 import os

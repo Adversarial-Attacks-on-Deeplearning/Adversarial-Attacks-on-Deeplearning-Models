@@ -28,3 +28,30 @@ This implementation focuses on generating **universal adversarial perturbations 
 - **Insertion Location**: The location where the adversarial words are inserted can affect the success of the attack. Some models are more sensitive to perturbations at the beginning of the input sequence.
 - **Effectiveness**: Inserting even a single adversarial word can significantly reduce the accuracy of text classifiers. The effectiveness of the UAP depends on the architecture of the text classifier and the dataset used.
 
+## Example: UAP Attack on AG News Classification
+
+Let's assume you have a text classification model trained on the **AG News dataset** to categorize news articles into one of four classes: "World", "Sports", "Business", or "Sci/Tech".
+
+### 1. Original Input
+- **Input Text**: "Shares in Tesla fell sharply today after Elon Musk announced he would step down as CEO."
+- **Correct Classification**: *Business*
+
+### 2. Generating the UAP
+- Using the UAP algorithm, a universal adversarial word is generated: **"exobiology"**.
+- Words such as "exobiology", "tech", "molten", and "astrobiology" are often associated with the "Sci/Tech" category.
+- The algorithm identifies **"exobiology"** as effective in shifting classification towards "Sci/Tech" regardless of the input text.
+
+### 3. Applying the UAP
+- The UAP word is inserted at the **beginning** of the input text:
+  - **Modified Input Text**: "exobiology Shares in Tesla fell sharply today after Elon Musk announced he would step down as CEO."
+
+### 4. Result
+- The text classification model **misclassifies** the article:
+  - **Incorrect Classification**: *Sci/Tech*
+
+### Explanation
+- The addition of **"exobiology"** is sufficient to alter the classifier's decision.
+- The UAP word was not chosen randomly; it was selected via **gradient projection**, which finds words that, when added to any input, maximize misclassification.
+- In a **targeted attack**, the algorithm would push the classification specifically towards "Sci/Tech" by choosing words that favor that category.
+- In a **non-targeted attack**, the UAP aims to cause any misclassification, significantly reducing model accuracy (potentially down to 25% in a four-class classification scenario).
+

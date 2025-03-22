@@ -86,3 +86,38 @@ adversarial_images, perturbations = targeted_dag_attack(
 - The attacks assume that the model outputs detections in the YOLO format.
 - Early stopping is implemented for efficiency when the attack succeeds before `max_iter`.
 - Ensure the `write_results` and `prepare_image` functions work correctly with your model.
+
+
+
+# Universal Adversarial Perturbation (UAP) Attack 
+
+## Table of Contents
+- [DAG Attack](#dag-attack)
+  - [Overview](#overview)
+  - [Implemented Attacks](#implemented-attacks)
+    - [1. Targeted DAG Attack](#1-targeted-dag-attack)
+      - [Parameters:](#parameters)
+      - [Attack Steps:](#attack-steps)
+    - [2. Disappearance DAG Attack](#2-disappearance-dag-attack)
+      - [Parameters:](#parameters-1)
+      - [Attack Steps:](#attack-steps-1)
+  - [Saving Adversarial Images](#saving-adversarial-images)
+  - [Dependencies](#dependencies)
+  - [Usage Example](#usage-example)
+  - [Notes](#notes)
+- [Universal Adversarial Perturbation (UAP) Attack](#universal-adversarial-perturbation-uap-attack)
+  - [Table of Contents](#table-of-contents)
+  - [Introduction ](#introduction-)
+  - [What are UAP Attacks? ](#what-are-uap-attacks-)
+
+## Introduction <a name="introduction"></a>
+
+This project demonstrates Universal Adversarial Perturbation (UAP) attacks on a U-Net model trained for medical image segmentation. The attack generates a single perturbation pattern that degrades model performance across multiple input samples while remaining barely perceptible to human observers.
+
+## What are UAP Attacks? <a name="what-are-uap-attacks"></a>
+
+Universal Adversarial Perturbations are input-agnostic patterns that:
+- Can fool neural networks when added to any input
+- Work across multiple samples (universal)
+- Require no knowledge of specific input data
+- Maintain visual similarity to original inputs

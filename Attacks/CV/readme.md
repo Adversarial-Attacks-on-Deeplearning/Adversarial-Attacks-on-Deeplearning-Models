@@ -176,3 +176,143 @@ $$
 -  Ensure the updated adversarial example remains within the valid range and perturbation limit.
 -  Return the final adversarial example
 
+
+
+
+
+
+
+Below is an example of a Markdown documentation file (README.md) that explains the implementations of DeepFool and SparseFool attacks and includes references to the original papers.
+
+---
+
+# DeepFool and SparseFool Attack Implementations
+
+This repository contains TensorFlow 2.x implementations of two adversarial attack methods:
+- **DeepFool** – An untargeted attack that finds minimal perturbations to fool a classifier.
+- **SparseFool** – A sparse attack that builds on DeepFool to produce perturbations that alter as few pixels as possible.
+
+Both implementations target image classification models (e.g., EfficientNet) and can be applied to single images.
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [DeepFool Attack](#deepfool-attack)
+  - [Reference Paper](#reference-paper-for-deepfool)
+  - [Usage](#usage-of-deepfool)
+- [SparseFool Attack](#sparsefool-attack)
+  - [Reference Paper](#reference-paper-for-sparsefool)
+  - [Methodology](#methodology)
+  - [Usage](#usage-of-sparsefool)
+- [Requirements](#requirements)
+- [License](#license)
+
+---
+
+## Overview
+
+Adversarial attacks expose vulnerabilities in deep neural networks by applying carefully crafted perturbations to input data. The **DeepFool** algorithm (Moosavi-Dezfooli et al., 2016) computes minimal \( \ell_2 \) perturbations that cause misclassification by iteratively linearizing the classifier's decision boundary. **SparseFool** (Modas et al., 2019) builds on DeepFool by finding a sparse (i.e., few pixel) perturbation that remains effective, which is particularly relevant for tasks where only minimal changes should occur.
+
+---
+
+## DeepFool Attack
+
+### Reference Paper for DeepFool
+
+- **DeepFool: A Simple and Accurate Method to Fool Deep Neural Networks**  
+  S.-M. Moosavi-Dezfooli, A. Fawzi, and P. Frossard, CVPR 2016  
+  [arXiv:1511.04599](https://arxiv.org/abs/1511.04599)
+
+### Usage of DeepFool
+
+The `deepfool_attack_single` function implements DeepFool for a single image. It returns both the adversarial image and the perturbation applied.
+
+Example:
+```python
+# Assuming you have a Keras classification model 'model',
+# a preprocessed single image 'image' of shape [H, W, C] with pixel values in [0,1],
+# and its true class label 'true_label' (an integer).
+adv_image, r_adv = deepfool_attack_single(model, image, true_label, max_iter=50, overshoot=0.02)
+
+# To visualize:
+import matplotlib.pyplot as plt
+plt.imshow(adv_image.numpy())
+plt.title("Adversarial Image (DeepFool)")
+plt.show()
+```
+
+*Note:* Ensure that your image is normalized as required by your model (e.g., EfficientNet often expects inputs scaled to [0, 1]).
+
+---
+
+## SparseFool Attack
+
+### Reference Paper for SparseFool
+
+- **SparseFool: A Few Pixels Make a Big Difference**  
+  Apostolos Modas, Seyed-Mohsen Moosavi-Dezfooli, Pascal Frossard, CVPR 2019  
+  [arXiv:1811.02248](https://arxiv.org/abs/1811.02248)
+
+### Methodology
+
+SparseFool refines the adversarial perturbation found by DeepFool into a sparse perturbation by:
+1. **Initial Adversarial Example:**  
+   Running DeepFool to obtain a perturbation \( r_{\text{adv}} \) so that \( x_B = x + r_{\text{adv}} \) lies near the decision boundary.
+2. **Estimating the Decision Boundary Normal:**  
+   Computing the gradient at \( x_B \) to obtain the normal vector \( w \).
+3. **Iterative Coordinate-Wise Updates:**  
+   Updating one coordinate at a time:
+   - **Select Coordinate:** Choose the coordinate with the largest absolute gradient value that isn’t saturated.
+   - **Compute Perturbation:** Use the formula
+     \[
+     r_d = \frac{|w^T(x_{\text{current}} - x_B)|}{|w_d|} \cdot \text{sign}(w_d)
+     \]
+     to determine the minimal update needed along that coordinate.
+   - **Apply Projection:** Update \( x_{\text{current}} \) with the computed perturbation and ensure the updated image stays within valid bounds.
+   - **Accumulate Perturbation:** Add each coordinate update to the total perturbation \( r_{\text{total}} \).
+   - **Stop When Misclassified:** Continue until the classifier misclassifies \( x_{\text{current}} \).
+
+### Usage of SparseFool
+
+Below is an example of how to use the `sparse_fool_attack` function on a single image:
+
+```python
+# Assuming you have a Keras classification model 'model',
+# a preprocessed single image 'image' of shape [H, W, C],
+# and its true label 'true_label'.
+
+adv_im, r_total = sparse_fool_attack(model, image, true_label, 
+                                       deepfool_max_iter=20, 
+                                       sparse_max_iter=20, 
+                                       overshoot=0.02)
+
+# Visualize the adversarial image
+import matplotlib.pyplot as plt
+plt.imshow(adv_im.numpy())
+plt.title("Adversarial Image (SparseFool)")
+plt.show()
+
+# Visualize the sparse perturbation (scale if needed)
+plt.imshow(tf.clip_by_value(r_total * 50, 0, 1).numpy())
+plt.title("Scaled Sparse Perturbation")
+plt.show()
+
+# To get prediction of the adversarial example:
+adv_prediction = tf.argmax(model(tf.expand_dims(adv_im, axis=0), training=False), axis=1).numpy()[0]
+print("Adversarial Prediction: ", adv_prediction)
+```
+
+
+
+## References
+
+1. **DeepFool:**  
+   Moosavi-Dezfooli, S.-M., Fawzi, A., & Frossard, P. (2016). DeepFool: A Simple and Accurate Method to Fool Deep Neural Networks. In *CVPR 2016*. [arXiv:1511.04599](https://arxiv.org/abs/1511.04599)
+
+2. **SparseFool:**  
+   Modas, A., Moosavi-Dezfooli, S.-M., & Frossard, P. (2019). SparseFool: A Few Pixels Make a Big Difference. In *CVPR 2019*. [arXiv:1811.02248](https://arxiv.org/abs/1811.02248)
+
+
+

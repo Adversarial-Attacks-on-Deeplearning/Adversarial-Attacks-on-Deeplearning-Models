@@ -1,17 +1,14 @@
 import tensorflow as tf
+from GTSRB_utils import GTSRB_CLASSES, predict_traffic_sign, create_subset_loader, load_ppm_image
 
-def black_box_fn(image: tf.Tensor) -> tf.Tensor:
-    """
-    A black-box function that takes a single image of shape (H, W, C)
-    and returns the predicted probabilities (num_classes,).
-    """
-    # Expand dimensions to make it (1, H, W, C)
-    image_batch = tf.expand_dims(image, axis=0)
-
-    # Model forward pass -> shape: (1, num_classes)
-    logits = model(image_batch)
-
-    # Convert logits to probabilities
-    probs = tf.nn.softmax(logits[0])  # shape: (num_classes,)
-
-    return probs
+# Example usage:
+image_path = "ppm_limit20.ppm"
+model = tf.keras.models.load_model("TrafficSigns_EfficientNetB1.keras")  # Load your trained model
+image_tensor = load_ppm_image(image_path, target_size=(240, 240))
+true_label = predict_traffic_sign(image_tensor, model, GTSRB_CLASSES)
+adv_image_tensor = simba_attack(image_tensor, true_label, model, num_iters=2000, epsilon=50, print_every=10)
+#
+# # Optionally, save or visualize the adversarial image:
+adv_image = adv_image_tensor.numpy()[0].astype(np.uint8)
+adv_pil = Image.fromarray(adv_image)
+adv_pil.save("adv_image.ppm")

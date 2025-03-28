@@ -1,135 +1,82 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+from PIL import Image
+from GTSRB_utils import GTSRB_CLASSES, load_ppm_image, predict_traffic_sign
 
-def simba_pixel_attack_single_image_tf(
-    black_box_fn,
-    x,
-    y,
-    epsilon=0.01,
-    max_queries=10000,
-    clamp_min=0.0,
-    clamp_max=1.0,
-    dtype=tf.float32
-):
+def simba_attack(image_tensor, true_label, model, num_iters=2000, epsilon=20, print_every=10):
     """
-    Perform the SimBA attack in pixel space for a single image using TensorFlow.
-
-    Parameters
-    ----------
-    black_box_fn : callable
-        A function that takes a single image (Tensor of shape (H, W, C)) and
-        returns a 1D Tensor of shape (num_classes,) representing predicted probabilities.
-    x : tf.Tensor
-        The original (clean) image of shape (H, W, C).
-    y : int
-        The correct (original) label index for x.
-    epsilon : float
-        The step size for perturbations in each direction.
-    max_queries : int
-        The maximum number of model queries allowed.
-    clamp_min : float
-        Minimum pixel value for clamping (e.g. 0.0 if model expects [0,1]).
-    clamp_max : float
-        Maximum pixel value for clamping (e.g. 1.0 if model expects [0,1]).
-    dtype : tf.dtypes.DType
-        The data type to use for computations (e.g., tf.float32).
-
-    Returns
-    -------
-    perturbed_x : tf.Tensor
-        The final perturbed image of shape (H, W, C).
-    delta : tf.Tensor
-        The final perturbation of shape (H, W, C).
-    num_queries_used : int
-        Number of queries used during the attack.
+    image_tensor: TensorFlow tensor of shape (1, H, W, 3) in [0, 255]
+    true_label: Integer label (the true class of the image)
+    model: TensorFlow/Keras model used for prediction
+    num_iters: Maximum number of iterations (queries)
+    epsilon: Perturbation magnitude for each pixel update
+    print_every: Frequency (in iterations) at which to print detailed logs
     """
+    # Convert image tensor to numpy array for manipulation
+    adv = image_tensor.numpy()  # shape: (1, H, W, 3)
+    H, W, C = adv.shape[1], adv.shape[2], adv.shape[3]
+    n_dims = H * W * C
 
-    # Cast x to desired dtype
-    x = tf.cast(x, dtype)
+    # Generate a random permutation of pixel indices
+    perm = np.random.permutation(n_dims)
 
-    # Image dimensions
-    H, W, C = x.shape
-    D = H * W * C  # total number of pixels
+    # Get the initial probability for the true class
+    pred = model.predict(adv)
+    true_prob = pred[0][true_label]
+    print("Initial true class probability: {:.4f}".format(true_prob))
 
-    # Initialize delta = 0 (no perturbation)
-    delta = tf.zeros_like(x, dtype=dtype)
+    # Loop over the maximum number of iterations
+    for i in range(num_iters):
+        # Wrap around the permutation if i >= n_dims
+        idx = perm[i % n_dims]
+        # Convert flat index to (row, col, channel)
+        channel = idx % C
+        temp = idx // C
+        col = temp % W
+        row = temp // W
 
-    # 1) Query the model with the original (unperturbed) image
-    probs = black_box_fn(x)  # shape: (num_classes,)
-    p = probs[y].numpy()     # Probability of the correct class y
-    num_queries_used = 1
+        # Create a perturbation only at the selected pixel and channel
+        perturb = np.zeros_like(adv)
+        perturb[0, row, col, channel] = epsilon
 
-    # Check if x is already misclassified
-    if tf.argmax(probs).numpy() != y:
-        print("Original image is already misclassified. Returning.")
-        return x, delta, num_queries_used
+        # Try positive perturbation
+        adv_pos = np.clip(adv + perturb, 0, 255)
+        prob_pos = model.predict(adv_pos)
+        pos_true_prob = prob_pos[0][true_label]
 
-    # Create a random permutation of all pixel indices
-    all_indices = np.arange(D)
-    np.random.shuffle(all_indices)
+        # ---- Check Final Image & Probability Changes (Note 4) ----
+        diff_pos = pos_true_prob - true_prob
 
-    idx_ptr = 0  # pointer to the next pixel index in the random permutation
-
-    # 2) Main loop
-    while True:
-        # Check if (x + delta) is misclassified
-        current_probs = black_box_fn(tf.clip_by_value(x + delta, clamp_min, clamp_max))
-        current_pred = tf.argmax(current_probs).numpy()
-        if current_pred != y:
-            # Misclassified => stop
-            break
-
-        # Check query budget
-        if num_queries_used >= max_queries or idx_ptr >= D:
-            # Either we've hit the query limit or tried all pixels
-            break
-
-        # Pick the next pixel index
-        idx = all_indices[idx_ptr]
-        idx_ptr += 1
-
-        # Construct a direction vector q for this pixel index
-        # Flatten a zero array, set q[idx] = 1, then reshape to (H, W, C).
-        q_np = np.zeros((D,), dtype=np.float32)
-        q_np[idx] = 1.0
-        q_np = q_np.reshape((H, W, C))
-
-        q_tf = tf.constant(q_np, dtype=dtype)
-
-        # We'll clamp after adding the perturbation, so define a helper:
-        def clamp_image(im):
-            return tf.clip_by_value(im, clamp_min, clamp_max)
-
-        # Try +epsilon
-        plus_image = clamp_image(x + delta + epsilon * q_tf)
-        plus_probs = black_box_fn(plus_image)
-        num_queries_used += 1
-        p_plus = plus_probs[y].numpy()
-
-        if p_plus < p:
-            # Confidence in the true class went down, accept +epsilon
-            delta = plus_image - x
-            p = p_plus
+        # For an untargeted attack, we want to lower the confidence of the true class
+        if pos_true_prob < true_prob:
+            adv = adv_pos
+            print(f"Iteration {i}: +epsilon -> pixel=({row},{col},{channel}), "
+                  f"old_prob={true_prob:.6f}, new_prob={pos_true_prob:.6f}, diff={diff_pos:.6f}")
+            true_prob = pos_true_prob
             continue
 
-        # Otherwise, try -epsilon
-        minus_image = clamp_image(x + delta - epsilon * q_tf)
-        minus_probs = black_box_fn(minus_image)
-        num_queries_used += 1
-        p_minus = minus_probs[y].numpy()
+        # Try negative perturbation if positive did not help
+        adv_neg = np.clip(adv - perturb, 0, 255)
+        prob_neg = model.predict(adv_neg)
+        neg_true_prob = prob_neg[0][true_label]
 
-        if p_minus < p:
-            # Confidence in the true class went down, accept -epsilon
-            delta = minus_image - x
-            p = p_minus
+        # ---- Check Final Image & Probability Changes (Note 4) ----
+        diff_neg = neg_true_prob - true_prob
+
+        if neg_true_prob < true_prob:
+            adv = adv_neg
+            print(f"Iteration {i}: -epsilon -> pixel=({row},{col},{channel}), "
+                  f"old_prob={true_prob:.6f}, new_prob={neg_true_prob:.6f}, diff={diff_neg:.6f}")
+            true_prob = neg_true_prob
             continue
 
-        # If neither +epsilon nor -epsilon reduces p, do not update delta
+        # Optionally print status even if no update occurred
+        if (i % print_every) == 0:
+            print(f"Iteration {i}: No update at pixel=({row},{col},{channel}). "
+                  f"pos_diff={diff_pos:.6f}, neg_diff={diff_neg:.6f}, current_prob={true_prob:.6f}")
 
-        if num_queries_used >= max_queries:
-            break
+    print("Attack finished after {} iterations. Final true class probability: {:.4f}".format(num_iters, true_prob))
+    # Return the adversarial image as a TensorFlow tensor
+    adv_tensor = tf.convert_to_tensor(adv, dtype=tf.float32)
+    return adv_tensor
 
-    # Final perturbed image
-    perturbed_x = tf.clip_by_value(x + delta, clamp_min, clamp_max)
-
-    return perturbed_x, delta, num_queries_used

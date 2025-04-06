@@ -1,90 +1,100 @@
-# SimBA-DCT Attack Implementation
-def simba_dct_attack(image_tensor, true_label, model, max_queries=2000, epsilon=0.2, low_freq_fraction=1/8, step_size=0.2, print_every=10):
-    """
-    image_tensor: TensorFlow tensor of shape (1, H, W, 3) in [0, 255]
-    true_label: Integer label (the true class of the image)
-    model: TensorFlow/Keras model used for prediction
-    max_queries: Maximum number of iterations (queries)
-    epsilon: Perturbation magnitude for each pixel update
-    low_freq_fraction: Fraction of DCT coefficients to select (default 1/8)
-    step_size: Step size for perturbation in the DCT domain
-    print_every: Frequency (in iterations) at which to print detailed logs
-    """
-    # Adapt epsilon value for the model that accepts unnormalized images
-    epsilon = epsilon * 255
+import numpy as np
+import tensorflow as tf
+import scipy.fftpack
 
-    # Preprocess the image: Convert to DCT domain and select low-frequency components
-    dct_coeffs_tensor, low_freq_mask = preprocess_image_dct_tensor(image_tensor, low_freq_fraction)
-    
-    # Initialize perturbation in DCT space and other variables
-    perturbation_dct = np.zeros_like(dct_coeffs_tensor.numpy())  # Initialize as zero
-    current_dct = dct_coeffs_tensor.numpy() * low_freq_mask  # Keep only low-frequency components
-    available_frequencies = np.argwhere(low_freq_mask)  # Indices of the low-frequency components
-    query_count = 0
-    original_label = true_label
-    
-    # Get initial prediction to compare success
-    initial_pred = model.predict(image_tensor)
-    original_prob = initial_pred[0][original_label]
-    print(f"Initial true class probability: {original_prob:.4f}")
-    
-    # Start attack iterations
-    for i in range(max_queries):
-        if query_count >= max_queries:
+def simba_dct_attack(image_tensor, true_label, model, num_iters=2000, epsilon=0.2, print_every=10, initial_freq_frac=1/8):
+    """
+    Performs the SimBA-DCT adversarial attack.
+
+    Args:
+        image_tensor: Tensor of shape (1, H, W, 3) in [0, 255]
+        true_label: Integer, correct label of the image
+        model: Black-box model to query
+        num_iters: Max number of queries
+        epsilon: Step size in DCT space
+        print_every: Print frequency
+        initial_freq_frac: Fraction of lowest DCT frequencies to use initially
+
+    Returns:
+        adv_tensor: Final adversarial image in pixel space
+    """
+    epsilon_scaled = epsilon * 255
+
+    # --- Step 1: Get DCT Coefficients of the image ---
+    dct_image = rgb_image_to_dct(image_tensor)      # shape: (1, H, W, 3)
+    H, W, C = dct_image.shape[1:]
+
+    # --- Step 2: Initialize delta ---
+    delta = np.zeros_like(dct_image)
+
+    # --- Step 3: Get initial prediction ---
+    pred = model.predict(image_tensor)
+    true_prob = pred[0][true_label]
+    print("Initial true class probability: {:.4f}".format(true_prob))
+
+    # --- Step 4: Prepare list of DCT basis directions ---
+    total_freqs = H * W * C
+    num_initial_freqs = int(total_freqs * initial_freq_frac)
+
+    # All frequency indices as (row, col, channel) tuples
+    all_indices = [(i // (W * C), (i // C) % W, i % C) for i in range(total_freqs)]
+    np.random.shuffle(all_indices)
+    Q_dct = all_indices[:num_initial_freqs]
+    current_pointer = num_initial_freqs
+
+    queries = 0
+    for i in range(num_iters):
+        if len(Q_dct) == 0:
+            # Exhausted current directions, add more frequencies
+            additional = int(total_freqs / 32)
+            next_indices = all_indices[current_pointer : current_pointer + additional]
+            if not next_indices:
+                print("No more directions to explore.")
+                break
+            Q_dct.extend(next_indices)
+            current_pointer += additional
+
+        # --- Step 5: Sample direction q ---
+        row, col, channel = Q_dct.pop(np.random.randint(len(Q_dct)))
+
+        # Create perturbation in DCT space
+        perturb = np.zeros_like(delta)
+        perturb[0, row, col, channel] = epsilon_scaled
+
+        # --- Step 6: Test +epsilon ---
+        dct_plus = dct_image + delta + perturb
+        x_plus = dct_to_rgb_image(dct_plus)
+        prob_plus = model.predict(x_plus)
+        queries += 1
+        p_plus = prob_plus[0][true_label]
+
+        # --- Step 7: Test -epsilon ---
+        dct_minus = dct_image + delta - perturb
+        x_minus = dct_to_rgb_image(dct_minus)
+        prob_minus = model.predict(x_minus)
+        queries += 1
+        p_minus = prob_minus[0][true_label]
+
+        # --- Step 8: Decide best update ---
+        if p_plus < true_prob:
+            delta += perturb
+            true_prob = p_plus
+            if i % print_every == 0:
+                print(f"Iter {i}: +ε at ({row},{col},{channel}), new_prob={p_plus:.6f}")
+        elif p_minus < true_prob:
+            delta -= perturb
+            true_prob = p_minus
+            if i % print_every == 0:
+                print(f"Iter {i}: -ε at ({row},{col},{channel}), new_prob={p_minus:.6f}")
+        elif i % print_every == 0:
+            print(f"Iter {i}: No improvement at ({row},{col},{channel}), prob={true_prob:.6f}")
+
+        # Stop if attack is successful (label flipped)
+        final_pred = np.argmax(model.predict(dct_to_rgb_image(dct_image + delta))[0])
+        queries += 1
+        if final_pred != true_label:
+            print(f"Attack succeeded at iteration {i} after {queries} queries!")
             break
-        
-        # Select a random low-frequency component (basis vector)
-        idx = np.random.choice(available_frequencies.flatten())
-        basis_vector_dct = np.zeros_like(current_dct)
-        basis_vector_dct[idx] = 1  # Create a unit vector in the DCT space
 
-        # Apply positive perturbation in the DCT domain
-        dct_plus = current_dct + step_size * basis_vector_dct
-        perturbed_image_plus = idct2(dct_plus)
-        perturbed_image_plus = np.clip(perturbed_image_plus, 0, 255)
-
-        # Query the model with positive perturbation
-        perturbed_image_plus_tensor = tf.convert_to_tensor(perturbed_image_plus, dtype=tf.float32)
-        prob_original_plus = model.predict(perturbed_image_plus_tensor)[0][original_label]
-        query_count += 1
-        
-        # Check if the positive perturbation decreased the probability
-        if prob_original_plus < original_prob:
-            perturbation_dct += step_size * basis_vector_dct  # Update perturbation
-            current_dct = dct_plus  # Update current DCT representation
-            original_prob = prob_original_plus
-            print(f"Iteration {i}: +epsilon -> Basis vector {idx}, Prob: {original_prob:.6f}")
-            continue
-        
-        # Apply negative perturbation in the DCT domain if the positive did not help
-        dct_minus = current_dct - step_size * basis_vector_dct
-        perturbed_image_minus = idct2(dct_minus)
-        perturbed_image_minus = np.clip(perturbed_image_minus, 0, 255)
-
-        # Query the model with negative perturbation
-        perturbed_image_minus_tensor = tf.convert_to_tensor(perturbed_image_minus, dtype=tf.float32)
-        prob_original_minus = model.predict(perturbed_image_minus_tensor)[0][original_label]
-        query_count += 1
-        
-        # Check if the negative perturbation decreased the probability
-        if prob_original_minus < original_prob:
-            perturbation_dct -= step_size * basis_vector_dct  # Update perturbation
-            current_dct = dct_minus  # Update current DCT representation
-            original_prob = prob_original_minus
-            print(f"Iteration {i}: -epsilon -> Basis vector {idx}, Prob: {original_prob:.6f}")
-            continue
-        
-        # If no improvement, skip this iteration
-        if i % print_every == 0:
-            print(f"Iteration {i}: No improvement at Basis vector {idx}. Prob: {original_prob:.6f}")
-
-    # Reconstruct the adversarial image from the final DCT + perturbation
-    adversarial_dct = current_dct + perturbation_dct
-    adversarial_image = idct2(adversarial_dct)
-    adversarial_image = np.clip(adversarial_image, 0, 255)
-    
-    # Convert adversarial image to tensor for model input
-    adversarial_image_tensor = tf.convert_to_tensor(adversarial_image, dtype=tf.float32)
-    
-    print(f"Attack finished after {query_count} queries. Final probability: {original_prob:.4f}")
-    return adversarial_image_tensor, query_count, original_prob
+    adv_image = dct_to_rgb_image(dct_image + delta)
+    return adv_image

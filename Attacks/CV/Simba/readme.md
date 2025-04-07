@@ -5,7 +5,7 @@
 #### **Introduction to SimBA**  
 The **Simple Black-box Attack (SimBA)** is a query-efficient algorithm designed to generate adversarial examples in a black-box setting, where the attacker has no access to the target model's internal parameters or training data. Instead, the attacker can only query the model and observe its output (e.g., confidence scores or class probabilities). SimBA operates on an iterative principle: it randomly samples a perturbation vector from a predefined orthonormal basis and applies it to the input image, either adding or subtracting the perturbation to minimize the model's confidence in the correct classification.  
 
-The algorithm is characterized by its simplicity, requiring fewer than 20 lines of PyTorch code for implementation, and serves as a strong baseline for black-box adversarial attacks. The core intuition behind SimBA is that near a decision boundary, even approximate perturbation directions can effectively induce misclassification.  
+The core intuition behind SimBA is that near a decision boundary, even approximate perturbation directions can effectively induce misclassification.  
 
 #### **Algorithmic Framework**  
 Formally, SimBA takes as input:  

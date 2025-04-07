@@ -77,7 +77,7 @@ SimBA can operate in any orthonormal basis. Two common choices:
 - **Efficiency**: Precompute and store the orthonormal basis vectors to avoid runtime overhead.
 - **Randomization**: Shuffle the search directions to prevent worst-case ordering and to improve average-case performance.
 - **Early Stopping**: After each update, check if the model’s predicted label has changed to terminate the attack promptly.
-- **Numerical Stability**: Clip pixel values to valid ranges (e.g., [0, 1]) after each update.
+- **Numerical Stability**: Clip pixel values to valid ranges (e.g., [0, 255]) after each update.
 
 ---
 

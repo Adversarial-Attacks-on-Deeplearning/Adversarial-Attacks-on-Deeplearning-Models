@@ -25,9 +25,7 @@ def pgd_attack_single_image(model, image, label, epsilon, alpha, iterations, nor
     image = tf.expand_dims(image, axis=0)  # Add batch dimension
     label = tf.expand_dims(label, axis=0)  # Add batch dimension
 
-    noise = tf.random.uniform(shape=tf.shape(image), minval=-epsilon, maxval=epsilon)
-    adversarial_image = tf.clip_by_value(image + noise, 0, 255)
-
+    adversarial_image = image
     for _ in range(iterations):
         with tf.GradientTape() as tape:
             tape.watch(adversarial_image)

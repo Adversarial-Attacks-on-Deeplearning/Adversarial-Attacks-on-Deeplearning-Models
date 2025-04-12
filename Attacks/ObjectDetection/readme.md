@@ -445,6 +445,17 @@ delta, losses = train_universal_attack(
    - [Ultralytics YOLOv8 Docs](https://docs.ultralytics.com/)
 
 
+# Summary of results of the digital attacks on yolov8 
+
+| Attack Technique   | Clean mAP@0.5 | Adversarial mAP@0.5 | Drop      |
+|--------------------|---------------|---------------------|-----------|
+| FGSM               | 0.927         | 0.312               | -0.615    |
+| Fool Detectors     | 0.927         | 0.155               | -0.772    |
+| UAP                | 0.927         | 0.443               | -0.484    |
+| Disappearance DAG  | 0.935         | 0.547              | -0.388    |
+| Targeted DAG       | 0.927         | 0.0947              | -0.8323   |
+
+
 
 # Adversarial Physical Dissapearance Attack on YOLO Object Detection
 

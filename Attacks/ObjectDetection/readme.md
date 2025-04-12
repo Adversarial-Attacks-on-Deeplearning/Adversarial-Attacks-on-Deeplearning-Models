@@ -558,7 +558,9 @@ adv_image = pgd_attack_detector(
 | UAP                | 0.927         | 0.443               | -0.484    |
 | Disappearance DAG  | 0.935         | 0.547              | -0.388    |
 | Targeted DAG       | 0.927         | 0.0947              | -0.8323   |
-
+| PGD 0.02, 0.005    | 0.927         | 0.617               | -0.310   |
+| PGD 0.1, 0.025      | 0.927        | 0.215               | -0.712   |
+ 
 
 
 # Adversarial Physical Dissapearance Attack on YOLO Object Detection

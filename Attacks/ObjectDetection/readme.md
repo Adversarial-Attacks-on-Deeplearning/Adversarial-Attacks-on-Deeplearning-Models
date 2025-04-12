@@ -445,6 +445,110 @@ delta, losses = train_universal_attack(
    - [Ultralytics YOLOv8 Docs](https://docs.ultralytics.com/)
 
 
+---
+
+# PGD Attack for Object Detectors
+
+---
+
+## 1. Attack Idea
+This implementation adapts the **Projected Gradient Descent (PGD)** attack for object detection models (YOLOv8). The attack:
+1. **Targets High-Confidence Detections**: Focuses on predictions with confidence above a specified threshold.
+2. **Maximizes Classification Error**: Iteratively perturbs the image to confuse class predictions.
+3. **Optional Bounding Box Disruption**: Can degrade localization accuracy (disabled by default).
+4. **Maintains Stealth**: Uses L-infinity bounded perturbations (ε typically 0.01–0.1) to ensure visual similarity.
+5. **Iterative Strength**: Applies multiple smaller steps with projection, making it stronger than single-step attacks like FGSM.
+
+---
+
+## 2. Attack Steps & Loss Function
+
+### Key Components from PGD Paper:
+1. **Iterative Gradient Descent**: Computes gradients over multiple steps, refining perturbations for stronger attacks.
+2. **Projection**: Ensures perturbations stay within an L∞ ε-ball, balancing attack strength and stealth.
+3. **Random Initialization**: Optionally starts with random noise to escape local optima and enhance effectiveness.
+
+### Mathematical Formulation:
+**Total Loss**:
+$$
+\mathcal{L}_{\text{total}} = -\sum_{i \in \mathcal{D}} \log(p(y_i|\mathbf{x}_{\text{adv}}))
+$$
+
+**Perturbation Update** (per iteration):
+$$
+\mathbf{x}_{\text{adv}}^{t+1} = \Pi_{\|\mathbf{x}_{\text{adv}} - \mathbf{x}_{\text{orig}}\|_\infty \leq \epsilon} \left( \mathbf{x}_{\text{adv}}^t + \alpha \cdot \text{sign}(\nabla_{\mathbf{x}} \mathcal{L}(\mathbf{x}_{\text{adv}}^t, y)) \right)
+$$
+
+Where:
+- $\mathcal{D}$ = High-confidence detections.
+- $p(y_i|\mathbf{x}_{\text{adv}})$ = Class probability for detection $i$ in the adversarial image.
+- $\epsilon$ = Maximum L∞ perturbation magnitude.
+- $\alpha$ = Step size per iteration.
+- $\Pi$ = Projection operator clipping to the ε-ball around the original image.
+- Classification loss drives misclassification; L∞ constraint is enforced explicitly via projection.
+
+---
+
+## 3. Implementation Overview
+
+### Pipeline:
+```python
+1. Load YOLOv8 detection model
+2. Preprocess input image (normalization + resizing)
+3. Initialize adversarial image (optionally with random noise in ε-ball)
+4. For each iteration (num_steps):
+   a. Extract raw model outputs (bypass NMS/post-processing)
+   b. Calculate combined confidence scores (objectness × class probability)
+   c. Filter detections by confidence threshold
+   d. Compute classification loss between original and current predictions
+   e. Backpropagate loss to get image gradient
+   f. Update adversarial image: x_adv = x_adv + α·sign(∇x ℒ)
+   g. Project to ε-ball: clip x_adv to [x_orig - ε, x_orig + ε]
+   h. Clamp to valid pixel range [0,1]
+5. Return final adversarial image
+```
+
+### Key Components:
+| Component               | Description                                                                 |
+|-------------------------|-----------------------------------------------------------------------------|
+| **Raw Output Extraction** | Accesses model backbone outputs before non-max suppression                 |
+| **Confidence Filtering**  | Combines objectness and class probability for detection quality assessment |
+| **Iterative Updates**     | Applies smaller perturbations over multiple steps for stronger attacks     |
+| **Projection**            | Clips perturbations to enforce L∞ ε-ball constraint                       |
+| **Random Start**          | Optional random noise initialization to improve attack robustness          |
+| **Device Agnostic**       | Works on both CPU/GPU with automatic tensor placement                      |
+
+---
+
+## 4. Usage Example
+
+```python
+# Generate adversarial example
+adv_image = pgd_attack_detector(
+    image_path="highway.jpg",
+    model_path="yolov8n.pt",
+    epsilon=0.05,        # Moderate perturbation budget
+    num_steps=7,         # Number of iterations
+    step_size=0.005,     # Step size per iteration
+    conf_threshold=0.6,  # Target confident detections
+    random_start=True,   # Use random initialization
+    device="cuda"
+)
+
+```
+
+---
+
+## 5. Papers
+
+1. **Original PGD Paper**:  
+   [Towards Deep Learning Models Resistant to Adversarial Attacks (Madry et al., 2017)](https://arxiv.org/abs/1706.06083)
+
+2. **Object Detector Attacks**:  
+   [Adversarial Examples for Object Detectors (Lu et al., 2017)](https://arxiv.org/abs/1712.08063)
+---
+
+
 # Summary of results of the digital attacks on yolov8 
 
 | Attack Technique   | Clean mAP@0.5 | Adversarial mAP@0.5 | Drop      |

@@ -177,11 +177,6 @@ $$
 -  Return the final adversarial example
 
 
-
-
-
-
-
 Below is an example of a Markdown documentation file (README.md) that explains the implementations of DeepFool and SparseFool attacks and includes references to the original papers.
 
 ---

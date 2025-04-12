@@ -548,6 +548,111 @@ adv_image = pgd_attack_detector(
    [Adversarial Examples for Object Detectors (Lu et al., 2017)](https://arxiv.org/abs/1712.08063)
 ---
 
+# Square Attack for Object Detectors
+
+---
+
+## 1. Attack Idea
+This implementation adapts the **Square Attack**, a black-box adversarial attack, for object detection models (YOLOv8). The attack:
+1. **Targets High-Confidence Detections**: Focuses on predictions with confidence above a specified threshold.
+2. **Maximizes Classification Error**: Perturbs image patches to confuse class predictions or suppress detections.
+3. **Local Perturbations**: Applies random noise to small square patches, unlike global attacks (e.g., FGSM, PGD).
+4. **Maintains Stealth**: Uses L-infinity bounded perturbations (ε typically 0.01–0.1) to ensure visual similarity.
+5. **Black-Box Efficiency**: Relies solely on model outputs (no gradients), with early stopping when all detections are suppressed.
+
+---
+
+## 2. Attack Steps & Loss Function
+
+### Key Components from Square Attack Paper:
+1. **Score-Based Optimization**: Iteratively tests random perturbations, keeping those that worsen model performance.
+2. **Patch-Based Strategy**: Perturbs small square regions, exploiting local vulnerabilities in object detectors.
+3. **Early Stopping**: Terminates when no detections remain above the confidence threshold, optimizing computational efficiency.
+
+### Mathematical Formulation:
+**Total Loss**:
+$$
+\mathcal{L}_{\text{total}} = -\sum_{i \in \mathcal{D}} \log(p(y_i|\mathbf{x}_{\text{adv}})) + \lambda \sum_{i \in \mathcal{D}} \log(o_i)
+$$
+
+**Perturbation Update**:
+$$
+\mathbf{x}_{\text{adv}}^{t+1} = \Pi_{\|\mathbf{x}_{\text{adv}} - \mathbf{x}_{\text{orig}}\|_\infty \leq \epsilon} \left( \mathbf{x}_{\text{adv}}^t + \delta_{\text{patch}} \right)
+$$
+Where:
+- $\mathcal{D}$ = High-confidence detections.
+- $p(y_i|\mathbf{x}_{\text{adv}})$ = Class probability for detection $i$ in the adversarial image.
+- $o_i$ = Objectness score for detection $i$.
+- $\epsilon$ = Maximum L∞ perturbation magnitude.
+- $\delta_{\text{patch}}$ = Random perturbation applied to a square patch.
+- $\Pi$ = Projection operator clipping to the ε-ball around the original image.
+- $\lambda$ = Implicit weight (not explicitly tuned in this implementation).
+- Loss encourages misclassification; suppression (no detections) is prioritized via early stopping.
+
+---
+
+## 3. Implementation Overview
+
+### Pipeline:
+```python
+1. Load YOLOv8 detection model
+2. Preprocess input image (normalization + resizing)
+3. Evaluate initial detections and loss on clean image
+4. For each iteration (up to num_iterations):
+   a. Select random square patch coordinates
+   b. Apply random perturbation to patch
+   c. Project perturbation to ε-ball
+   d. Clamp image to valid pixel range [0,1]
+   e. Compute loss on high-confidence detections
+   f. Early stop if no detections remain above threshold
+   g. Keep perturbation if loss increases (worse performance)
+5. Return final adversarial image
+```
+
+### Key Components:
+| Component               | Description                                                                 |
+|-------------------------|-----------------------------------------------------------------------------|
+| **Raw Output Extraction** | Accesses model backbone outputs before non-max suppression                 |
+| **Confidence Filtering**  | Combines objectness and class probability for detection quality assessment |
+| **Patch Perturbations**   | Applies random noise to small square regions, testing local vulnerabilities |
+| **Projection**            | Clips perturbations to enforce L∞ ε-ball constraint                       |
+| **Early Stopping**        | Halts when no detections exceed confidence threshold                     |
+| **Device Agnostic**       | Works on both CPU/GPU with automatic tensor placement                      |
+
+---
+
+## 4. Usage Example
+
+```python
+# Generate adversarial example
+adv_image = square_attack_detector(
+    image_path="highway.jpg",
+    model_path="yolov8n.pt",
+    epsilon=0.05,        # Moderate perturbation budget
+    patch_size=16,       # Size of square patches
+    num_iterations=500,  # Maximum iterations
+    conf_threshold=0.6,  # Target confident detections
+    device="cuda"
+)
+
+```
+
+---
+
+## 5. Papers
+
+1. **Original Square Attack Paper**:  
+   [Square Attack: A Query-Efficient Black-Box Adversarial Attack via Random Search (Andriushchenko et al., 2020)](https://arxiv.org/abs/1912.07133)
+
+2. **Object Detector Attacks**:  
+   [Adversarial Examples for Object Detectors (Lu et al., 2017)](https://arxiv.org/abs/1712.08063)
+
+3. **YOLOv8 Documentation**:  
+   [Ultralytics YOLOv8 Docs](https://docs.ultralytics.com/)
+
+---
+
+
 
 # Summary of results of the digital attacks on yolov8 
 
@@ -561,7 +666,7 @@ adv_image = pgd_attack_detector(
 | PGD 0.02, 0.005    | 0.927         | 0.617               | -0.310   |
 | PGD 0.1, 0.025      | 0.927        | 0.215               | -0.712   |
  
-
+---
 
 # Adversarial Physical Dissapearance Attack on YOLO Object Detection
 

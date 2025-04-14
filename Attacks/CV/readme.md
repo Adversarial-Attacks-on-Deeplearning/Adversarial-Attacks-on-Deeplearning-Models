@@ -9,6 +9,9 @@ This directory contains the code for various computer vision-based adversarial a
 3. **Boundary Attack** - Boundary Attack  
 4. **JSMA** - Jacobian-Based Saliency map Attack
 5. **MI-FGSM** - Momentum Iterative Fast Gradient Sign Method 
+6. **DeepFool** - DeepFool Attack
+7. **SparseFool** - SparseFool Attack
+8. **HopSkip** - HopSkipJump Attack
 ---
 
 ## **FGSM - Fast Gradient Sign Method**
@@ -24,7 +27,7 @@ Given:
 
 The adversarial example `x_adv` is computed as:
 
-\[ x_{adv} = x + \epsilon \cdot sign(\nabla_x J(\theta, x, y)) \]
+$x_{adv} = x + \epsilon \cdot sign(\nabla_x J(\theta, x, y))$
 
 ### **Key Idea**
 FGSM adds a small perturbation in the direction of the gradient to maximize the model's error, causing the model to misclassify the perturbed image.
@@ -45,10 +48,11 @@ Given:
 - `k`: Number of iterations
 
 **Initialization:**
-```python
-x_adv^0 = x
-x_adv^(i+1) = clip_{x, ε} { x_adv^i + α * sign(∇_x J(θ, x_adv^i, y)) }
-```
+$$
+x_{adv}^0 = x
+$$
+
+$x_{adv}^{(i+1)} = clip_{x, ε} { x_{adv}^i + α * sign(∇_x J(θ, x_{adv}^i, y)) }$
 
 ### **Key Idea**
 PGD iteratively applies FGSM with a small step size to generate adversarial examples while projecting the perturbed input back within the ε-ball constraint to maintain realism.
@@ -299,7 +303,86 @@ adv_prediction = tf.argmax(model(tf.expand_dims(adv_im, axis=0), training=False)
 print("Adversarial Prediction: ", adv_prediction)
 ```
 
+## **HopSkipJump Attack**
 
+The HopSkipJump Attack is a **black-box**, decision-based adversarial attack designed to generate adversarial examples with minimal queries to the target model. Introduced by Chen et al. (2020), it is particularly effective for image classification tasks where only the model's output labels or confidence scores are accessible. The attack iteratively refines perturbations to mislead the model while minimizing the distance between the original and adversarial images.
+
+### **Key Idea**
+
+HopSkipJump operates without access to model gradients or architecture, making it suitable for real-world scenarios with limited model access. It starts by finding an initial adversarial example and then uses a combination of gradient estimation, geometric step search, and binary search projection to refine the perturbation, ensuring the adversarial image remains misclassified with minimal distortion.
+
+### **Characteristics**
+
+- **Black-box Attack**: Relies solely on model predictions, not internal gradients or architecture.
+- **Query-Efficient**: Optimizes the number of model queries to achieve misclassification.
+- **Flexible Norms**: Supports both L2 and L-infinity distance metrics for perturbation measurement.
+- **Iterative Refinement**: Combines gradient estimation with search strategies to minimize perturbation size.
+- **Robust Initialization**: Uses multiple strategies to ensure an initial adversarial example is found.
+
+### **Algorithm**
+
+The HopSkipJump Attack follows these key steps:
+
+1. **Initialization**:
+
+   - Start with the original image and generate an initial adversarial example by adding random noise or uniform perturbations until the model misclassifies it.
+   - If unsuccessful, fallback strategies like targeted perturbations are applied.
+
+2. **Gradient Estimation**:
+
+   - Estimate the gradient direction using finite differences by sampling random perturbations around the current adversarial image.
+   - Normalize the gradient based on the chosen norm (L2 or L-infinity).
+
+3. **Geometric Step Search**:
+
+   - Move the adversarial image away from the decision boundary along the estimated gradient to reduce the distance to the original image.
+   - Test multiple step sizes to find a balance between maintaining misclassification and minimizing perturbation.
+
+4. **Binary Search Projection**:
+
+   - Perform a binary search between the adversarial image and the original image to find a point closer to the decision boundary.
+   - Ensure the perturbation remains within the allowed bounds (if specified).
+
+5. **Iterative Refinement**:
+
+   - Repeat gradient estimation, geometric step search, and binary search for multiple iterations or until a query limit is reached.
+   - Apply random restarts if the attack stalls to escape local optima.
+
+6. **Termination**:
+
+   - Return the adversarial image with the smallest perturbation that causes misclassification.
+
+### **Formula**
+
+Given:
+
+- ( x ): Original image
+- ( f ): Target model (outputs class probabilities or labels)
+- ( y ): True label
+- ( $\epsilon$ ): Optional perturbation bound
+- ( $\delta$ ): Step size for gradient estimation
+- ( $\text{norm}$ ): Distance metric (L2 or L-infinity)
+
+The attack iteratively updates the adversarial image ( x\_{\\text{adv}} ):
+
+1. **Gradient Estimation**:
+
+   - Sample ( n ) perturbations: ( $x\_{\text{adv}}$ + $\delta$ $\cdot$ $u_i$ ), where ( $u_i$ ) are random directions.
+   - Compute the decision boundary indicator: (( $f(x_{\text{adv}})$ + $\delta$ $\cdot$ $u_i$) $\neq y$ ).
+   - Estimate gradient: ( $g =$ $\frac{1}{n}$ $\sum_i$ $\text{indicator}_i$ $\cdot$ $u_i$ ).
+   - Normalize: $( g = g  | g | )$ (for L2) or ( $g = \text{sign}(g)$ ) (for L-infinity).
+
+2. **Geometric Step Update**:
+
+   - Update: ( $x_{\text{adv}}^{t+1} = x_{\text{adv}}^t + \alpha_t \cdot g ), where ( \alpha_t )$ is a step size.
+   - Clip: ( $x_{\text{adv}}^{t+1} = \text{clip}*{[0, 255]}(x*{\text{adv}}^{t+1})$ ).
+
+3. **Binary Search**:
+
+   - Interpolate: ( $x_{\text{mid}} = (1 - \lambda) \cdot x + \lambda \cdot x_{\text{adv}} ), for ( \lambda \in [0, 1]$ ).
+   - Adjust $( \lambda ) to find the smallest perturbation where ( f(x_{\text{mid}}) \neq y )$.
+
+The process repeats until convergence or the query limit is reached.
 
 ## References
 
@@ -309,5 +392,7 @@ print("Adversarial Prediction: ", adv_prediction)
 2. **SparseFool:**  
    Modas, A., Moosavi-Dezfooli, S.-M., & Frossard, P. (2019). SparseFool: A Few Pixels Make a Big Difference. In *CVPR 2019*. [arXiv:1811.02248](https://arxiv.org/abs/1811.02248)
 
-
+3. **HopSkipJumpAttack: A Query-Efficient Decision-Based Adversarial Attack**\
+  Jianbo Chen, Michael I. Jordan, Martin J. Wainwright, IEEE Symposium on Security and Privacy (SP), 2020\
+  arXiv:1904.02144
 

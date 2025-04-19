@@ -1,3 +1,6 @@
+# White Box Attacks
+---
+
 # Disappearance DAG Attack
 
 ---
@@ -548,6 +551,9 @@ adv_image = pgd_attack_detector(
    [Adversarial Examples for Object Detectors (Lu et al., 2017)](https://arxiv.org/abs/1712.08063)
 ---
 
+# Black Box Attacks
+
+---
 # Square Attack for Object Detectors
 
 ---
@@ -653,6 +659,54 @@ adv_image = square_attack_detector(
 ---
 
 
+# HopSkipJump Attack for Object Detectors
+## 1. Attack Idea
+This implementation adapts the HopSkipJump attack, a black-box adversarial attack, for object detection models (YOLOv8). The attack:
+
+Targets High-Confidence Detections: Focuses on misleading the model's predictions for detected objects.
+Minimizes Perturbation: Iteratively refines the adversarial example to reduce the distance from the original image while maintaining misclassification.
+Query-Based Optimization: Uses model queries to estimate gradients and refine perturbations without needing model internals.
+Supports L2 and L∞ Norms: Allows flexibility in the type of perturbation applied.
+
+## 2. Attack Steps & Loss Function
+Key Components from HopSkipJump Paper:
+
+Initialization: Starts with a large perturbation to quickly find an adversarial example.
+Gradient Estimation: Uses finite differences to approximate the gradient direction.
+Geometric Step Search: Moves the adversarial example away from the decision boundary.
+Binary Search Projection: Finds a point closer to the original image while remaining adversarial.
+
+Mathematical Formulation:
+The attack aims to minimize the distance ( d(x_{\text{adv}}, x_{\text{orig}}) ) subject to the constraint that the model misclassifies ( x_{\text{adv}} ). The distance metric ( d ) can be L2 or L∞ norm.
+## 3. Implementation Overview
+Pipeline:
+1. Initialize adversarial example with large perturbation
+2. For each iteration:
+   a. Estimate gradient direction using finite differences
+   b. Perform geometric step search to move away from decision boundary
+   c. Use binary search to project closer to original image
+   d. Update best adversarial example if improved
+3. Return the best adversarial example found
+
+
+
+## 4. Usage Example
+```python
+x_orig = preprocess_image(image_path)
+adv = hop_skip_jump_attack(model, x_orig, epsilon=0.1, delta=0.1, batch_size=100, norm="l2", max_queries=30, max_iters=10)
+```
+
+## 1. Papers
+
+Original HopSkipJump Paper:HopSkipJumpAttack: A Query-Efficient Decision-Based Attack (Chen et al., 2019)
+
+Object Detector Attacks:Adversarial Examples for Object Detectors (Lu et al., 2017)
+
+YOLOv8 Documentation:Ultralytics YOLOv8 Docs
+
+
+
+
 
 # Summary of results of the digital attacks on yolov8 
 
@@ -665,6 +719,8 @@ adv_image = square_attack_detector(
 | Targeted DAG       | 0.927         | 0.0947              | -0.8323   |
 | PGD 0.02, 0.005    | 0.927         | 0.617               | -0.310   |
 | PGD 0.1, 0.025      | 0.927        | 0.215               | -0.712   |
+| square attack      | 0.927         | 0.597               |  -0.33   |
+| HopSkipJump Attack | 0.927         | 0.638               |  -0.289  |
  
 ---
 

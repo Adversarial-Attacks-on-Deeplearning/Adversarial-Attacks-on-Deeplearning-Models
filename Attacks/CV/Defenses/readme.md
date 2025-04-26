@@ -1,6 +1,6 @@
 # Noise Fusion Defense: Brief Overview
 
-##  What is Noise Fusion Defense?
+## 📚 What is Noise Fusion Defense?
 
 Noise Fusion is a **simple yet powerful defense** strategy against adversarial attacks. Instead of relying on complex adversarial training, Noise Fusion **injects random noise into input images** both during training and inference. This randomization makes it harder for adversarial perturbations to consistently fool the model.
 
@@ -8,7 +8,7 @@ Noise Fusion was inspired by the observation that adversarial examples are often
 
 ---
 
-##  How Does Noise Fusion Work?
+## 🔧 How Does Noise Fusion Work?
 
 ### During Training:
 - Each clean training image is **mixed** with **random noise**.
@@ -38,25 +38,22 @@ This randomization disrupts adversarial perturbations and helps the model predic
 
 ---
 
-##  Experimental Results Summary
+## 📊 Experimental Results Summary
 
-| **Attack**       | **Epsilon (ε)** | **Alpha (α)** | **Test Accuracy after applying attack** | **Accuracy after Noise Fusion Defensive Mechanism** |
-|:----------------:|:---------------:|:-------------:|:----------------------------:|:-------------------------------:|
-| **Original Model**| -               | -             | 96%                          | -                               |
-| **FGSM**         | 0.007           | -             | 58%                          | 94.77%                          |
-| **FGSM**         | 0.01            | -             | 44%                          | 93.80%                          |
-| **FGSM**         | 0.03            | -             | 14%                          | 84.11%                          |
-| **FGSM**         | 0.1             | -             | 6%                           | 52.52%                          |
-| **PGD**          | 0.007           | 0.00175       | 35%                          | 94.19%                          |
-| **PGD**          | 0.01            | 0.0025        | 7%                           | 86.05%                          |
-| **PGD**          | 0.03            | 0.0075        | 3%                           | 78.68%                          |
-| **PGD**          | 0.1             | 0.025         | 0%                           | 59.30%                          |
-
-
+| **Attack** | **Epsilon (\( \epsilon \))** | **Accuracy after Noise Fusion** |
+|:----------:|:-----------------------------:|:-------------------------------:|
+| **PGD**    | 0.007                         | 94.19%                          |
+| **PGD**    | 0.01                          | 86.05%                          |
+| **PGD**    | 0.03                          | 78.68%                          |
+| **PGD**    | 0.1                           | 59.30%                          |
+| **FGSM**   | 0.007                         | 94.77%                          |
+| **FGSM**   | 0.01                          | 93.80%                          |
+| **FGSM**   | 0.03                          | 84.11%                          |
+| **FGSM**   | 0.1                           | 52.52%                          |
 
 ---
 
-##  Key Takeaways
+## 🚀 Key Takeaways
 - **Simple**, lightweight, and **model-agnostic**.
 - **Effective at small-to-moderate perturbation strengths** (small \( \epsilon \)).
 - **Degrades gracefully** as attack strength increases.
@@ -64,7 +61,7 @@ This randomization disrupts adversarial perturbations and helps the model predic
 
 ---
 
-##  Quick Pseudocode
+## 💡 Quick Pseudocode
 ```python
 # Noise Fusion function
 def fuse_with_noise(image, alpha=0.2, stddev=255.0):
@@ -76,8 +73,8 @@ def fuse_with_noise(image, alpha=0.2, stddev=255.0):
 
 ---
 
-##  References:
-"Gong, Z., Wang, W., & Ku, W.-S. (2017). Noise Fusion for Detecting Adversarial Examples. arXiv preprint arXiv:1703.04618."
+## 🌐 References
+- Gong, Z., Wang, W., & Ku, W.-S. (2017). **Noise Fusion for Detecting Adversarial Examples**. *arXiv preprint arXiv:1703.04618*.
 
 ---
 

@@ -1,4 +1,4 @@
-# Noise Fusion Defense: Brief Overview
+# Noise Fusion Defense:
 
 ##  What is Noise Fusion Defense?
 

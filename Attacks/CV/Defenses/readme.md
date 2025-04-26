@@ -8,26 +8,22 @@ Noise Fusion was inspired by the observation that adversarial examples are often
 
 ---
 
-## 🔧 How Does Noise Fusion Work?
+# How Does Noise Fusion Work?
 
-### During Training:
-- Each clean training image is **mixed** with **random noise**.
-- The fusion follows a simple formula:
-
+## During Training:
+- Each clean training image is **mixed with random noise**.
+- The fusion follows a simple formula:  
   \[ \text{noisy\_image} = (1 - \alpha) \times \text{image} + \alpha \times \text{noise} \]
-
-- Where:
-  - **\( \alpha \)** is a random mixing factor (e.g., \( \alpha \sim U(0, 0.3) \)).
-  - **Noise** can be Gaussian, Uniform, or Poisson distributed.
-
+- Where:  
+  - \( \alpha \) is a random mixing factor (e.g., \( \alpha \sim U(0, 0.3) \)).
+  - Noise can be Gaussian, Uniform, or Poisson distributed.
 - The model is trained on both **clean** and **noise-fused** images alternately to enhance robustness.
 
-### During Inference (Defense Mode):
+## During Inference (Defense Mode):
 - Before passing a test image to the model, the image is **fused with fresh random noise**.
 - The model predicts on this fused image.
 
 This randomization disrupts adversarial perturbations and helps the model predict correctly even on attacked images.
-
 ---
 
 ## 🔬 Why Does Noise Fusion Help?

@@ -1,6 +1,6 @@
 # Noise Fusion Defense: Brief Overview
 
-##  What is Noise Fusion Defense?
+## 📚 What is Noise Fusion Defense?
 
 Noise Fusion is a **simple yet powerful defense** strategy against adversarial attacks. Instead of relying on complex adversarial training, Noise Fusion **injects random noise into input images** both during training and inference. This randomization makes it harder for adversarial perturbations to consistently fool the model.
 
@@ -8,44 +8,37 @@ Noise Fusion was inspired by the observation that adversarial examples are often
 
 ---
 
-# Noise Fusion for Adversarial Robustness
+## 🔧 How Does Noise Fusion Work?
 
-## During Training
+### During Training:
+- Each clean training image is **mixed** with **random noise**.
+- The fusion follows a simple formula:
 
-- Each clean training image is **fused with random noise** to create a perturbed version.
-  
-- The fusion process follows the formula:  
-  \[
-  \text{noisy\_image} = (1 - \alpha) \times \text{image} + \alpha \times \text{noise}
-  \]
-  
+  \[ \text{noisy\_image} = (1 - \alpha) \times \text{image} + \alpha \times \text{noise} \]
+
 - Where:
-  - \(\alpha\) is a random mixing factor, typically sampled from a uniform distribution:  
-    \[
-    \alpha \sim U(0, 0.3)
-    \]
-  - The **noise** can be sampled from Gaussian, Uniform, or Poisson distributions.
+  - **\( \alpha \)** is a random mixing factor (e.g., \( \alpha \sim U(0, 0.3) \)).
+  - **Noise** can be Gaussian, Uniform, or Poisson distributed.
 
-- The model is trained alternately on **clean** and **noise-fused** images to improve robustness against adversarial perturbations.
+- The model is trained on both **clean** and **noise-fused** images alternately to enhance robustness.
 
-## During Inference (Defense Mode)
+### During Inference (Defense Mode):
+- Before passing a test image to the model, the image is **fused with fresh random noise**.
+- The model predicts on this fused image.
 
-- Before feeding a test image into the model, it is **fused with freshly sampled random noise** using the same formula:  
-  \[
-  \text{noisy\_image} = (1 - \alpha) \times \text{image} + \alpha \times \text{noise}
-  \]
-  
-- The model then makes its prediction based on this noise-fused image.
-
-## Key Idea
-
-This randomization during both training and inference disrupts potential adversarial perturbations, helping the model maintain correct predictions even on attacked images.
+This randomization disrupts adversarial perturbations and helps the model predict correctly even on attacked images.
 
 ---
 
+## 🔬 Why Does Noise Fusion Help?
+- **Random noise breaks the structure** of adversarial perturbations.
+- **Fine-grained perturbations become ineffective** after noise fusion.
+- It acts like "randomized smoothing," making the decision boundary less sensitive to small, crafted changes.
+- **Very simple to implement** compared to adversarial training or certified defenses.
+
 ---
 
-##  Experimental Results Summary
+## 📊 Experimental Results Summary
 
 | **Attack**       | **Epsilon (ε)** | **Alpha (α)** | **Test Accuracy after applying attack** | **Accuracy after Noise Fusion Defensive Mechanism** |
 |:----------------:|:---------------:|:-------------:|:----------------------------:|:-------------------------------:|
@@ -59,10 +52,9 @@ This randomization during both training and inference disrupts potential adversa
 | **PGD**          | 0.03            | 0.0075        | 3%                           | 78.68%                          |
 | **PGD**          | 0.1             | 0.025         | 0%                           | 59.30%                          |
 
-
 ---
 
-##  Key Takeaways
+## 🚀 Key Takeaways
 - **Simple**, lightweight, and **model-agnostic**.
 - **Effective at small-to-moderate perturbation strengths** (small \( \epsilon \)).
 - **Degrades gracefully** as attack strength increases.
@@ -70,7 +62,7 @@ This randomization during both training and inference disrupts potential adversa
 
 ---
 
-##  Quick Pseudocode
+## 💡 Quick Pseudocode
 ```python
 # Noise Fusion function
 def fuse_with_noise(image, alpha=0.2, stddev=255.0):

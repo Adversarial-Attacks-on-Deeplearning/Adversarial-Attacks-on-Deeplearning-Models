@@ -1,77 +1,47 @@
-# Noise Fusion Defense: Brief Overview
+# Noise Fusion: Enhancing Model Robustness  
 
-## 📚 What is Noise Fusion Defense?
+Noise Fusion is a technique that improves model robustness against adversarial attacks by strategically blending clean images with random noise during training and inference.
 
-Noise Fusion is a **simple yet powerful defense** strategy against adversarial attacks. Instead of relying on complex adversarial training, Noise Fusion **injects random noise into input images** both during training and inference. This randomization makes it harder for adversarial perturbations to consistently fool the model.
+## How Noise Fusion Works  
 
-Noise Fusion was inspired by the observation that adversarial examples are often finely tuned to specific pixel values. By fusing images with random noise, the adversarial perturbations become less effective, allowing the model to make more robust predictions.
+### During Training  
 
----
+1. **Noise Injection**  
+   Each clean training image is mixed with random noise using:  
 
-# How Does Noise Fusion Work?
+   \[
+   \text{noisy\_image} = (1 - \alpha) \times \text{image} + \alpha \times \text{noise}
+   \]  
 
-## During Training:
-- Each clean training image is **mixed with random noise**.
-- The fusion follows a simple formula:  
-  \[ \text{noisy\_image} = (1 - \alpha) \times \text{image} + \alpha \times \text{noise} \]
-- Where:  
-  - \( \alpha \) is a random mixing factor (e.g., \( \alpha \sim U(0, 0.3) \)).
-  - Noise can be Gaussian, Uniform, or Poisson distributed.
-- The model is trained on both **clean** and **noise-fused** images alternately to enhance robustness.
+   Where:  
+   - **α** ∈ [0, 0.3] (random mixing factor)  
+   - **Noise** can be Gaussian, Uniform, or Poisson distributed  
 
-## During Inference (Defense Mode):
-- Before passing a test image to the model, the image is **fused with fresh random noise**.
-- The model predicts on this fused image.
+2. **Training Process**  
+   - Models are trained on both clean and noise-fused images  
+   - Alternates between clean and noisy batches to enhance robustness  
 
-This randomization disrupts adversarial perturbations and helps the model predict correctly even on attacked images.
----
+### During Inference (Defense Mode)  
 
-## 🔬 Why Does Noise Fusion Help?
-- **Random noise breaks the structure** of adversarial perturbations.
-- **Fine-grained perturbations become ineffective** after noise fusion.
-- It acts like "randomized smoothing," making the decision boundary less sensitive to small, crafted changes.
-- **Very simple to implement** compared to adversarial training or certified defenses.
+1. **Input Processing**  
+   - Test images are fused with fresh random noise before prediction  
+   - Uses same mixing formula as training (with newly sampled α)  
 
----
+2. **Adversarial Defense**  
+   - Noise randomization disrupts adversarial perturbations  
+   - Improves prediction accuracy on attacked images  
 
-## 📊 Experimental Results Summary
+## Key Benefits  
+✔ Improves robustness against adversarial attacks  
+✔ Maintains accuracy on clean images  
+✔ Simple to implement with standard training pipelines  
 
-| **Attack** | **Epsilon (\( \epsilon \))** | **Accuracy after Noise Fusion** |
-|:----------:|:-----------------------------:|:-------------------------------:|
-| **PGD**    | 0.007                         | 94.19%                          |
-| **PGD**    | 0.01                          | 86.05%                          |
-| **PGD**    | 0.03                          | 78.68%                          |
-| **PGD**    | 0.1                           | 59.30%                          |
-| **FGSM**   | 0.007                         | 94.77%                          |
-| **FGSM**   | 0.01                          | 93.80%                          |
-| **FGSM**   | 0.03                          | 84.11%                          |
-| **FGSM**   | 0.1                           | 52.52%                          |
-
----
-
-## 🚀 Key Takeaways
-- **Simple**, lightweight, and **model-agnostic**.
-- **Effective at small-to-moderate perturbation strengths** (small \( \epsilon \)).
-- **Degrades gracefully** as attack strength increases.
-- **Highly recommended** as a baseline defense or combined with other methods.
-
----
-
-## 💡 Quick Pseudocode
+## Implementation Example (Pseudocode)  
 ```python
-# Noise Fusion function
-def fuse_with_noise(image, alpha=0.2, stddev=255.0):
-    noise = tf.random.normal(tf.shape(image), mean=0.0, stddev=stddev)
-    fused = tf.cast(image, tf.float32) * (1.0 - alpha) + noise * alpha
-    fused = tf.clip_by_value(fused, 0.0, 255.0)
-    return fused
-```
+def noise_fusion(image, alpha, noise_type="gaussian"):
+    noise = generate_noise(image.shape, noise_type)
+    return (1-alpha)*image + alpha*noise
 
----
-
-## 🌐 References
-- Gong, Z., Wang, W., & Ku, W.-S. (2017). **Noise Fusion for Detecting Adversarial Examples**. *arXiv preprint arXiv:1703.04618*.
-
----
-
-
+# Training usage
+alpha = random.uniform(0, 0.3)
+noisy_img = noise_fusion(clean_img, alpha)

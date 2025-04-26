@@ -1,6 +1,6 @@
 # Noise Fusion Defense: Brief Overview
 
-## 📚 What is Noise Fusion Defense?
+##  What is Noise Fusion Defense?
 
 Noise Fusion is a **simple yet powerful defense** strategy against adversarial attacks. Instead of relying on complex adversarial training, Noise Fusion **injects random noise into input images** both during training and inference. This randomization makes it harder for adversarial perturbations to consistently fool the model.
 
@@ -8,7 +8,7 @@ Noise Fusion was inspired by the observation that adversarial examples are often
 
 ---
 
-## 🔧 How Does Noise Fusion Work?
+##  How Does Noise Fusion Work?
 
 ### During Training:
 - Each clean training image is **mixed** with **random noise**.
@@ -30,7 +30,7 @@ This randomization disrupts adversarial perturbations and helps the model predic
 
 ---
 
-## 🔬 Why Does Noise Fusion Help?
+##  Why Does Noise Fusion Help?
 - **Random noise breaks the structure** of adversarial perturbations.
 - **Fine-grained perturbations become ineffective** after noise fusion.
 - It acts like "randomized smoothing," making the decision boundary less sensitive to small, crafted changes.
@@ -38,7 +38,7 @@ This randomization disrupts adversarial perturbations and helps the model predic
 
 ---
 
-## 📊 Experimental Results Summary
+##  Experimental Results Summary
 
 | **Attack**       | **Epsilon (ε)** | **Alpha (α)** | **Test Accuracy after applying attack** | **Accuracy after Noise Fusion Defensive Mechanism** |
 |:----------------:|:---------------:|:-------------:|:----------------------------:|:-------------------------------:|
@@ -55,7 +55,7 @@ This randomization disrupts adversarial perturbations and helps the model predic
 
 ---
 
-## 🚀 Key Takeaways
+##  Key Takeaways
 - **Simple**, lightweight, and **model-agnostic**.
 - **Effective at small-to-moderate perturbation strengths** (small \( \epsilon \)).
 - **Degrades gracefully** as attack strength increases.
@@ -63,7 +63,7 @@ This randomization disrupts adversarial perturbations and helps the model predic
 
 ---
 
-## 💡 Quick Pseudocode
+##  Quick Pseudocode
 ```python
 # Noise Fusion function
 def fuse_with_noise(image, alpha=0.2, stddev=255.0):

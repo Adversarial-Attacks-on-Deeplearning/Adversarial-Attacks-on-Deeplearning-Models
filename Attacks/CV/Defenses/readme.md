@@ -81,5 +81,4 @@ def fuse_with_noise(image, alpha=0.2, stddev=255.0):
 
 ---
 
-> "Adding a bit of chaos to fight against crafted chaos!" ✨
 

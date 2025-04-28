@@ -40,17 +40,25 @@ This randomization disrupts adversarial perturbations and helps the model predic
 
 ##  Experimental Results Summary
 
-| **Attack**       | **Epsilon (ε)** | **Alpha (α)** | **Test Accuracy after applying attack** | **Accuracy after Noise Fusion Defensive Mechanism** |
-|:----------------:|:---------------:|:-------------:|:----------------------------:|:-------------------------------:|
-| **Original Model**| -               | -             | 96%                          | -                               |
-| **FGSM**         | 0.007           | -             | 58%                          | 94.77%                          |
-| **FGSM**         | 0.01            | -             | 44%                          | 93.80%                          |
-| **FGSM**         | 0.03            | -             | 14%                          | 84.11%                          |
-| **FGSM**         | 0.1             | -             | 6%                           | 52.52%                          |
-| **PGD**          | 0.007           | 0.00175       | 35%                          | 94.19%                          |
-| **PGD**          | 0.01            | 0.0025        | 7%                           | 86.05%                          |
-| **PGD**          | 0.03            | 0.0075        | 3%                           | 78.68%                          |
-| **PGD**          | 0.1             | 0.025         | 0%                           | 59.30%                          |
+| Attack           | Distribution | ε (Epsilon) | α (Alpha) | Test Accuracy after Attack | Accuracy after Noise Fusion |
+|:----------------:|:------------:|:-----------:|:---------:|:---------------------------:|:----------------------------:|
+| FGSM             | Gaussian     | 0.007       | -         | 58%                         | 95.16%                      |
+| FGSM             | Gaussian     | 0.01        | -         | 44%                         | 93.41%                      |
+| FGSM             | Gaussian     | 0.03        | -         | 14%                         | 83.33%                      |
+| FGSM             | Gaussian     | 0.1         | -         | 6%                          | 48.64%                      |
+| PGD              | Gaussian     | 0.007       | 0.00175   | 35%                         | 93.22%                      |
+| PGD              | Gaussian     | 0.01        | 0.0025    | 7%                          | 80.23%                      |
+| PGD              | Gaussian     | 0.03        | 0.0075    | 3%                          | 67.05%                      |
+| PGD              | Gaussian     | 0.1         | 0.025     | 0%                          | 42.83%                      |
+| FGSM             | Uniform      | 0.007       | -         | 58%                         | 83.72%                      |
+| FGSM             | Uniform      | 0.01        | -         | 44%                         | 81.59%                      |
+| FGSM             | Uniform      | 0.03        | -         | 14%                         | 72.48%                      |
+| FGSM             | Uniform      | 0.1         | -         | 6%                          | 42.64%                      |
+| PGD              | Uniform      | 0.007       | 0.00175   | 35%                         | 68.99%                      |
+| PGD              | Uniform      | 0.01        | 0.0025    | 7%                          | 39.92%                      |
+| PGD              | Uniform      | 0.03        | 0.0075    | 3%                          | 25.39%                      |
+| PGD              | Uniform      | 0.1         | 0.025     | 0%                          | 10.66%                      |
+
 
 ---
 

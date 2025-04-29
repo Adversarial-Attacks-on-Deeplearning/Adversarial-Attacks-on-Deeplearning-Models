@@ -60,16 +60,6 @@ This randomization disrupts adversarial perturbations and helps the model predic
 | PGD              | Uniform      | 0.1         | 0.025     | 0%                          | 10.66%                      |
 ---
 
----
-Poisson Results
-| FGSM             | Poisson      | 0.007       | -         | 58%                          | 93.99%                      |
-| FGSM             | Poisson      | 0.01        | -         | 44%                          | 92.44%                      |
-| FGSM             | Poisson      | 0.03        | -         | 14%                          | 76.55%                      |
-| FGSM             | Poisson      | 0.1         | -         | 6%                           | 42.83%                      |
-| PGD              | Poisson      | 0.007       | 0.00175   | 35%                          | 46.12%                      |
-| PGD              | Poisson      | 0.01        | 0.0025    | 7%                           | 7.36%                       |
-| PGD              | Poisson      | 0.03        | 0.0075    | 3%                           | 2.91%                       |
-| PGD              | Poisson      | 0.1         | 0.025     | 0%                           | 0.97%                       |
 
 
 ---

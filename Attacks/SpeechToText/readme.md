@@ -66,11 +66,9 @@ x_{\text{adv}} = x - \epsilon \cdot \text{sign}(\nabla_x J(x, y_{\text{true}}))
    audio_array = np.random.randn(16000)  # Example audio
    ground_truth = "This is a test"
    target_transcription = "Hello world"
-   adversarial_waveform, ground_truth_wer, target_wer, adversarial_transcription = fgsm_attack(
+   adversarial_waveform = fgsm_attack(
        audio_array, ground_truth, target_transcription, model, processor, epsilon=0.3
    )
-   print(f"Ground Truth WER: {ground_truth_wer:.2f}")
-   print(f"Target WER: {target_wer:.2f}")
    ```
 
 ## References
@@ -168,11 +166,10 @@ x_{\text{adv}}^{(t)} = \text{Proj}*{\epsilon}(x*{\text{adv}}^{(t-1)} - \alpha \c
    audio_array = np.random.randn(16000)  # Example audio
    ground_truth = "This is a test"
    target_transcription = "Hello world"
-   adversarial_waveform, ground_truth_wer, target_wer, adversarial_transcription = pgd_attack(
+   adversarial_waveform= pgd_attack(
        audio_array, ground_truth, target_transcription, model, processor, epsilon=0.3, alpha=0.01, num_iter=10
    )
-   print(f"Ground Truth WER: {ground_truth_wer:.2f}")
-   print(f"Target WER: {target_wer:.2f}")
+
    ```
 
    
@@ -183,3 +180,69 @@ x_{\text{adv}}^{(t)} = \text{Proj}*{\epsilon}(x*{\text{adv}}^{(t-1)} - \alpha \c
 2. Želasko, P., et al. (2021). *Adversarial Attacks and Defenses for Speech Recognition Systems*. arXiv preprint arXiv:2103.09095. https://arxiv.org/abs/2103.09095
 3. Olivier, R., Abdullah, H., & Raj, B. (2023). *Transferable Adversarial Perturbations between Self-Supervised Speech Recognition Models*. arXiv preprint arXiv:2302.03487. https://arxiv.org/abs/2302.03487
 4. Hugging Face Transformers Documentation. *Wav2Vec2*. https://huggingface.co/docs/transformers/model_doc/wav2vec2
+
+
+
+# Cramér-IPM Adversarial Attack
+## Theoretical Background
+The Cramér Integral Probability Metric (Cramér-IPM) adversarial attack targets speech-to-text systems like Wav2Vec2 by crafting adversarial audio examples. It uses the Cramér distance, an Integral Probability Metric (IPM), to measure and minimize the statistical difference between the original and adversarial audio distributions. This ensures the adversarial audio remains perceptually similar to the original while causing the model to produce an incorrect transcription.
+Key Concepts:
+
+Adversarial Attack: Modifies inputs to mislead machine learning models, often subtly.
+Cramér Distance: Quantifies the divergence between two probability distributions, constraining perturbations.
+CTC Loss: Connectionist Temporal Classification loss, used to align the model's output with a target transcription.
+
+The attack balances two goals:
+
+Minimizing CTC loss to achieve the target transcription.
+Minimizing Cramér distance to maintain audio similarity and robustness.
+
+## Implementation Steps
+
+Preprocessing:
+
+Load and preprocess audio with the Wav2Vec2 processor.
+Tokenize the target transcription for CTC loss.
+
+
+Initialization:
+
+Start with a copy of the original audio tensor.
+
+
+Optimization Loop:
+
+Compute CTC loss between the adversarial audio and target transcription.
+Calculate Cramér distance between original and adversarial audio (e.g., using mean squared error as a proxy).
+Compute gradients for both objectives.
+Update the adversarial audio using gradient descent, scaled by epsilon, and clamp to valid audio range.
+
+
+Post-processing:
+
+Convert the adversarial tensor to a NumPy array for use.
+
+
+## Usage 
+```python
+adversarial_waveform = cramer_ipm_attack(
+    audio_array=audio_array,
+    ground_truth=ground_truth,
+    target_transcription=target_transcription,
+    model=model,
+    processor=processor,
+    epsilon=0.001,
+    num_iterations=10,
+    lambda_ipm=1
+)
+```
+
+
+## References
+
+Müller, A. (1997). Integral probability metrics and their generating classes of functions. Advances in Applied Probability, 29(2), 429-443.
+Carlini, N., & Wagner, D. (2018). Audio adversarial examples: Targeted attacks on speech-to-text. 2018 IEEE Security and Privacy Workshops (SPW), 1-7.
+Baevski, A., et al. (2020). wav2vec 2.0: A framework for self-supervised learning of speech representations. arXiv:2006.11477.
+
+
+

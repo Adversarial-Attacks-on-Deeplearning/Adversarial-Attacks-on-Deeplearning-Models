@@ -42,34 +42,7 @@ x_{\text{adv}} = x - \epsilon \cdot \text{sign}(\nabla_x J(x, y_{\text{true}}))
 - **L-infinity Norm**: The perturbation is bounded by ( \epsilon ) in the ( L_\infty ) norm, ensuring each audio sample changes by at most ( \epsilon ).
 - **Effectiveness**: Best suited for DOS attacks, causing high Word Error Rates (WER) by disrupting transcriptions. Less effective for targeted attacks, especially on robust models like Wav2Vec2.
 
-## Usage
 
-1. **Setup**:
-
-   - Install dependencies: `pip install torch transformers jiwer numpy`.
-
-   - Load a pre-trained Wav2Vec2 model and processor:
-
-     ```python
-     model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h").to("cuda")
-     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
-     ```
-
-2. **Prepare Data**:
-
-   - Use a dataset like LibriSpeech (`librispeech_asr` from `datasets` library).
-   - Extract audio (`audio_array`) and ground truth transcription.
-
-3. **Run FGSM**:
-
-   ```python
-   audio_array = np.random.randn(16000)  # Example audio
-   ground_truth = "This is a test"
-   target_transcription = "Hello world"
-   adversarial_waveform = fgsm_attack(
-       audio_array, ground_truth, target_transcription, model, processor, epsilon=0.3
-   )
-   ```
 
 ## References
 
@@ -142,35 +115,6 @@ x_{\text{adv}}^{(t)} = \text{Proj}*{\epsilon}(x*{\text{adv}}^{(t-1)} - \alpha \c
 
 
 
-## Usage
-
-1. **Setup**:
-
-   - Install dependencies: `pip install torch transformers jiwer numpy`.
-
-   - Load a pre-trained Wav2Vec2 model and processor:
-
-     ```python
-     model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h").to("cuda")
-     processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
-     ```
-
-2. **Prepare Data**:
-
-   - Use a dataset like LibriSpeech (`librispeech_asr` from `datasets` library).
-   - Extract audio (`audio_array`) and ground truth transcription.
-
-3. **Run PGD**:
-
-   ```python
-   audio_array = np.random.randn(16000)  # Example audio
-   ground_truth = "This is a test"
-   target_transcription = "Hello world"
-   adversarial_waveform= pgd_attack(
-       audio_array, ground_truth, target_transcription, model, processor, epsilon=0.3, alpha=0.01, num_iter=10
-   )
-
-   ```
 
    
 
@@ -222,20 +166,6 @@ Post-processing:
 
 Convert the adversarial tensor to a NumPy array for use.
 
-
-## Usage 
-```python
-adversarial_waveform = cramer_ipm_attack(
-    audio_array=audio_array,
-    ground_truth=ground_truth,
-    target_transcription=target_transcription,
-    model=model,
-    processor=processor,
-    epsilon=0.001,
-    num_iterations=10,
-    lambda_ipm=1
-)
-```
 
 
 ## References

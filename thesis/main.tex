@@ -9,6 +9,8 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{siunitx}
+\usepackage{caption}
+\usepackage{subcaption}
 \usepackage{tcolorbox} % For breakable algorithm and table
 \tcbuselibrary{breakable} % Enable breakable tcolorbox
 \newtcolorbox{breakablealgorithm}[2][]{
@@ -36,9 +38,276 @@
 
 
 \begin{document}
+
 \part{Computer Vision}
-\chapter{YOLO}
+
+Computer Vision, a field of artificial intelligence and computer science, strives to grant machines the ability to see, interpret, and understand the visual world. In a manner analogous to human vision, it processes and analyzes data from images and videos to produce numerical or symbolic information. In recent years, driven by the revolutionary success of deep learning, particularly \textbf{Convolutional Neural Networks (CNNs)}, computer vision has transitioned from a niche academic pursuit to a cornerstone of modern technology. Its applications are pervasive, powering everything from autonomous vehicles and facial recognition systems to medical image analysis and automated quality control in manufacturing.
+
+Despite their often superhuman performance on specific tasks, the deep learning models that underpin these systems exhibit a critical and surprising vulnerability: a profound sensitivity to adversarial attacks. These attacks consist of meticulously crafted, often imperceptible perturbations to input data that are designed to cause the model to make a confident but incorrect prediction. For example, a minor, human-unnoticeable modification to the pixels of an image can cause a state-of-the-art classifier to misidentify a panda as a gibbon, or a stop sign as a speed limit sign.
+
+The implications of this fragility are profound and far-reaching, posing significant security and safety risks. In safety-critical systems like autonomous driving, an adversarial attack that fools an object detector could have catastrophic consequences. Similarly, in medical diagnostics, a manipulated scan that leads to a misdiagnosis could endanger patient health. Therefore, understanding the mechanics of these attacks and developing robust defense mechanisms is not merely an academic exercise but a fundamental requirement for the trustworthy deployment of AI in the real world.
+
+This part of the thesis embarks on a systematic investigation of adversarial phenomena across core computer vision tasks. We will dissect these vulnerabilities by examining three fundamental and progressively complex domains:
+
+\begin{enumerate}
+    \item \textbf{Image Classification:} The foundational task of assigning a single label to an entire image.
+    \item \textbf{Image Segmentation:} A more granular task requiring a pixel-level classification to partition an image into meaningful segments.
+    \item \textbf{Object Detection:} A composite task that combines classification with localization to identify and draw bounding boxes around multiple objects within a scene.
+\end{enumerate}
+
+By exploring these three pillars of computer vision, we aim to provide a comprehensive overview of the threat landscape. For each domain, our approach will be consistent: we will first introduce the task and the benchmark models and datasets under consideration, then explore prominent adversarial attack strategies tailored to that task, and finally, analyze state-of-the-art defense mechanisms designed to enhance model robustness.
+\chapter{Image Classification}
+\section{Introduction}
+\label{sec:classification_intro}
+
+Image Classification is a cornerstone of computer vision, serving as the foundational task of assigning a single, predefined label to an entire image. From distinguishing between species of animals to identifying products in a warehouse, its goal is to provide a high-level understanding of an image's primary content. The methodologies developed for image classification are often the building blocks for more complex vision tasks, such as object detection and segmentation, making its study essential for understanding the broader field.
+
+While general-purpose classification is a well-studied area, the stakes are significantly elevated in safety-critical domains. One such domain is autonomous driving, where the correct identification of road signs is non-negotiable. A model's failure to distinguish a `Stop` sign from a `Speed Limit 60` sign could have catastrophic consequences. To ground our investigation in this high-stakes context, our experiments in this chapter will focus on the \textbf{German Traffic Sign Recognition Benchmark (GTSRB)} dataset. This dataset is a real-world, multi-class benchmark that presents a realistic challenge for modern classifiers and serves as an ideal testbed for evaluating security vulnerabilities.
+
+The model under adversarial investigation is \textbf{EfficientNet-B1}. Unlike traditional architectures that arbitrarily scale dimensions like network depth or width, the EfficientNet family of models employs a principled method of \textit{compound scaling}, which systematically and uniformly scales the network's depth, width, and resolution. This approach has allowed EfficientNet models to achieve state-of-the-art accuracy while being significantly more computationally efficient than their predecessors. The choice of EfficientNet-B1 is deliberate: its combination of high accuracy and efficiency makes it a practical and powerful model for real-world deployment, and therefore, a crucial target for robustness analysis. Our trained EfficientNet-B1 model achieves a baseline test accuracy of \textbf{96.7\%} on the clean GTSRB test set, establishing a high-performance benchmark from which to measure the impact of adversarial attacks. If such an advanced and efficient model can be easily fooled, it underscores the severity of the adversarial threat.
+
+In this chapter, we will therefore probe the vulnerabilities of the highly capable EfficientNet-B1 model when trained on the safety-critical GTSRB dataset. The subsequent sections will detail the specific adversarial attacks employed to generate malicious inputs and evaluate various defense strategies aimed at fortifying the model against such threats.
 \section{Attacks}
+\subsection{Fast Gradient Sign Method (FGSM)}
+
+\subsubsection{Introduction}
+The Fast Gradient Sign Method (FGSM) is one of the earliest and most influential approaches for crafting adversarial examples against deep neural networks. Introduced by Goodfellow et al.\ in 2015, FGSM demonstrated that small, carefully chosen perturbations—imperceptible to humans—can reliably force state-of-the-art classifiers into making incorrect predictions. This work highlighted a fundamental vulnerability in high-dimensional linear behavior of models and sparked a wealth of research into both stronger attacks and robust defense mechanisms \cite{goodfellow2015explaining}.  
+
+In their seminal paper, Goodfellow and colleagues showed that even a single-step perturbation computed from the model’s loss gradient suffices to degrade accuracy dramatically on datasets such as MNIST and CIFAR-10. The simplicity and effectiveness of FGSM make it a canonical benchmark for evaluating adversarial robustness and for developing more advanced multi-step attacks and defenses \cite{goodfellow2015explaining}.
+\subsubsection{Methodology}
+\paragraph{Attack Type}
+The Fast Gradient Sign Method (FGSM) is a \textbf{white-box}, \textbf{untargeted} attack. As a white-box method, it requires full access to the model’s parameters and gradients. It is untargeted in the sense that its goal is simply to cause misclassification, not to steer the model toward a specific incorrect label. The adversarial example is generated to increase the loss with respect to the true class, thereby pushing the prediction away from the correct category.
+
+\paragraph{Parameters}
+\begin{description}
+  \item[$x$] The clean input image (e.g., a batch of images) to be perturbed.
+  \item[$y$] The true label (or labels) associated with $x$.
+  \item[$\theta$] The fixed parameters of the target neural network model.
+  \item[$\epsilon$] The maximum perturbation magnitude (controls attack strength).
+  \item[$J(\theta, x, y)$] The loss function used during model training (e.g., cross‐entropy).
+\end{description}
+
+\paragraph{Algorithm Overview}
+FGSM generates an adversarial example by taking a single, maximally disruptive step in the direction that increases the model’s loss most rapidly. Concretely, we compute the gradient of the loss $J(\theta, x, y)$ with respect to the input $x$, extract its sign to form a unit‐step “direction,” scale that by $\epsilon$, and add it to the original image. Finally, we clip the result to the valid pixel range to ensure a legitimate image. This one‐step procedure is efficient and often sufficient to cause high‐confidence misclassifications, making it a standard baseline for evaluating robustness.
+
+\begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack}
+\begin{algorithmic}[1]
+\Require $x$, $y$, $\theta$, $\epsilon$
+\Ensure $x_{\mathrm{adv}}$
+\State Enable gradient tracking on $x$ 
+\State Compute loss: $L \gets J(\theta, x, y)$
+\State Compute gradient: $g \gets \nabla_x L$ via backpropagation
+\State Form perturbation: $\delta \gets \epsilon \cdot \mathrm{sign}(g)$
+\State Generate adversarial example: $x_{\mathrm{adv}} \gets x + \delta$
+\State Clip to valid range: $x_{\mathrm{adv}} \gets \mathrm{clip}(x_{\mathrm{adv}}, 0, 1)$
+\State \Return $x_{\mathrm{adv}}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\begin{figure}[h!] % [h!] tries to place it "here" forcefully. Use [htbp] for more flexibility.
+  \centering % Center the whole figure content
+
+  % --- First Image: Original Traffic Sign ---
+  \begin{subfigure}[b]{0.28\textwidth}
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/CV/Classification/20.jpg} % YOUR ORIGINAL IMAGE
+    \caption*{$x$\\\textit{"speed limit 20"}\\71\% confidence}
+    % \label{fig:sub-original-traffic} % Optional label for subfigure
+  \end{subfigure}
+  \hfill % Distribute horizontal space
+  % --- Plus and Multiplier Operator ---
+  \begin{subfigure}[b]{0.05\textwidth} % Width for the operator's subfigure
+    \centering
+     \vspace{0.5cm} % Removed, relying on [b] alignment for all subfigures
+    $+\,0.007\,\times$
+  \end{subfigure}
+  \hfill % Distribute horizontal space
+  % --- Second Image: Noise Pattern ---
+  \begin{subfigure}[b]{0.28\textwidth}
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/CV/Classification/noise_20.png} % YOUR NOISE IMAGE
+    % Caption adjusted as per "remove the class for gradient and confidence":
+    \caption*{$\mathrm{sign}(\nabla_x J(\theta, x, y))$\\
+    \\ \hfill
+    \\ \hfill
+    }
+    % \label{fig:sub-noise-traffic} % Optional label for subfigure
+  \end{subfigure}
+  \hfill % Distribute horizontal space
+  % --- Equals Sign Operator ---
+  \begin{subfigure}[b]{0.05\textwidth} % Width for the operator's subfigure
+    \centering
+    % \vspace{1.2cm} % Removed, relying on [b] alignment
+    $=$
+  \end{subfigure}
+  \hfill % Distribute horizontal space
+  % --- Third Image: Adversarial Traffic Sign ---
+  \begin{subfigure}[b]{0.28\textwidth}
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/CV/Classification/Adv_20_FGSM_007.png} % YOUR ADVERSARIAL IMAGE
+    \caption*{$x + \epsilon \cdot \mathrm{sign}(\nabla_x J(\theta, x, y))$\\\textit{"Slippery road"}\\77\% confidence}
+    % \label{fig:sub-adversarial-traffic} % Optional label for subfigure
+  \end{subfigure}
+
+  \caption{Visual illustration of the FGSM attack on a traffic sign. A small, imperceptible perturbation, crafted using the gradient of the loss function, causes the model to misclassify the image with high confidence.}
+  \label{fig:fgsm-visual-traffic-sign} % Use a descriptive and unique label
+\end{figure}
+
+\subsubsection{Results}
+
+To evaluate the effectiveness of the FGSM attack, we used a custom-trained \textbf{EfficientNetB1} model on the \textbf{German Traffic Sign Recognition Benchmark (GTSRB)} dataset. The model achieved \textbf{96\% accuracy} on the clean test set. For adversarial evaluation, we applied FGSM with different perturbation magnitudes $\epsilon$ on a random subset of \textbf{512 test images}.
+
+Table~\ref{tab:fgsm_results} shows how model performance degrades with increasing $\epsilon$. As expected, stronger perturbations lead to more severe accuracy drops. Even at a relatively low $\epsilon=0.007$, the accuracy drops significantly to 58\%. At $\epsilon=0.1$, the model is nearly completely fooled, achieving only 6\% accuracy.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Accuracy of FGSM attacks on EfficientNetB1 evaluated on 512 GTSRB test samples. The original model accuracy without attack is \textbf{96\%}.}
+\label{tab:fgsm_results}
+\begin{tabular}{@{\hspace{0.3cm}}cS[table-format=2.2]S[table-format=2.2]@{\hspace{0.3cm}}}
+\toprule
+$\epsilon$ & {Accuracy (\%)} & {Accuracy Drop (\%)} \\
+\midrule
+0.007 & 58.00 & 38.00 \\
+0.010 & 44.00 & 52.00 \\
+0.030 & 14.00 & 82.00 \\
+0.100 & 6.00  & 90.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Projected Gradient Descent (PGD)}
+\subsubsection{Introduction}
+
+Projected Gradient Descent (PGD) is a powerful iterative attack method introduced by Madry et al.\ in their work on adversarial robustness \cite{madry2018towardspgd}. It is widely regarded as one of the most effective first-order adversarial attacks, capable of producing stronger perturbations than single-step methods like FGSM by applying multiple small gradient steps.
+
+PGD operates by iteratively perturbing the input in the direction of the gradient of the loss function and projecting the perturbed input back into an $\epsilon$-bounded $\ell_\infty$ ball around the original input. This ensures that the adversarial example remains within a specified perturbation budget. Due to its effectiveness and reliability, PGD is often considered the “universal first-order adversary” and is commonly used both as a benchmark attack and as a training strategy (i.e., adversarial training) to improve model robustness \cite{madry2018towardspgd}.
+
+\subsubsection{Methodology}
+
+\paragraph{Attack Type}
+The Projected Gradient Descent (PGD) attack is a \textbf{white-box}, \textbf{untargeted}, and \textbf{iterative} attack. As a white-box method, it requires full access to the model’s parameters and gradients. It is untargeted in that its objective is to cause misclassification of the input without steering the prediction toward any specific incorrect label. The attack refines the basic idea of FGSM by applying multiple small perturbation steps, with each step constrained within an $\ell_\infty$-norm ball of radius $\epsilon$ centered around the original input. After each step, the perturbation is projected back into this bounded space, ensuring the adversarial example stays within the allowed perturbation budget.
+
+\paragraph{Parameters}
+\begin{description}
+  \item[$x$] The clean input image to be perturbed.
+  \item[$y$] The true label associated with $x$.
+  \item[$\theta$] The parameters of the target neural network model.
+  \item[$\epsilon$] The maximum allowable perturbation (controls the size of the $\ell_\infty$ ball).
+  \item[$\alpha$] The step size used for each gradient update.
+  \item[$n$] The number of iterations (steps) to apply the attack.
+  \item[$J(\theta, x, y)$] The loss function used during training (e.g., cross-entropy).
+\end{description}
+\paragraph{Algorithm Overview}
+The PGD attack is an iterative extension of the Fast Gradient Sign Method (FGSM). It starts by adding a small random initialization within the $\ell_\infty$ ball of radius $\epsilon$ around the original input $x$. Then, for a fixed number of iterations $n$, the method performs gradient ascent on the loss function with respect to the input, stepping in the direction that increases the loss. After each step, the adversarial example is projected back into the valid $\ell_\infty$ ball to ensure that the perturbation does not exceed the maximum allowed distortion $\epsilon$. The adversarial example is also clipped to stay within the valid input range (e.g., pixel values between 0 and 1). This iterative process allows PGD to produce much stronger adversarial examples than single-step methods like FGSM.
+
+\begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack}
+\begin{algorithmic}[1]
+\Require $x$, $y$, $\theta$, $\epsilon$, $\alpha$, $n$
+\Ensure $x_{\mathrm{adv}}$
+\State Initialize $x_{\mathrm{adv}} \gets x + \text{Uniform}(-\epsilon, \epsilon)$
+\State Clip $x_{\mathrm{adv}} \gets \mathrm{clip}(x_{\mathrm{adv}}, 0, 1)$
+\For{$i = 1$ to $n$}
+    \State Enable gradient tracking on $x_{\mathrm{adv}}$
+    \State Compute loss: $L \gets J(\theta, x_{\mathrm{adv}}, y)$
+    \State Compute gradient: $g \gets \nabla_{x_{\mathrm{adv}}} L$
+    \State Update adversarial example: $x_{\mathrm{adv}} \gets x_{\mathrm{adv}} + \alpha \cdot \mathrm{sign}(g)$
+    \State Project: $x_{\mathrm{adv}} \gets \mathrm{clip}(x_{\mathrm{adv}}, x - \epsilon, x + \epsilon)$
+    \State Clip to valid range: $x_{\mathrm{adv}} \gets \mathrm{clip}(x_{\mathrm{adv}}, 0, 1)$
+\EndFor
+\State \Return $x_{\mathrm{adv}}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subsubsection{Results}
+
+To evaluate the effectiveness of the PGD attack, we used the same \textbf{EfficientNetB1} model trained on the \textbf{German Traffic Sign Recognition Benchmark (GTSRB)} dataset, which achieved \textbf{96\% accuracy} on the clean test set. For adversarial evaluation, we applied PGD with varying perturbation budgets $\epsilon$ and corresponding step sizes $\alpha$, using a random subset of \textbf{512 test images}.
+
+Table~\ref{tab:pgd_results} shows how model performance degrades under the PGD attack. Compared to FGSM, PGD leads to significantly lower accuracies at similar or even slightly higher $\epsilon$ values, due to its iterative nature. At $\epsilon=0.01$, accuracy already drops to 35\%. At $\epsilon=0.1$, the attack is completely successful, driving the model’s accuracy down to 0\%.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Accuracy of PGD attacks on EfficientNetB1 evaluated on 512 GTSRB test samples using \textbf{3 iterations} per attack. The original model accuracy without attack is \textbf{96\%}.}
+\label{tab:pgd_results}
+\begin{tabular}{@{\hspace{0.3cm}}lS[table-format=2.2]S[table-format=2.2]c@{\hspace{0.3cm}}}
+\toprule
+\textbf{PGD Parameters} & {Accuracy (\%)} & {Accuracy Drop (\%)} & {Iterations} \\
+\midrule
+$\epsilon=0.01$, $\alpha=0.0025$  & 35.00 & 61.00 & 3 \\
+$\epsilon=0.03$, $\alpha=0.0075$  & 7.00  & 89.00 & 3 \\
+$\epsilon=0.05$, $\alpha=0.0125$  & 3.00  & 93.00 & 3 \\
+$\epsilon=0.10$, $\alpha=0.0250$  & 0.00  & 96.00 & 3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\subsection{Boundary Attack}
+\subsubsection{Introduction}
+
+The Boundary Attack is a decision-based adversarial attack that operates in a black-box setting, requiring access only to the final output of the model (i.e., the predicted class label). First introduced by Brendel et al.\ in 2018 \cite{brendel2018decisionbasedadversarialattacksreliable}, the Boundary Attack avoids reliance on gradients or confidence scores, making it suitable for attacking systems where internal model information is completely inaccessible.
+
+Unlike gradient-based methods such as FGSM or PGD, the Boundary Attack begins with a large adversarial perturbation that already causes misclassification. It then performs a sequence of refinements that progressively reduce the perturbation while ensuring the sample remains adversarial. This process effectively traces the boundary of the model's decision region from the adversarial side—hence the name.
+
+Due to its black-box nature and practical effectiveness, the Boundary Attack is often used to evaluate the robustness of real-world systems and deployed machine learning APIs where white-box assumptions do not hold.
+\subsubsection{Methodology}
+
+\paragraph{Attack Type}
+The Boundary Attack is a \textbf{black-box}, \textbf{untargeted}, \textbf{decision-based} adversarial attack. Unlike white-box or score-based attacks, it does not require access to model gradients or confidence scores. Instead, it only queries the model’s final decision (i.e., the predicted label). The goal is to find a minimal perturbation that causes misclassification, relying solely on label feedback. This makes the Boundary Attack particularly suitable for evaluating the robustness of real-world systems such as commercial APIs and closed-source classifiers.
+
+\paragraph{Parameters}
+\begin{description}
+  \item[$x$] The original clean input that is correctly classified by the model.
+  \item[$x_{\mathrm{adv}}$] The starting adversarial example (misclassified input), usually far from $x$.
+  \item[$\mathcal{M}$] The black-box model to be attacked (returns only predicted class labels).
+  \item[$\delta$] The maximum number of iterations or convergence threshold.
+  \item[$\epsilon$] The step size used to reduce the perturbation in each iteration.
+\end{description}
+
+\paragraph{Algorithm Overview}
+The Boundary Attack begins with an initial adversarial example $x_{\mathrm{adv}}$ that is already misclassified by the model. This can be a random image or an input from a different class. In each iteration, the attack samples a candidate point by moving slightly toward the original input $x$ and adds a small amount of random noise to maintain exploration. If the new candidate is still misclassified, it is accepted as the new adversarial example. Over time, this process reduces the perturbation while ensuring the input remains adversarial. The attack continues until the perturbation is sufficiently small or a maximum number of iterations is reached.
+
+This approach effectively walks along the decision boundary of the model without requiring gradient information, making it one of the most effective black-box adversarial strategies.
+
+\begin{breakablealgorithm}{Boundary Attack (Decision-Based)}
+\begin{algorithmic}[1]
+\Require $x$, $x_{\mathrm{adv}}^{(0)}$, $\mathcal{M}$, $\epsilon$, $\delta$
+\Ensure $x_{\mathrm{adv}}$
+\State $i \gets 0$
+\While{$\|x_{\mathrm{adv}}^{(i)} - x\| > \delta$ and $i < \text{max\_iterations}$}
+    \State Sample a perturbation direction $r$ from a normal distribution
+    \State Normalize and scale: $r \gets \epsilon \cdot \frac{r}{\|r\|}$
+    \State Propose a candidate: $x_{\mathrm{cand}} \gets x_{\mathrm{adv}}^{(i)} + r$
+    \State Project toward original input: $x_{\mathrm{cand}} \gets x + (x_{\mathrm{cand}} - x) \cdot \min\left(1, \frac{\|x_{\mathrm{adv}}^{(i)} - x\|}{\|x_{\mathrm{cand}} - x\|} \right)$
+    \If{$\mathcal{M}(x_{\mathrm{cand}}) \ne \mathcal{M}(x)$}
+        \State Accept: $x_{\mathrm{adv}}^{(i+1)} \gets x_{\mathrm{cand}}$
+    \Else
+        \State Reject: $x_{\mathrm{adv}}^{(i+1)} \gets x_{\mathrm{adv}}^{(i)}$
+    \EndIf
+    \State $i \gets i + 1$
+\EndWhile
+\State \Return $x_{\mathrm{adv}}^{(i)}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
+\chapter{Image Segmentation}
+\section{Introduction}
+\section{Attacks}
+\section{Defenses}
+\chapter{Object Detection}
+\section{Introduction}
+\label{sec:detection_intro}
+
+Object detection represents a significant leap in complexity beyond simple image classification. Instead of assigning a single label to an entire image, object detection aims to solve a dual problem: identifying \textit{what} objects are present in an image and precisely localizing \textit{where} they are located using \textbf{bounding boxes}. This capability for fine-grained scene understanding is critical for applications that require interaction with the physical world, most notably autonomous driving. In this context, the reliable detection of traffic signs, pedestrians, and other vehicles is a fundamental prerequisite for safe navigation.
+
+To align our research with this critical application, our experiments are centered on the \textbf{LISA (Laboratory for Intelligent \& Safe Automobiles) Traffic Sign Dataset}. This dataset is specifically designed to benchmark the performance of object detectors on real-world traffic signs captured under a variety of conditions, making it an ideal environment to assess the practical security risks posed by adversarial attacks.
+
+For our model, we have selected \textbf{YOLOv8n (You Only Look Once, version 8 nano)}. As a one-stage detector, the YOLO architecture is renowned for its exceptional balance of speed and accuracy, making it a leading choice for real-time applications where low-latency inference is paramount. The 'nano' variant, in particular, is optimized for efficiency, making it highly suitable for deployment on resource-constrained hardware, such as the on-board computers in autonomous vehicles. Our trained YOLOv8n model establishes a strong performance baseline on the clean LISA dataset, achieving a mean Average Precision (\textbf{mAP\textsubscript{50-95}}) of \textbf{82.3\%} and a \textbf{mAP\textsubscript{50}} of \textbf{95.8\%}. This strong detection performance, coupled with a rapid inference time of approximately \textbf{3.9 milliseconds} per image on our hardware, confirms its suitability for real-world deployment.
+
+Given that such a high-performing and efficient model is a prime candidate for use in safety-critical systems, this chapter will investigate its robustness against adversarial attacks. We will explore methods designed to fool object detectors into failing to detect signs or misclassifying them, and subsequently evaluate defenses intended to mitigate these critical vulnerabilities.\section{Attacks}
 \subsection{FGSM Attack on YOLO}
 \subsubsection{Introduction}
 The Fast Gradient Sign Method (FGSM) is a single-step adversarial attack that generates adversarial examples by perturbing inputs along the gradient of the loss function \cite{goodfellow2015explaining}. For YOLO \cite{lu2017noneed}, FGSM targets high-confidence detections from raw model outputs before non-maximum suppression (NMS) to maximize classification errors, causing misclassifications or missed detections. The attack uses an $\ell_\infty$-bounded perturbation (controlled by $\epsilon$) to maintain similarity while disrupting the model's predictions.
@@ -110,7 +379,30 @@ Stop & 0.990 & 0.510 & -0.480 & 23.60 & 0.85 \\
 \end{breakabletable}
 
 \section{Defenses}
-\part{Speech Recognition}
+\part{Language Models}
+% --- Introduction for Part II: Language Models ---
+% Place this code directly after your \part{Language Models} command.
+
+Human intelligence is inextricably linked to our ability to produce, understand, and reason with language. In the field of artificial intelligence, the quest to imbue machines with similar capabilities has culminated in the development of \textbf{Language Models}. At its core, a language model is a probabilistic model over sequences of linguistic units, such as words or tokens. While this concept began with simple statistical methods, it has evolved into the sophisticated deep learning architectures that now form the backbone of modern AI. This Part of the thesis provides a comprehensive investigation into the adversarial vulnerabilities of these models across their primary modalities and applications.
+
+Our exploration begins at the interface between the physical world and symbolic text: \textbf{Automatic Speech Recognition (ASR)}. We treat ASR not merely as an audio processing task, but as the foundational gateway for machines to process spoken language. The systems that transcribe human speech into text are, in essence, sequence-to-sequence language models that must interpret continuous acoustic signals. Their security is the first line of defense for any downstream language-based application.
+
+Once speech is transcribed, or when text is the native input, we enter the domain of \textbf{Traditional Natural Language Processing (NLP)}. This chapter will examine task-specific models designed for core applications like sentiment analysis and text classification. These systems, often built on architectures like Recurrent Neural Networks (RNNs) or early Transformers, represent a critical class of language models that are widely deployed for specific, well-defined problems.
+
+The final stage of our investigation addresses the current paradigm shift in the field: \textbf{Large Language Models (LLMs)}. These vast, pre-trained models have redefined the scope of what is possible, demonstrating remarkable emergent abilities in reasoning, generation, and few-shot learning. By examining LLMs, we address the security challenges at the cutting edge of AI, where the attack surface is broader and the potential consequences of failure are more complex than ever before.
+
+Despite their diverse applications and varying levels of complexity—from processing audio waves to generating coherent essays—these systems all share a profound and unsettling characteristic: a vulnerability to adversarial attacks. Whether through subtle, imperceptible noise in an audio waveform or carefully chosen word substitutions in a block of text, adversaries can manipulate the inputs to these models to cause spectacular failures. This Part, therefore, provides a holistic examination of the adversarial landscape for language-centric AI, charting the evolution of threats from the specialized models of yesterday to the general-purpose intelligent systems of today.
+\chapter{Automatic Speech Recognition}
+\section{Introduction}
+\label{sec:asr_intro}
+
+Automatic Speech Recognition (ASR) is the technology that converts spoken language into machine-readable text, serving as the fundamental bridge between human speech and digital computation. It powers a vast array of modern applications, from ubiquitous voice assistants and hands-free device control to automated transcription services and security-sensitive systems like voice biometrics. As ASR becomes more deeply integrated into our daily lives, ensuring its reliability and security is of paramount importance. An attack that can maliciously alter a transcribed command or conversation poses a significant threat.
+
+The landscape of ASR was dramatically reshaped by self-supervised learning models, chief among them \textbf{Wav2Vec 2.0}. Unlike traditional pipelines that require vast amounts of transcribed audio for training, Wav2Vec 2.0 learns powerful and context-rich representations of speech directly from raw, unlabeled audio waveforms. This ability has enabled it to achieve state-of-the-art performance on speech recognition benchmarks. For our investigation, we use a pre-trained Wav2Vec 2.0 model, making our analysis representative of a powerful, real-world system that an adversary would likely target.
+
+To conduct a rigorous and reproducible security evaluation, our experiments are performed on a representative subset of \textbf{100 samples} drawn from the \textbf{LibriSpeech test-clean dataset}. LibriSpeech is a widely-recognized benchmark for ASR research, and by focusing on a specific subset, we can conduct a controlled and computationally manageable investigation into the effects of adversarial perturbations. This methodology ensures that our findings are grounded in a standard, high-quality corpus while allowing for a focused analysis of attack efficacy.
+
+In this chapter, we will therefore probe the vulnerabilities of the pre-trained Wav2Vec 2.0 model against this well-defined testbed. On the 100 clean samples, our model establishes a strong performance baseline, achieving a \textbf{Character Error Rate (CER) of 0.9\%} and a \textbf{Word Error Rate (WER) of 2.84\%}. These low error rates confirm the model's high competence before the introduction of any malicious noise. The subsequent sections will detail the attack methodologies used to generate adversarial audio and explore potential defenses aimed at fortifying these advanced speech recognition systems.
 \section{Attacks}
 \subsection{FGSM Attack}
 \subsubsection{Introduction}

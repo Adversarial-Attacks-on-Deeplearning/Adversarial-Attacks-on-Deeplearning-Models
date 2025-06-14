@@ -803,7 +803,7 @@ The DAG algorithm \cite{xie2017DAG} was originally designed as a \textit{targete
 \begin{itemize}
     \item Follows the original formulation: Assigns specific adversarial labels $l'_n \neq l_n$ for each target
     \item Optimizes the loss $\mathcal{L} = \sum_{n} (f_{l_n}(X,t_n) - f_{l'_n}(X,t_n))$ to force misclassifications into predefined classes
-    \item Maintains spatial perturbation structure through normalized gradient steps ($\gamma = 0.5$)
+    \item Maintains spatial perturbation structure through normalized gradient steps ($\gamma$)
 \end{itemize}
 
 \noindent\textbf{untargeted Implementation:}
@@ -864,7 +864,7 @@ The following pseudocode outlines the unified DAG attack framework, with annotat
 \end{breakablealgorithm}
 
 \paragraph{Results}
-The DAG attack was applied with $\gamma=0.5$ as in original paper\cite{xie2017DAG}, using $num\_iterations=20$ (sufficient number of iterations is defined by trying) . Figures~\ref{fig:TDAG_example_yolo} and ~\ref{fig:UDAG_example_yolo} illustrate the effect of the attack (targeted and untargeted) on a sample image with $\gamma=0.5$, $num\_iterations=20$ and green light as target for targeted variant. showing the original image, the adversarial images, and the pixel-wise differences.
+The DAG attack was applied with $\gamma=0.003$ unlike the original paper\cite{xie2017DAG} that used $\gamma=0.5$ that caused too much distortion when tested in YOLO, and $num\_iterations=20$ (a sufficient number of iterations is defined by trying) . Figures~\ref{fig:TDAG_example_yolo} and ~\ref{fig:UDAG_example_yolo} illustrate the effect of the attack (targeted and non-targeted) on a sample image with $\gamma=0.003$, $num\_iterations=20$ and green light as target for the targeted variant. showing the original image, the adversarial images, and the pixel-wise differences.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/OD/TDAG.png} % Replace with the actual path to your image file
@@ -980,7 +980,115 @@ The Dense Adversary Generation (DAG) attack both targeted and untargeted overall
     \end{tabular}
 \end{table}
 
+\subsubsection{"Adversarial Examples that Fool Detectors" Attack}
+\paragraph{Introduction}\leavevmode\\
+The "Adversarial Examples that Fool Detectors" method, introduced by Lu et al. \cite{lu2017fooldetectors}, presents a technique for creating adversarial examples designed specifically to deceive object detection models.The authors demonstrate its effectiveness by generating robust digital and physical perturbations for objects like stop signs and faces, showing successful generalization from Faster R-CNN to YOLO.
 
+The core of the attack is an iterative optimization process that seeks to minimize the mean confidence score of all detection proposals corresponding to a specific target class. To ensure the adversarial perturbation remains visually subtle, the objective function includes an L2 regularization term that penalizes deviations from the original image. The image is updated at each step using the sign of the gradient (an L-infinity projected gradient descent step) to minimize this objective.
+
+In this work, we implement the attack strategy detailed in \cite{lu2017fooldetectors}. We adapt their stop sign-focused methodology to target traffic sign classes within the LISA (Laboratory for Intelligent \& Safe Automobiles) dataset. Our goal is to evaluate the effectiveness of this attack on a fine-tuned YOLOv8 model.
+\paragraph{Methodology}\leavevmode\\
+The attack is implemented as an iterative process targeting specific traffic sign classes within an input image, aiming to reduce the YOLOv8 model's confidence in detecting those classes.
+The algorithm is formalized as follows:
+
+\begin{breakablealgorithm}{Adversarial Examples that Fool Detectors Attack}
+\begin{algorithmic}[1]
+\Require $image\_path$, $model$, $num\_iterations$, $\gamma$, $conf\_threshold$, $\lambda_{reg}$, $target\_classes$, $device$ \Comment{Input image path, model path, iterations, step size, confidence threshold, regularization weight, target classes, device}
+\Ensure $x_{adv}$ \Comment{Adversarial image tensor}
+\State $underlying\_model \gets {model}.model$ \Comment{Load underlying model}
+\State $underlying\_model.\Call{eval}{}$ \Comment{Set to evaluation mode}
+\For{$param$ in $underlying\_model.parameters()$}
+    \State $param.requires\_grad \gets \text{False}$ \Comment{Freeze parameters}
+\EndFor
+\State $underlying\_model.\Call{to}{device}$ \Comment{Move to device}
+\State $x_{adv} \gets \Call{preprocess\_image}{image\_path}.to(device)$ \Comment{Preprocess image}
+\State $x_{adv}.\Call{requires\_grad\_}{}$ \Comment{Enable gradient computation}
+\State $x_{original} \gets x_{adv}.\Call{clone}{}.\Call{detach}{}$ \Comment{Save original image}
+\For{$i = 1$ to $num\_iterations$}
+    \State $raw\_preds, \_ \gets underlying\_model(x_{adv})$ \Comment{Get raw predictions}
+    \State $raw\_preds \gets raw\_preds.\Call{permute}{0, 2, 1}$ \Comment{Rearrange to [1, N\_boxes, channels]}
+    \State $class\_logits \gets raw\_preds[..., 4:]$ \Comment{Extract class logits}
+    \State $conf\_scores \gets \Call{sigmoid}{class\_logits}$ \Comment{Convert to confidence scores}
+    \State $target\_confidences \gets conf\_scores[..., target\_classes]$ \Comment{Extract target confidences}
+    \State $loss\_det \gets \Call{mean}{target\_confidences}$ \Comment{Mean confidence for target classes}
+    \State $loss\_l2 \gets \lambda_{reg} \cdot \Call{mse\_loss}{x_{adv}, x_{original}}$ \Comment{L2 penalty}
+    \State $loss \gets loss\_det + loss\_l2$ \Comment{Total loss}
+    \State \textbf{with} $torch.no\_grad()$:
+        \State $high\_level\_preds \gets high\_level\_model(x_{adv}, conf=conf\_threshold)$ \Comment{Check detections}
+        \State $results \gets high\_level\_preds[0]$
+        \State $detected\_classes \gets \Call{tolist}{results.boxes.cls}$ if $\text{hasattr}(results.boxes, "cls")$ else $[]$
+        \If{not $\text{set}(target\_classes) \cap \text{set}(detected\_classes)$}
+            \State \textbf{break} \Comment{Early stopping if no target classes detected}
+        \EndIf
+    \State $underlying\_model.\Call{zero\_grad}{}$ \Comment{Clear gradients}
+    \State $loss.\Call{backward}{}$ \Comment{Compute gradients}
+    \State $grad \gets x_{adv}.grad.data$ \Comment{Get image gradient}
+    \State $x_{adv} \gets x_{adv} - \gamma \cdot \Call{sign}{grad}$ \Comment{Update image}
+    \State $x_{adv} \gets \Call{clamp}{x_{adv}, 0, 1}$ \Comment{Clamp to valid range}
+    \State $x_{adv}.grad.\Call{zero\_}{}$ \Comment{Reset gradient}
+\EndFor
+\State \Return $x_{adv}.\Call{detach}{}$ \Comment{Return adversarial image}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\paragraph{Results}\leavevmode\\
+The "Adversarial Examples that Fool Detectors" attack was applied with $\gamma=0.01$ and $\lambda = 0.01$ within the ranges suggested by the original paper \cite{lu2017fooldetectors}, with $num\_iterations=10$ (a sufficient number of iterations is defined by trying). Figure~\ref{fig:fool_example_yolo} illustrates the effect of the attack (targeted and non-targeted) on a sample image with $\gamma=0.01$, $\lambda = 0.01$ and $num\_iterations=10$, showing the original image, the adversarial images, and the pixel-wise differences.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/OD/fool.png} % Replace with the actual path to your image file
+    \caption{"Adversarial Examples that Fool Detectors" Example showing the original, adversarial, and difference images.}
+    \label{fig:fool_example_yolo}
+\end{figure}
+
+The adversarial image is not much different from the original image, as the perturbations are visually small, and the original detections disappeared with the appearance of a new incorrect class.
+
+The impact of the "Adversarial Examples that Fool Detectors" attack on YOLO's performance is detailed in Tables~\ref{tab:yolo_fool_overall_performance} and \ref{tab:yolo_fool_class_results}, which present general metrics (precision, recall, mAP@0.5, mAP@0.5:0.95) and class-specific mAP@0.5, highlighting the degradation in detection performance due to iterative adversarial perturbations.
+
+\begin{table}[H]
+    \centering
+    \caption{Overall Performance of YOLO under Clean and "Adversarial Examples that Fool Detectors" Attack}
+    \label{tab:yolo_fool_overall_performance}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{Adversarial Attack}} \\
+        \midrule
+        Precision & 0.935 & 0.238 \\
+        Recall & 0.854 & 0.16 \\
+        mAP@0.5 & 0.927 & 0.155 \\
+        mAP@0.5:0.95 & 0.811 & 0.125 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Class-Specific mAP@0.5 under Clean and "Adversarial Examples that Fool Detectors" Attack}
+    \label{tab:yolo_fool_class_results}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Class} & {\textbf{Clean}} & {\textbf{Adversarial Attack}} & {\textbf{$\Delta$ mAP}} \\
+        \midrule
+        All            & 0.927 & 0.155 & -0.772 \\
+        Green Light    & 0.927 & 0.0204 & -0.906 \\
+        Red Light      & 0.816 & 0.213 & -0.603 \\
+        Speed Limit 10 & 0.863 & 0.000 & -0.863 \\
+        Speed Limit 20 & 0.913 & 0.160 & -0.753 \\
+        Speed Limit 30 & 0.937 & 0.0471 & -0.890 \\
+        Speed Limit 40 & 0.966 & 0.220 & -0.746 \\
+        Speed Limit 50 & 0.916 & 0.136 & -0.780 \\
+        Speed Limit 60 & 0.953 & 0.0842 & -0.869 \\
+        Speed Limit 70 & 0.866 & 0.132 & -0.734 \\
+        Speed Limit 80 & 0.947 & 0.246 & -0.701 \\
+        Speed Limit 90 & 0.806 & 0.229 & -0.577 \\
+        Speed Limit 100 & 0.941 & 0.0695 & -0.871 \\
+        Speed Limit 110 & 0.959 & 0.223 & -0.736 \\
+        Speed Limit 120 & 0.966 & 0.125 & -0.841 \\
+        Stop           & 0.990 & 0.421 & -0.569 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \subsection{Black Box Attacks}
 

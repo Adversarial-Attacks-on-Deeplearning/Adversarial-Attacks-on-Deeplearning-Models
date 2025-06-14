@@ -991,45 +991,44 @@ In this work, we implement the attack strategy detailed in \cite{lu2017fooldetec
 The attack is implemented as an iterative process targeting specific traffic sign classes within an input image, aiming to reduce the YOLOv8 model's confidence in detecting those classes.
 The algorithm is formalized as follows:
 
-\begin{breakablealgorithm}{Adversarial Examples that Fool Detectors Attack}
+\begin{breakablealgorithm}{Universal Adversarial Perturbation Training}
 \begin{algorithmic}[1]
-\Require $image\_path$, $model$, $num\_iterations$, $\gamma$, $conf\_threshold$, $\lambda_{reg}$, $target\_classes$, $device$ \Comment{Input image path, model path, iterations, step size, confidence threshold, regularization weight, target classes, device}
-\Ensure $x_{adv}$ \Comment{Adversarial image tensor}
-\State $underlying\_model \gets {model}.model$ \Comment{Load underlying model}
-\State $underlying\_model.\Call{eval}{}$ \Comment{Set to evaluation mode}
-\For{$param$ in $underlying\_model.parameters()$}
-    \State $param.requires\_grad \gets \text{False}$ \Comment{Freeze parameters}
-\EndFor
-\State $underlying\_model.\Call{to}{device}$ \Comment{Move to device}
-\State $x_{adv} \gets \Call{preprocess\_image}{image\_path}.to(device)$ \Comment{Preprocess image}
-\State $x_{adv}.\Call{requires\_grad\_}{}$ \Comment{Enable gradient computation}
-\State $x_{original} \gets x_{adv}.\Call{clone}{}.\Call{detach}{}$ \Comment{Save original image}
-\For{$i = 1$ to $num\_iterations$}
-    \State $raw\_preds, \_ \gets underlying\_model(x_{adv})$ \Comment{Get raw predictions}
-    \State $raw\_preds \gets raw\_preds.\Call{permute}{0, 2, 1}$ \Comment{Rearrange to [1, N\_boxes, channels]}
-    \State $class\_logits \gets raw\_preds[..., 4:]$ \Comment{Extract class logits}
-    \State $conf\_scores \gets \Call{sigmoid}{class\_logits}$ \Comment{Convert to confidence scores}
-    \State $target\_confidences \gets conf\_scores[..., target\_classes]$ \Comment{Extract target confidences}
-    \State $loss\_det \gets \Call{mean}{target\_confidences}$ \Comment{Mean confidence for target classes}
-    \State $loss\_l2 \gets \lambda_{reg} \cdot \Call{mse\_loss}{x_{adv}, x_{original}}$ \Comment{L2 penalty}
-    \State $loss \gets loss\_det + loss\_l2$ \Comment{Total loss}
-    \State \textbf{with} $torch.no\_grad()$:
-        \State $high\_level\_preds \gets high\_level\_model(x_{adv}, conf=conf\_threshold)$ \Comment{Check detections}
-        \State $results \gets high\_level\_preds[0]$
-        \State $detected\_classes \gets \Call{tolist}{results.boxes.cls}$ if $\text{hasattr}(results.boxes, "cls")$ else $[]$
-        \If{not $\text{set}(target\_classes) \cap \text{set}(detected\_classes)$}
-            \State \textbf{break} \Comment{Early stopping if no target classes detected}
+\Require 
+$model$, $image\_paths$, $preprocess\_fn$, $device$, $num\_epochs$, $\lambda_{reg}$, $\epsilon$, $conf\_threshold$, $lr$, $momentum$ \Comment{Inputs for training}
+\Ensure $delta$, $epoch\_losses$ \Comment{Learned perturbation and loss history}
+\State $model \gets load\_model(device)$ \Comment{Load model onto device and initialize delta with zero values}
+\State $delta \gets initialize\_zero\_tensor(shape\_of\_sample)$ \Comment{Set up initial delta with gradient tracking}
+\State $optimizer \gets configure\_sgd(delta, lr, momentum)$ \Comment{Set up optimization method for delta}
+\State $epoch\_losses \gets create\_empty\_list$ \Comment{Initialize list to track epoch losses}
+\For{$epoch = 1$ to $num\_epochs$}
+    \State $epoch\_loss \gets 0.0$ \Comment{Reset epoch loss}
+    \For{$image\_path$ in $image\_paths$}
+        \State $image \gets preprocess\_fn(image\_path, device)$ \Comment{Process image and combine with current delta}
+        \State $adv\_image \gets image + delta$ \Comment{Form adversarial image}
+        \State $raw\_outputs \gets model(adv\_image)$ \Comment{Forward pass with perturbed image}
+        \State $obj\_scores, cls\_probs \gets extract\_detection\_outputs(raw\_outputs)$ \Comment{Extract detection scores and class probabilities}
+        \State $mask \gets filter\_detections(obj\_scores, cls\_probs, conf\_threshold)$ \Comment{Filter detections above confidence threshold}
+        \If{$mask$ is empty}
+            \State \textbf{continue} \Comment{Skip if no relevant detections}
         \EndIf
-    \State $underlying\_model.\Call{zero\_grad}{}$ \Comment{Clear gradients}
-    \State $loss.\Call{backward}{}$ \Comment{Compute gradients}
-    \State $grad \gets x_{adv}.grad.data$ \Comment{Get image gradient}
-    \State $x_{adv} \gets x_{adv} - \gamma \cdot \Call{sign}{grad}$ \Comment{Update image}
-    \State $x_{adv} \gets \Call{clamp}{x_{adv}, 0, 1}$ \Comment{Clamp to valid range}
-    \State $x_{adv}.grad.\Call{zero\_}{}$ \Comment{Reset gradient}
+        \State $target\_classes \gets determine\_target\_classes(cls\_probs, mask)$ \Comment{Compute classification loss based on detected classes}
+        \State $classification\_loss \gets calculate\_cross\_entropy(target\_classes)$ \Comment{Quantify error in class predictions}
+        \State $reg\_loss \gets \lambda_{reg} \times norm(delta, 2)$ \Comment{Add L2 regularization loss on delta}
+        \State $total\_loss \gets classification\_loss + reg\_loss$ \Comment{Combine losses}
+        \State $optimizer.clear\_gradients$ \Comment{Clear previous gradients and update delta}
+        \State $total\_loss.compute\_gradients$ \Comment{Compute gradients of loss}
+        \State $optimizer.update\_parameters$ \Comment{Apply gradient updates}
+        \State $delta \gets clamp\_delta(delta, -\epsilon, \epsilon)$ \Comment{Clamp delta within epsilon range}
+        \State $epoch\_loss \gets epoch\_loss + total\_loss$ \Comment{Accumulate loss}
+    \EndFor
+    \State $avg\_loss \gets epoch\_loss / length(image\_paths)$ \Comment{Compute average loss}
+    \State $epoch\_losses.append(avg\_loss)$ \Comment{Record average loss for the epoch}
+    \State $display\_progress(epoch, num\_epochs, avg\_loss)$ \Comment{Display training progress}
 \EndFor
-\State \Return $x_{adv}.\Call{detach}{}$ \Comment{Return adversarial image}
+\State \Return $delta$, $epoch\_losses$ \Comment{Return final delta and loss history}
 \end{algorithmic}
 \end{breakablealgorithm}
+
 
 \paragraph{Results}\leavevmode\\
 The "Adversarial Examples that Fool Detectors" attack was applied with $\gamma=0.01$ and $\lambda = 0.01$ within the ranges suggested by the original paper \cite{lu2017fooldetectors}, with $num\_iterations=10$ (a sufficient number of iterations is defined by trying). Figure~\ref{fig:fool_example_yolo} illustrates the effect of the attack (targeted and non-targeted) on a sample image with $\gamma=0.01$, $\lambda = 0.01$ and $num\_iterations=10$, showing the original image, the adversarial images, and the pixel-wise differences.
@@ -1089,6 +1088,113 @@ The impact of the "Adversarial Examples that Fool Detectors" attack on YOLO's pe
         \bottomrule
     \end{tabular}
 \end{table}
+
+
+\subsubsection{Universal Adversarial Perturbations (UAP)}
+\paragraph{Introduction}\leavevmode\\
+Universal adversarial perturbations (UAP) paper shows existence of universal image-agnostic perturbations for state-of-the-art deep neural networks \cite{moosavi2017universal}. The algorithm searches a universal perturbation for a set of training points. In this work, we modified the original algorithm to be more suitable to find universal adversarial perturbations that can fool object detectors.
+
+\paragraph{Methodology}\leavevmode\\
+The methodology adapts the universal adversarial perturbation approach from Moosavi-Dezfooli et al. \cite{moosavi2017universal} to target object detection models, specifically using a YOLOv8 model. The process trains a single perturbation vector, termed delta, that, when added to any input image, reduces the detection confidence across multiple images. The key steps involve iterative optimization over a set of training images, incorporating a regularization term to maintain perturbation subtlety. The algorithm was trained with an epsilon of 0.1 and 10 epochs to constrain the perturbation magnitude and utilized a dataset with 15 classes. The training dataset was constructed by sampling 100 images per class, ensuring a balanced representation. The algorithm is formalized as follows:
+
+\begin{breakablealgorithm}{Universal Adversarial Perturbation Training}
+\begin{algorithmic}[1]
+\Require 
+$model$, $image\_paths$, $preprocess\_fn$, $device$, $num\_epochs$, $\lambda_{reg}$, $\epsilon$, $conf\_threshold$, $lr$, $momentum$ \Comment{Inputs for training}
+\Ensure $delta$, $epoch\_losses$ \Comment{Learned perturbation and loss history}
+\State $model \gets load\_model(device)$ \Comment{Load model onto device and initialize delta with zero values}
+\State $delta \gets initialize\_zero\_tensor(shape\_of\_sample)$ \Comment{Set up initial delta with gradient tracking}
+\State $optimizer \gets configure\_sgd(delta, lr, momentum)$ \Comment{Set up optimization method for delta}
+\State $epoch\_losses \gets create\_empty\_list$ \Comment{Initialize list to track epoch losses}
+\For{$epoch = 1$ to $num\_epochs$}
+    \State $epoch\_loss \gets 0.0$ \Comment{Reset epoch loss}
+    \For{$image\_path$ in $image\_paths$}
+        \State $image \gets preprocess\_fn(image\_path, device)$ \Comment{Process image and combine with current delta}
+        \State $adv\_image \gets image + delta$ \Comment{Form adversarial image}
+        \State $raw\_outputs \gets model(adv\_image)$ \Comment{Forward pass with perturbed image}
+        \State $obj\_scores, cls\_probs \gets extract\_detection\_outputs(raw\_outputs)$ \Comment{Extract detection scores and class probabilities}
+        \State $mask \gets filter\_detections(obj\_scores, cls\_probs, conf\_threshold)$ \Comment{Filter detections above confidence threshold}
+        \If{$mask$ is empty}
+            \State \textbf{continue} \Comment{Skip if no relevant detections}
+        \EndIf
+        \State $target\_classes \gets determine\_target\_classes(cls\_probs, mask)$ \Comment{Compute classification loss based on detected classes}
+        \State $classification\_loss \gets calculate\_cross\_entropy(target\_classes)$ \Comment{Quantify error in class predictions}
+        \State $reg\_loss \gets \lambda_{reg} \times norm(delta, 2)$ \Comment{Add L2 regularization loss on delta}
+        \State $total\_loss \gets classification\_loss + reg\_loss$ \Comment{Combine losses}
+        \State $optimizer.clear\_gradients$ \Comment{Clear previous gradients and update delta}
+        \State $total\_loss.compute\_gradients$ \Comment{Compute gradients of loss}
+        \State $optimizer.update\_parameters$ \Comment{Apply gradient updates}
+        \State $delta \gets clamp\_delta(delta, -\epsilon, \epsilon)$ \Comment{Clamp delta within epsilon range}
+        \State $epoch\_loss \gets epoch\_loss + total\_loss$ \Comment{Accumulate loss}
+    \EndFor
+    \State $avg\_loss \gets epoch\_loss / length(image\_paths)$ \Comment{Compute average loss}
+    \State $epoch\_losses.append(avg\_loss)$ \Comment{Record average loss for the epoch}
+    \State $display\_progress(epoch, num\_epochs, avg\_loss)$ \Comment{Display training progress}
+\EndFor
+\State \Return $delta$, $epoch\_losses$ \Comment{Return final delta and loss history}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
+\paragraph{Results}\leavevmode\\
+Figure~\ref{fig:uap_example_yolo} illustrates the effect of the attack on a sample image showing the original image, the adversarial images, and the pixel-wise differences.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/OD/UAP_1.png} % Replace with the actual path to your image file
+    \caption{UAP Example showing the original, adversarial, and difference images.}
+    \label{fig:uap_example_yolo}
+\end{figure}
+
+The adversarial image is not much different from the original image, as the perturbations are visually small, and the original detections disappeared.
+
+The impact of the UAP attack on YOLO's performance is detailed in Tables~\ref{tab:yolo_uap_overall_performance} and \ref{tab:yolo_uap_class_results}, which present general metrics (precision, recall, mAP@0.5, mAP@0.5:0.95) and class-specific mAP@0.5, highlighting the degradation in detection performance due to iterative adversarial perturbations.
+
+\begin{table}[H]
+    \centering
+    \caption{Overall Performance of YOLO under Clean and UAP Attack}
+    \label{tab:yolo_uap_overall_performance}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{UAP Attack}} \\
+        \midrule
+        Precision & 0.935 & 0.661 \\
+        Recall & 0.854 & 0.197 \\
+        mAP@0.5 & 0.927 & 0.443 \\
+        mAP@0.5:0.95 & 0.811 & 0.365 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Class-Specific mAP@0.5 under Clean and UAP Attack}
+    \label{tab:yolo_uap_class_results}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Class} & {\textbf{Clean}} & {\textbf{UAP Attack}} & {\textbf{$\Delta$ mAP}} \\
+        \midrule
+        all            & 0.927 & 0.443 & -0.484 \\
+        Green Light    & 0.927 & 0.454 & -0.473 \\
+        Red Light      & 0.816 & 0.533 & -0.283 \\
+        Speed Limit 10 & 0.863 & 0.000 & -0.863 \\
+        Speed Limit 20 & 0.913 & 0.265 & -0.648 \\
+        Speed Limit 30 & 0.937 & 0.526 & -0.411 \\
+        Speed Limit 40 & 0.966 & 0.543 & -0.423 \\
+        Speed Limit 50 & 0.916 & 0.526 & -0.390 \\
+        Speed Limit 60 & 0.953 & 0.416 & -0.537 \\
+        Speed Limit 70 & 0.866 & 0.487 & -0.379 \\
+        Speed Limit 80 & 0.947 & 0.578 & -0.369 \\
+        Speed Limit 90 & 0.806 & 0.603 & -0.203 \\
+        Speed Limit 100 & 0.941 & 0.506 & -0.435 \\
+        Speed Limit 110 & 0.959 & 0.000 & -0.959 \\
+        Speed Limit 120 & 0.966 & 0.558 & -0.408 \\
+        Stop           & 0.990 & 0.570 & -0.420 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
 
 \subsection{Black Box Attacks}
 

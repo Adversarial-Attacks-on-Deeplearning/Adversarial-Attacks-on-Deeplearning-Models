@@ -584,9 +584,7 @@ The Fast Gradient Sign Method (FGSM) is a single-step adversarial attack that ge
 \Require $x_{\text{image}}$, $\text{model}$, $\epsilon$, $\text{conf\_threshold}$, $\text{device}$ \Comment{Input image, YOLO model, perturbation magnitude, confidence threshold, device}
 \Ensure $x_{\text{adv}}$ \Comment{Adversarial image}
 \State $x_{\text{input}} \gets \Call{preprocess\_image}{x_{\text{image}}}. \Call{to}{\text{device}}$ \Comment{Preprocess and move to device}
-\If{$x_{\text{input}}.\text{ndim} = 3$}
-    \State $x_{\text{input}} \gets x_{\text{input}}.\Call{unsqueeze}{0}$ \Comment{Add batch dimension}
-\EndIf
+
 \State $x_{\text{input}}. \Call{requires\_grad\_}{}$ \Comment{Enable gradient tracking}
 \State $raw\_outputs \gets \text{model}(x_{\text{input}})$ \Comment{Get raw predictions}
 \State $raw\_preds \gets raw\_outputs[0]$ \Comment{Extract first detection head output}
@@ -609,7 +607,7 @@ The Fast Gradient Sign Method (FGSM) is a single-step adversarial attack that ge
 \State $perturbation \gets \epsilon \cdot \Call{sign}{grad}$ \Comment{Compute perturbation}
 \State $x_{\text{adv}} \gets x_{\text{input}} + perturbation$ \Comment{Generate adversarial image}
 \State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, 0, 1}$ \Comment{Clamp to valid pixel range}
-\State \Return $x_{\text{adv}}.\Call{detach}{}.\Call{cpu}{}$ \Comment{Return adversarial image}
+\State \Return $x_{\text{adv}}$ \Comment{Return adversarial image}
 \end{algorithmic}
 \end{breakablealgorithm}
 
@@ -693,10 +691,7 @@ The Projected Gradient Descent (PGD) attack is an iterative adversarial attack t
 \Require $x_{\text{image}}$, $\text{model}$, $\epsilon$, $num\_steps$, $\alpha$, $\text{conf\_threshold}$, $\text{random\_start}$, $\text{device}$ \Comment{Input image, YOLO model, perturbation magnitude, iterations, step size, confidence threshold, random start flag, device}
 \Ensure $x_{\text{adv}}$ \Comment{Adversarial image}
 \State $x_{\text{input}} \gets \Call{preprocess\_image}{x_{\text{image}}}. \Call{to}{\text{device}}$ \Comment{Preprocess and move to device}
-\If{$x_{\text{input}}.\text{ndim} = 3$}
-    \State $x_{\text{input}} \gets x_{\text{input}}.\Call{unsqueeze}{0}$ \Comment{Add batch dimension}
-\EndIf
-\State $x_{\text{adv}} \gets x_{\text{input}}. \Call{clone}{}. \Call{detach}{}$ \Comment{Initialize adversarial image}
+\State $x_{\text{adv}} \gets x_{\text{input}}$ \Comment{Initialize adversarial image}
 \If{$\text{random\_start}$}
     \State $noise \gets \Call{uniform}{-\epsilon, \epsilon, \text{shape}=x_{\text{adv}}.\text{shape}}$ \Comment{Random noise in $\epsilon$-ball}
     \State $x_{\text{adv}} \gets x_{\text{adv}} + noise$
@@ -725,9 +720,8 @@ The Projected Gradient Descent (PGD) attack is an iterative adversarial attack t
     \State $x_{\text{adv}} \gets x_{\text{adv}} + \alpha \cdot \Call{sign}{grad}$ \Comment{Update adversarial image}
     \State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, x_{\text{input}} - \epsilon, x_{\text{input}} + \epsilon}$ \Comment{Project to $\epsilon$-ball}
     \State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, 0, 1}$ \Comment{Clamp to valid pixel range}
-    \State $x_{\text{adv}} \gets x_{\text{adv}}.\Call{detach}{}$ \Comment{Detach for next iteration}
 \EndFor
-\State \Return $x_{\text{adv}}.\Call{detach}{}.\Call{cpu}{}$ \Comment{Return adversarial image}
+\State \Return $x_{\text{adv}}$ \Comment{Return adversarial image}
 \end{algorithmic}
 \end{breakablealgorithm}
 
@@ -856,9 +850,9 @@ The following pseudocode outlines the unified DAG attack framework, with annotat
 \If{Targeted}
     \State $final\_classes \gets \Call{get\_current\_classes}{x_{\text{adv}}, \text{model}, \text{conf\_threshold}}$
     \State $success \gets (\text{adversarial\_class} \in final\_classes) \land (final\_classes \cap \text{target\_classes} = \emptyset)$
-    \State \Return $x_{\text{adv}}.\Call{detach}{}, success$
+    \State \Return $x_{\text{adv}}, success$
 \Else
-    \State \Return $x_{\text{adv}}.\Call{detach}{}$
+    \State \Return $x_{\text{adv}}$
 \EndIf
 \end{algorithmic}
 \end{breakablealgorithm}
@@ -991,44 +985,49 @@ In this work, we implement the attack strategy detailed in \cite{lu2017fooldetec
 The attack is implemented as an iterative process targeting specific traffic sign classes within an input image, aiming to reduce the YOLOv8 model's confidence in detecting those classes.
 The algorithm is formalized as follows:
 
-\begin{breakablealgorithm}{Universal Adversarial Perturbation Training}
+
+The algorithm is formalized as follows:
+
+\begin{breakablealgorithm}{Adversarial Examples that Fool Detectors Attack}
 \begin{algorithmic}[1]
-\Require 
-$model$, $image\_paths$, $preprocess\_fn$, $device$, $num\_epochs$, $\lambda_{reg}$, $\epsilon$, $conf\_threshold$, $lr$, $momentum$ \Comment{Inputs for training}
-\Ensure $delta$, $epoch\_losses$ \Comment{Learned perturbation and loss history}
-\State $model \gets load\_model(device)$ \Comment{Load model onto device and initialize delta with zero values}
-\State $delta \gets initialize\_zero\_tensor(shape\_of\_sample)$ \Comment{Set up initial delta with gradient tracking}
-\State $optimizer \gets configure\_sgd(delta, lr, momentum)$ \Comment{Set up optimization method for delta}
-\State $epoch\_losses \gets create\_empty\_list$ \Comment{Initialize list to track epoch losses}
-\For{$epoch = 1$ to $num\_epochs$}
-    \State $epoch\_loss \gets 0.0$ \Comment{Reset epoch loss}
-    \For{$image\_path$ in $image\_paths$}
-        \State $image \gets preprocess\_fn(image\_path, device)$ \Comment{Process image and combine with current delta}
-        \State $adv\_image \gets image + delta$ \Comment{Form adversarial image}
-        \State $raw\_outputs \gets model(adv\_image)$ \Comment{Forward pass with perturbed image}
-        \State $obj\_scores, cls\_probs \gets extract\_detection\_outputs(raw\_outputs)$ \Comment{Extract detection scores and class probabilities}
-        \State $mask \gets filter\_detections(obj\_scores, cls\_probs, conf\_threshold)$ \Comment{Filter detections above confidence threshold}
-        \If{$mask$ is empty}
-            \State \textbf{continue} \Comment{Skip if no relevant detections}
-        \EndIf
-        \State $target\_classes \gets determine\_target\_classes(cls\_probs, mask)$ \Comment{Compute classification loss based on detected classes}
-        \State $classification\_loss \gets calculate\_cross\_entropy(target\_classes)$ \Comment{Quantify error in class predictions}
-        \State $reg\_loss \gets \lambda_{reg} \times norm(delta, 2)$ \Comment{Add L2 regularization loss on delta}
-        \State $total\_loss \gets classification\_loss + reg\_loss$ \Comment{Combine losses}
-        \State $optimizer.clear\_gradients$ \Comment{Clear previous gradients and update delta}
-        \State $total\_loss.compute\_gradients$ \Comment{Compute gradients of loss}
-        \State $optimizer.update\_parameters$ \Comment{Apply gradient updates}
-        \State $delta \gets clamp\_delta(delta, -\epsilon, \epsilon)$ \Comment{Clamp delta within epsilon range}
-        \State $epoch\_loss \gets epoch\_loss + total\_loss$ \Comment{Accumulate loss}
-    \EndFor
-    \State $avg\_loss \gets epoch\_loss / length(image\_paths)$ \Comment{Compute average loss}
-    \State $epoch\_losses.append(avg\_loss)$ \Comment{Record average loss for the epoch}
-    \State $display\_progress(epoch, num\_epochs, avg\_loss)$ \Comment{Display training progress}
+\Require $image\_path$, $model\_path$, $num\_iterations$, $\gamma$, $conf\_threshold$, $\lambda_{reg}$, $target\_classes$, $device$ \Comment{Input image path, model path, iterations, step size, confidence threshold, regularization weight, target classes, device}
+\Ensure $x_{adv}$ \Comment{Adversarial image tensor}
+\State $high\_level\_model \gets \Call{YOLO}{model\_path}$ \Comment{Load high-level model}
+\State $underlying\_model \gets \Call{YOLO}{model\_path}.model$ \Comment{Load underlying model}
+\State $underlying\_model.\Call{eval}{}$ \Comment{Set to evaluation mode}
+\For{$param$ in $underlying\_model.parameters()$}
+    \State $param.requires\_grad \gets \text{False}$ \Comment{Freeze parameters}
 \EndFor
-\State \Return $delta$, $epoch\_losses$ \Comment{Return final delta and loss history}
+\State $underlying\_model.\Call{to}{device}$ \Comment{Move to device}
+\State $x_{adv} \gets \Call{preprocess\_image}{image\_path}.to(device)$ \Comment{Preprocess image}
+\State $x_{adv}.\Call{requires\_grad\_}{}$ \Comment{Enable gradient computation}
+\State $x_{original} \gets x_{adv}.\Call{clone}{}.\Call{detach}{}$ \Comment{Save original image}
+\For{$i = 1$ to $num\_iterations$}
+    \State $raw\_preds, \_ \gets underlying\_model(x_{adv})$ \Comment{Get raw predictions}
+    \State $raw\_preds \gets raw\_preds.\Call{permute}{0, 2, 1}$ \Comment{Rearrange to [1, N\_boxes, channels]}
+    \State $class\_logits \gets raw\_preds[..., 4:]$ \Comment{Extract class logits}
+    \State $conf\_scores \gets \Call{sigmoid}{class\_logits}$ \Comment{Convert to confidence scores}
+    \State $target\_confidences \gets conf\_scores[..., target\_classes]$ \Comment{Extract target confidences}
+    \State $loss\_det \gets \Call{mean}{target\_confidences}$ \Comment{Mean confidence for target classes}
+    \State $loss\_l2 \gets \lambda_{reg} \cdot \Call{mse\_loss}{x_{adv}, x_{original}}$ \Comment{L2 penalty}
+    \State $loss \gets loss\_det + loss\_l2$ \Comment{Total loss}
+    \State \textbf{with} $torch.no\_grad()$:
+        \State $high\_level\_preds \gets high\_level\_model(x_{adv}, conf=conf\_threshold)$ \Comment{Check detections}
+        \State $results \gets high\_level\_preds[0]$
+        \State $detected\_classes \gets \Call{tolist}{results.boxes.cls}$ if $\text{hasattr}(results.boxes, "cls")$ else $[]$
+        \If{not $\text{set}(target\_classes) \cap \text{set}(detected\_classes)$}
+            \State \textbf{break} \Comment{Early stopping if no target classes detected}
+        \EndIf
+    \State $underlying\_model.\Call{zero\_grad}{}$ \Comment{Clear gradients}
+    \State $loss.\Call{backward}{}$ \Comment{Compute gradients}
+    \State $grad \gets x_{adv}.grad.data$ \Comment{Get image gradient}
+    \State $x_{adv} \gets x_{adv} - \gamma \cdot \Call{sign}{grad}$ \Comment{Update image}
+    \State $x_{adv} \gets \Call{clamp}{x_{adv}, 0, 1}$ \Comment{Clamp to valid range}
+    \State $x_{adv}.grad.\Call{zero\_}{}$ \Comment{Reset gradient}
+\EndFor
+\State \Return $x_{adv}{}$ \Comment{Return adversarial image}
 \end{algorithmic}
 \end{breakablealgorithm}
-
 
 \paragraph{Results}\leavevmode\\
 The "Adversarial Examples that Fool Detectors" attack was applied with $\gamma=0.01$ and $\lambda = 0.01$ within the ranges suggested by the original paper \cite{lu2017fooldetectors}, with $num\_iterations=10$ (a sufficient number of iterations is defined by trying). Figure~\ref{fig:fool_example_yolo} illustrates the effect of the attack (targeted and non-targeted) on a sample image with $\gamma=0.01$, $\lambda = 0.01$ and $num\_iterations=10$, showing the original image, the adversarial images, and the pixel-wise differences.
@@ -1255,12 +1254,7 @@ The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack
 \begin{algorithmic}[1]
 \Require $x_{\text{audio}}$, $t_{\text{target}}$, $\text{processor}$, $\text{model}$, $\epsilon$, $sr$, $\text{device}$ \Comment{Input audio signal, target transcription, processor, model, perturbation magnitude, sample rate, device}
 \Ensure $x_{\text{adv}}$ \Comment{Adversarial audio signal}
-\State $x_{\text{input}} \gets x_{\text{audio}}.\Call{to}{\text{device}}$ \Comment{Move audio to device}
-\If{$x_{\text{input}}.\text{ndim} = 1$}
-    \State $x_{\text{input}} \gets x_{\text{input}}.\Call{unsqueeze}{0}$ \Comment{Add batch dimension}
-\EndIf
-\State $labels \gets \text{processor}.\text{tokenizer}(t_{\text{target}}, \text{return\_tensors}=\text{``pt''}).\text{input\_ids}.\Call{to}{\text{device}}$ \Comment{Tokenize target}
-\State $labels \gets labels.\Call{repeat}{x_{\text{input}}.\text{shape}[0], 1}$ \Comment{Replicate for batch}
+
 \State $x_{\text{input}}.\Call{requires\_grad\_}{}$ \Comment{Enable gradient tracking}
 \State $output \gets \text{model}(x_{\text{input}}, \text{labels}=labels)$ \Comment{Compute model output}
 \State $loss \gets output.\text{loss}$ \Comment{Extract CTC loss}
@@ -1268,7 +1262,7 @@ The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack
 \State $grad \gets x_{\text{input}}.\text{grad}$ \Comment{Get gradients}
 \State $perturbation \gets \epsilon \cdot \Call{sign}{grad}$ \Comment{Compute perturbation}
 \State $x_{\text{adv}} \gets x_{\text{input}} + perturbation$ \Comment{Generate adversarial input}
-\State \Return $x_{\text{adv}}.\Call{detach}{}.\Call{cpu}{}$ \Comment{Return adversarial audio}
+\State \Return $x_{\text{adv}}$ \Comment{Return adversarial audio}
 \end{algorithmic}
 \end{breakablealgorithm}
 
@@ -1352,12 +1346,8 @@ The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial 
 \begin{algorithmic}[1]
 \Require $x_{\text{audio}}$, $t_{\text{target}}$, $\text{model}$, $\text{processor}$, $\epsilon$, $\alpha$, $num\_iter$, $sr$, $\text{device}$, $\delta$ \Comment{Input audio, target transcription, model, processor, perturbation bound, step size, iterations, sample rate, device, convergence threshold}
 \Ensure $x_{\text{adv}}$ \Comment{Adversarial audio signal}
-\State $x_{\text{input}} \gets x_{\text{audio}}.\Call{to}{\text{device}}$ \Comment{Move audio to device}
-\If{$x_{\text{input}}.\text{ndim} = 1$}
-    \State $x_{\text{input}} \gets x_{\text{input}}.\Call{unsqueeze}{0}$ \Comment{Add batch dimension}
-\EndIf
+
 \State $labels \gets \text{processor}.\text{tokenizer}(t_{\text{target}}, \text{return\_tensors}=\text{``pt''}).\text{input\_ids}.\Call{to}{\text{device}}$ \Comment{Tokenize target}
-\State $labels \gets labels.\Call{repeat}{x_{\text{input}}.\text{shape}[0], 1}$ \Comment{Replicate for batch}
 \State $perturbation \gets \Call{zeros\_like}{x_{\text{input}}, \text{requires\_grad}=\text{True}, \text{device}=\text{device}}$ \Comment{Initialize perturbation}
 \State $prev\_loss \gets \infty$ \Comment{Initialize previous loss}
 \For{$i \gets 1$ to $num\_iter$} \Comment{Iterate up to max iterations}
@@ -1378,7 +1368,7 @@ The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial 
     \State $perturbation.\text{grad}.\Call{zero\_}{}$ \Comment{Reset gradient}
 \EndFor
 \State $x_{\text{adv}} \gets x_{\text{input}} + perturbation$ \Comment{Final adversarial input}
-\State \Return $x_{\text{adv}}.\Call{detach}{}.\Call{cpu}{}$ \Comment{Return adversarial audio}
+\State \Return $x_{\text{adv}}$ \Comment{Return adversarial audio}
 \end{algorithmic}
 \end{breakablealgorithm}
 
@@ -1416,12 +1406,10 @@ The Cramér Integral Probability Metric (IPM) attack is an advanced adversarial 
 \Ensure $x_{\text{adv}}$ \Comment{Adversarial audio signal}
 
 \State $x_{\text{input}} \gets x_{\text{audio}}.\text{to}(\text{device})$ \Comment{Move audio to device}
-\If{$x_{\text{input}}.\text{ndim} = 1$}
-    \State $x_{\text{input}} \gets x_{\text{input}}.\text{unsqueeze}(0)$ \Comment{Add batch dimension}
-\EndIf
+
 
 \State $labels \gets \text{processor}.\text{tokenizer}(t_{\text{target}}, \text{return\_tensors}=\text{``pt''}).\text{input\_ids}.\text{to}(\text{device})$ \Comment{Tokenize target}
-\State $labels \gets labels.\text{repeat}(x_{\text{input}}.\text{shape}[0], 1)$ \Comment{Replicate for batch}
+
 \State $x_{\text{adv}} \gets x_{\text{input}}.\text{clone}().\text{detach}().\text{requires\_grad\_}(\text{True})$ \Comment{Initialize adversarial input}
 
 \For{$i \gets 1$ to $\text{num\_iter}$} \Comment{Iterate up to max iterations}
@@ -1448,7 +1436,7 @@ The Cramér Integral Probability Metric (IPM) attack is an advanced adversarial 
     \State $x_{\text{adv}} \gets \text{clamp}(x_{\text{adv}}, -1.0, 1.0)$ \Comment{Clamp to valid range}
 \EndFor
 
-\State \Return $x_{\text{adv}}.\text{detach}().\text{cpu}()$ \Comment{Return adversarial audio}
+\State \Return $x_{\text{adv}}$ \Comment{Return adversarial audio}
 \end{algorithmic}
 \end{breakablealgorithm}
 

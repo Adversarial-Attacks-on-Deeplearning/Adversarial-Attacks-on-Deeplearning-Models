@@ -1274,8 +1274,8 @@ The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack
 
 
 \paragraph{Results}
-the evaluation happened over 100 samples from librespeech test dataset. The results are in Table~\ref{fgsm_wav2vec2}
 
+The effectiveness of the FGSM attack was evaluated across a range of epsilon values on 100 samples from the LibriSpeech test-clean dataset. The quantitative results, detailed in Table~\ref{fgsm_wav2vec2}.
 
 Original CER: 0.9\% - Original WER: 2.84\%.
 \begin{table}[H]
@@ -1296,6 +1296,50 @@ $\epsilon$   & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Del
 \bottomrule
 \end{tabular}
 \end{table}
+
+The following figures provide a visual analysis of this trend by showing the spectrogram of a single representative audio sample after being subjected to the attack at each epsilon level.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_01.png} % Replace with the actual path to your image file
+    \caption{FGSM $\epsilon = 0.01$ Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm01_example_wav}
+\end{figure}
+
+At $\epsilon = 0.01$ Figure~\ref{fig:fgsm01_example_wav}, the adversarial spectrogram is visually indistinguishable from the original. The difference spectrogram reveals a very low-energy, structured noise pattern that is inaudible to a human listener. This minimal perturbation aligns with the high SNR of 37.56 dB and results in only a minor increase in transcription errors.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_02.png} % Replace with the actual path to your image file
+    \caption{FGSM $\epsilon = 0.02$ Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm02_example_wav}
+\end{figure}
+Increasing the epsilon to $\epsilon = 0.02$ in Figure~\ref{fig:fgsm02_example_wav}, the adversarial audio remains perceptually identical to the original. The noise spectrogram shows a slight increase in energy but retains its targeted structure, concentrating on the same time-frequency regions as the original speech.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_05.png} % Replace with the actual path to your image file
+    \caption{FGSM $\epsilon = 0.05$ Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm05_example_wav}
+\end{figure}
+At $\epsilon = 0.05$ in Figure~\ref{fig:fgsm05_example_wav}, the noise energy becomes more prominent in the difference spectrogram. While the main formants of the speech are still perfectly clear in the adversarial example, the perturbation is now strong enough to significantly mislead the model, nearly doubling the WER compared to the original.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_1.png} % Replace with the actual path to your image file
+    \caption{FGSM $\epsilon = 0.1$ Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm1_example_wav}
+\end{figure}
+With $\epsilon = 0.1$ in Figure~\ref{fig:fgsm1_example_wav}, the adversarial noise is more visible and structured. The attack now introduces enough distortion to degrade the SNR to 17.56 dB, causing a substantial increase in transcription errors, as reflected by the A-WER of 9.68%.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_2.png} % Replace with the actual path to your image file
+    \caption{FGSM $\epsilon = 0.2$ Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm2_example_wav}
+\end{figure}
+
+Finally, at the highest tested $\epsilon = 0.2$ in Figure~\ref{fig:fgsm2_example_wav}, the noise spectrogram shows a high-energy perturbation that visibly distorts the signal's structure. This corresponds to the lowest SNR of 11.54 dB and has the most severe impact on transcription accuracy, causing the A-CER to increase by nearly 7 percentage points over the baseline.
 
 
 \subsubsection{PGD Attack}

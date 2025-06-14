@@ -12,6 +12,7 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{tcolorbox} % For breakable algorithm and table
+\setcounter{secnumdepth}{3}
 \tcbuselibrary{breakable} % Enable breakable tcolorbox
 \newtcolorbox{breakablealgorithm}[2][]{
   breakable,
@@ -24,17 +25,6 @@
 }
 
 
-% Define tcolorbox style for breakable table
-\newtcolorbox{breakabletable}[2][]{
-  breakable,
-  colback=white,
-  colframe=white, % No border
-  coltitle=black,
-  fonttitle=\bfseries,
-  title=#2,
-  #1,
-  center
-}
 
 
 \begin{document}
@@ -68,17 +58,18 @@ The model under adversarial investigation is \textbf{EfficientNet-B1}. Unlike tr
 
 In this chapter, we will therefore probe the vulnerabilities of the highly capable EfficientNet-B1 model when trained on the safety-critical GTSRB dataset. The subsequent sections will detail the specific adversarial attacks employed to generate malicious inputs and evaluate various defense strategies aimed at fortifying the model against such threats.
 \section{Attacks}
-\subsection{Fast Gradient Sign Method (FGSM)}
+\subsection{White Box Attacks}
+\subsubsection{Fast Gradient Sign Method (FGSM)}
 
-\subsubsection{Introduction}
+\paragraph{Introduction}
 The Fast Gradient Sign Method (FGSM) is one of the earliest and most influential approaches for crafting adversarial examples against deep neural networks. Introduced by Goodfellow et al.\ in 2015, FGSM demonstrated that small, carefully chosen perturbations—imperceptible to humans—can reliably force state-of-the-art classifiers into making incorrect predictions. This work highlighted a fundamental vulnerability in high-dimensional linear behavior of models and sparked a wealth of research into both stronger attacks and robust defense mechanisms \cite{goodfellow2015explaining}.  
 
 In their seminal paper, Goodfellow and colleagues showed that even a single-step perturbation computed from the model’s loss gradient suffices to degrade accuracy dramatically on datasets such as MNIST and CIFAR-10. The simplicity and effectiveness of FGSM make it a canonical benchmark for evaluating adversarial robustness and for developing more advanced multi-step attacks and defenses \cite{goodfellow2015explaining}.
-\subsubsection{Methodology}
-\paragraph{Attack Type}
+\paragraph{Methodology}
+\subparagraph{Attack Type}
 The Fast Gradient Sign Method (FGSM) is a \textbf{white-box}, \textbf{untargeted} attack. As a white-box method, it requires full access to the model’s parameters and gradients. It is untargeted in the sense that its goal is simply to cause misclassification, not to steer the model toward a specific incorrect label. The adversarial example is generated to increase the loss with respect to the true class, thereby pushing the prediction away from the correct category.
 
-\paragraph{Parameters}
+\subparagraph{Parameters}
 \begin{description}
   \item[$x$] The clean input image (e.g., a batch of images) to be perturbed.
   \item[$y$] The true label (or labels) associated with $x$.
@@ -87,7 +78,7 @@ The Fast Gradient Sign Method (FGSM) is a \textbf{white-box}, \textbf{untargeted
   \item[$J(\theta, x, y)$] The loss function used during model training (e.g., cross‐entropy).
 \end{description}
 
-\paragraph{Algorithm Overview}
+\subparagraph{Algorithm Overview}
 FGSM generates an adversarial example by taking a single, maximally disruptive step in the direction that increases the model’s loss most rapidly. Concretely, we compute the gradient of the loss $J(\theta, x, y)$ with respect to the input $x$, extract its sign to form a unit‐step “direction,” scale that by $\epsilon$, and add it to the original image. Finally, we clip the result to the valid pixel range to ensure a legitimate image. This one‐step procedure is efficient and often sufficient to cause high‐confidence misclassifications, making it a standard baseline for evaluating robustness.
 
 \begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack}
@@ -155,7 +146,7 @@ FGSM generates an adversarial example by taking a single, maximally disruptive s
 
 Figure~\ref{fig:fgsm-visual-traffic-sign} provides a clear visual demonstration of the FGSM attack. The process begins with a clean input image, $x$, correctly classified by the model as a ``speed limit 20'' sign with 71\% confidence. As detailed in the algorithm, the attack computes the gradient of the loss function with respect to the input pixels and takes its sign to determine the direction of the perturbation. This direction, $\text{sign}(\nabla_x J(\theta, x, y))$, is then scaled by a small magnitude, $\epsilon$ (here, 0.007), to form the final perturbation. When this seemingly random, low-magnitude noise is added to the original image, the resulting adversarial example, $x_{\text{adv}}$, remains visually almost identical to the original. However, it successfully deceives the model, causing a high-confidence misclassification to ``slippery road'' with 77\% confidence, demonstrating the efficacy of the attack.
 
-\subsubsection{Results}
+\paragraph{Results}
 
 To evaluate the effectiveness of the FGSM attack, we used a custom-trained \textbf{EfficientNetB1} model on the \textbf{German Traffic Sign Recognition Benchmark (GTSRB)} dataset. The model achieved \textbf{96\% accuracy} on the clean test set. For adversarial evaluation, we applied FGSM with different perturbation magnitudes $\epsilon$ on a random subset of \textbf{512 test images}.
 
@@ -179,19 +170,19 @@ $\epsilon$ & {Accuracy (\%)} & {Accuracy Drop (\%)} \\
 \end{table}
 
 
-\subsection{Projected Gradient Descent (PGD)}
-\subsubsection{Introduction}
+\subsubsection{Projected Gradient Descent (PGD)}
+\paragraph{Introduction}
 
 Projected Gradient Descent (PGD) is a powerful iterative attack method introduced by Madry et al.\ in their work on adversarial robustness \cite{madry2018towardspgd}. It is widely regarded as one of the most effective first-order adversarial attacks, capable of producing stronger perturbations than single-step methods like FGSM by applying multiple small gradient steps.
 
 PGD operates by iteratively perturbing the input in the direction of the gradient of the loss function and projecting the perturbed input back into an $\epsilon$-bounded $\ell_\infty$ ball around the original input. This ensures that the adversarial example remains within a specified perturbation budget. Due to its effectiveness and reliability, PGD is often considered the “universal first-order adversary” and is commonly used both as a benchmark attack and as a training strategy (i.e., adversarial training) to improve model robustness \cite{madry2018towardspgd}.
 
-\subsubsection{Methodology}
+\paragraph{Methodology}
 
-\paragraph{Attack Type}
+\subparagraph{Attack Type}
 The Projected Gradient Descent (PGD) attack is a \textbf{white-box}, \textbf{untargeted}, and \textbf{iterative} attack. As a white-box method, it requires full access to the model’s parameters and gradients. It is untargeted in that its objective is to cause misclassification of the input without steering the prediction toward any specific incorrect label. The attack refines the basic idea of FGSM by applying multiple small perturbation steps, with each step constrained within an $\ell_\infty$-norm ball of radius $\epsilon$ centered around the original input. After each step, the perturbation is projected back into this bounded space, ensuring the adversarial example stays within the allowed perturbation budget.
 
-\paragraph{Parameters}
+\subparagraph{Parameters}
 \begin{description}
   \item[$x$] The clean input image to be perturbed.
   \item[$y$] The true label associated with $x$.
@@ -201,7 +192,7 @@ The Projected Gradient Descent (PGD) attack is a \textbf{white-box}, \textbf{unt
   \item[$n$] The number of iterations (steps) to apply the attack.
   \item[$J(\theta, x, y)$] The loss function used during training (e.g., cross-entropy).
 \end{description}
-\paragraph{Algorithm Overview}
+\subparagraph{Algorithm Overview}
 The PGD attack is an iterative extension of the Fast Gradient Sign Method (FGSM). It starts by adding a small random initialization within the $\ell_\infty$ ball of radius $\epsilon$ around the original input $x$. Then, for a fixed number of iterations $n$, the method performs gradient ascent on the loss function with respect to the input, stepping in the direction that increases the loss. After each step, the adversarial example is projected back into the valid $\ell_\infty$ ball to ensure that the perturbation does not exceed the maximum allowed distortion $\epsilon$. The adversarial example is also clipped to stay within the valid input range (e.g., pixel values between 0 and 1). This iterative process allows PGD to produce much stronger adversarial examples than single-step methods like FGSM.
 
 \begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack}
@@ -222,7 +213,7 @@ The PGD attack is an iterative extension of the Fast Gradient Sign Method (FGSM)
 \end{algorithmic}
 \end{breakablealgorithm}
 
-\subsubsection{Results}
+\paragraph{Results}
 
 To evaluate the effectiveness of the PGD attack, we used the same \textbf{EfficientNetB1} model trained on the \textbf{German Traffic Sign Recognition Benchmark (GTSRB)} dataset, which achieved \textbf{96\% accuracy} on the clean test set. For adversarial evaluation, we applied PGD with varying perturbation budgets $\epsilon$ and corresponding step sizes $\alpha$, using a random subset of \textbf{512 test images}.
 
@@ -246,12 +237,13 @@ $\epsilon=0.10$, $\alpha=0.0250$  & 0.00  & 96.00 & 3 \\
 \end{table}
 
 \clearpage
-\subsection{Boundary Attack}
+\subsection{Black Box Attacks}
+\subsubsection{Boundary Attack}
 
-\subsubsection{Introduction}
+\paragraph{Introduction}
 The Boundary Attack is a decision-based adversarial attack that operates in a black-box setting, requiring access only to the model's final predicted class label. First introduced by Brendel et al.\ in 2018 \cite{brendel2018decisionbasedadversarialattacksreliable}, it is particularly powerful because it avoids reliance on gradients or confidence scores, making it suitable for attacking systems where internal model information is completely inaccessible. At its core, the attack performs an iterative random walk along the model's decision boundary to find a minimal perturbation that causes a misclassification.
 
-\subsubsection{Methodology}
+\paragraph{Methodology}
 
 The Boundary Attack is a \textbf{black-box} and \textbf{decision-based} method. A crucial aspect of this attack is how the initial adversarial example is chosen, as this defines the attack's goal. There are two primary strategies:
 \begin{enumerate}
@@ -259,7 +251,7 @@ The Boundary Attack is a \textbf{black-box} and \textbf{decision-based} method. 
     \item \textbf{Targeted Attack:} The attack is initialized with a clean image from a different, specific class (e.g., initializing with a "Speed limit 70" sign to attack a "Speed limit 30" sign). The goal is then to "morph" this starting image to be as visually similar to the original target image as possible, effectively forcing the model to misclassify the target as the starting class. This makes the second strategy a natural and effective way to perform a targeted attack.
 \end{enumerate}
 
-\paragraph{Parameters}
+\subparagraph{Parameters}
 \begin{description}
   \item[$x$] The original clean input that is correctly classified by the model.
   \item[$x_{\mathrm{adv}}$] The starting adversarial example, which must already be misclassified.
@@ -292,10 +284,10 @@ The Boundary Attack is a \textbf{black-box} and \textbf{decision-based} method. 
 \State \Return $x_{\mathrm{adv}}^{(i)}$
 \end{algorithmic}
 \end{breakablealgorithm}
-\subsubsection{Experimental Results}
+\paragraph{Experimental Results}
 To evaluate the Boundary Attack on our trained model, we conducted experiments demonstrating both initialization strategies.
 
-\paragraph{Strategy 1: Refining an Existing Adversarial Example}
+\subparagraph{Strategy 1: Refining an Existing Adversarial Example}
 First, we demonstrate the attack's ability to minimize an existing perturbation. We began with a pre-crafted adversarial example—a noisy "Speed limit 20" sign that our model misclassifies as "Slippery road" with 100\% confidence. As shown in Figure~\ref{fig:boundary_attack}, the Boundary Attack uses this image as its starting point. It then iteratively refines the image, significantly reducing the visual distortion while keeping it on the adversarial side of the decision boundary. The final boundary example is much cleaner, yet it remains misclassified, with the model's confidence dropping to 49.97\%. This shows the attack's effectiveness in taking a powerful but obvious attack and transforming it into a much stealthier one.
 
 
@@ -318,7 +310,7 @@ First, we demonstrate the attack's ability to minimize an existing perturbation.
     \label{fig:boundary_attack}
 \end{figure}
 
-\paragraph{Strategy 2: Morphing from a Different Class}
+\subparagraph{Strategy 2: Morphing from a Different Class}
 The second, more semantically interesting approach is to start from a legitimate image of another class. We tasked the attack with morphing a "Speed limit 70" sign into a "Speed limit 30" sign. Figure~\ref{fig:boundary_progression} documents the visual evolution of this process, showing the state of the image at every 10 iterations. The progression clearly illustrates the "morphing" effect as the features of the "70" are gradually replaced by those of the "30".
 
 The culmination of this process is presented in Figure~\ref{fig:boundary_comparison}. The final adversarial image after 70 iterations is visually very similar to the true "Speed limit 30" target. Despite this, the model continues to misclassify it as "Speed limit 70" with 61.38\% confidence. This result is particularly compelling as it demonstrates a semantic failure of the model, creating an adversarial example that is deceptive in a human-interpretable way.
@@ -401,19 +393,19 @@ The culmination of this process is presented in Figure~\ref{fig:boundary_compari
     \label{fig:boundary_comparison}
 \end{figure}
 \clearpage 
-\subsection{HopSkipJumpAttack}
+\subsubsection{HopSkipJumpAttack}
 
-\subsubsection{Introduction}
+\paragraph{Introduction}
 
 The HopSkipJumpAttack, introduced by Chen et al.\ in 2019 \cite{chen2020hopskipjumpattackqueryefficientdecisionbasedattack}, represents a significant advancement in the field of decision-based black-box attacks. It is specifically designed to be highly \textbf{query-efficient}, meaning it requires far fewer interactions with the target model to find an adversarial example compared to its predecessors, such as the standard Boundary Attack. This efficiency is a critical feature for evaluating real-world systems, which may be protected by query limits or other defenses that detect an unusually high volume of requests.
 
 The core innovation of HopSkipJumpAttack is its novel method for estimating the model's gradient direction using only the binary decision outputs (i.e., "is this image class A or not?"). While the standard Boundary Attack relies on a less-directed random walk to explore the decision boundary, HopSkipJumpAttack uses its gradient estimate to guide the search much more effectively. This allows the attack to find high-quality adversarial examples with minimal, often imperceptible, perturbations in a fraction of the time and with significantly fewer model queries.
-\subsubsection{Methodology}
+\paragraph{Methodology}
 
-\paragraph{Attack Type}
+\subparagraph{Attack Type}
 The HopSkipJumpAttack is a \textbf{black-box}, \textbf{decision-based} adversarial attack. This means it treats the target model as an opaque oracle, interacting with it solely by providing input images and observing the final predicted label. It does not require access to model gradients, architecture, or confidence scores (logits). The attack can be used for both \textbf{untargeted} objectives (causing any misclassification) and \textbf{targeted} objectives (causing a specific misclassification). Its primary strength lies in its query efficiency compared to other decision-based methods.
 
-\paragraph{Parameters}
+\subparagraph{Parameters}
 The algorithm's execution is governed by several key parameters:
 \begin{description}
   \item[$x_{orig}$] The original, clean input image that is correctly classified by the model.
@@ -425,7 +417,7 @@ The algorithm's execution is governed by several key parameters:
 \end{description}
 
 % --- PHASE 1 ---
-\paragraph{Phase 1: Adversarial Initialization}
+\subparagraph{Phase 1: Adversarial Initialization}
 The first step of any decision-based attack is to find a starting point that is already in the adversarial region. Since the attack starts with only the original clean image, this is typically achieved by adding progressively larger amounts of random noise to the original image until the target model misclassifies it. Algorithm~\ref{alg:hsja_init} outlines this process.
 
 \begin{breakablealgorithm}{Adversarial Initialization}
@@ -448,7 +440,7 @@ The first step of any decision-based attack is to find a starting point that is 
 \end{breakablealgorithm}
 
 % --- PHASE 2 ---
-\paragraph{Phase 2: Iterative Refinement}
+\subparagraph{Phase 2: Iterative Refinement}
 Once an initial adversarial point is found, the main iterative refinement loop begins. The overall structure of this loop is shown in Algorithm~\ref{alg:hsja_main}. It orchestrates the three core components of the attack—the "Hop," "Skip," and "Jump"—to progressively move the adversarial example closer to the original image. Each of these components is detailed in the subsequent algorithms.
 
 \begin{breakablealgorithm}{HopSkipJumpAttack (Main Loop)}
@@ -473,7 +465,7 @@ Once an initial adversarial point is found, the main iterative refinement loop b
 \end{breakablealgorithm}
 
 % --- COMPONENT DETAILS ---
-\paragraph{Component 1: The "Hop" (Gradient Estimation)}
+\subparagraph{Component 1: The "Hop" (Gradient Estimation)}
 The first step within the main loop is to estimate the gradient direction at the current boundary point. As shown in Algorithm~\ref{alg:hsja_hop}, this is done via a Monte Carlo method. Many random vectors are sampled, and for each, the model is queried to see if adding that small perturbation causes the image to cross the decision boundary. The average of these directional outcomes provides a robust estimate of the true gradient.
 
 \begin{breakablealgorithm}{Gradient Estimation ("Hop")}
@@ -496,7 +488,7 @@ The first step within the main loop is to estimate the gradient direction at the
 \end{algorithmic}
 \end{breakablealgorithm}
 
-\paragraph{Component 2: The "Skip" (Geometric Step Search)}
+\subparagraph{Component 2: The "Skip" (Geometric Step Search)}
 After estimating the gradient, the algorithm must take a step away from the boundary to allow room for the next "Jump." As detailed in Algorithm~\ref{alg:hsja_skip}, it performs a search with geometrically increasing step sizes along the gradient direction until it finds a point that is safely inside the adversarial region.
 
 \begin{breakablealgorithm}{Geometric Step Search ("Skip")}
@@ -516,7 +508,7 @@ After estimating the gradient, the algorithm must take a step away from the boun
 \end{algorithmic}
 \end{breakablealgorithm}
 
-\paragraph{Component 3: The "Jump" (Binary Search Projection)}
+\subparagraph{Component 3: The "Jump" (Binary Search Projection)}
 Finally, the algorithm projects the new point back onto the decision boundary. Algorithm~\ref{alg:hsja_jump} shows how this is done with a highly efficient binary search. It interpolates between the new adversarial point and the original clean image, rapidly converging on a point that lies almost exactly on the boundary, ready for the next iteration.
 
 \begin{breakablealgorithm}{Binary Search Projection ("Jump")}
@@ -542,7 +534,7 @@ Finally, the algorithm projects the new point back onto the decision boundary. A
 
     In concert, these algorithms form a complete framework for executing the HopSkipJumpAttack. The initialization phase (Algorithm~\ref{alg:hsja_init}) secures a valid starting point, after which the main loop (Algorithm~\ref{alg:hsja_main}) uses the 'Hop', 'Skip', and 'Jump' sub-routines to iteratively refine the adversarial example. The primary advantage of this multi-stage methodology is its ability to find minimally perturbed solutions with high query efficiency. Having detailed the algorithmic underpinnings of the attack, we now proceed to evaluate its practical performance against our trained model.
 
-\subsubsection{Results}
+\paragraph{Results}
 \textbf{This is a draft to be continued.}
 \begin{figure}[H]
     \centering
@@ -554,6 +546,9 @@ Finally, the algorithm projects the new point back onto the decision boundary. A
 \section{Introduction}
 \section{Attacks}
 \section{Defenses}
+
+
+
 \chapter{Object Detection}
 \section{Introduction}
 \label{sec:detection_intro}
@@ -562,14 +557,23 @@ Object detection represents a significant leap in complexity beyond simple image
 
 To align our research with this critical application, our experiments are centered on the \textbf{LISA (Laboratory for Intelligent \& Safe Automobiles) Traffic Sign Dataset}. This dataset is specifically designed to benchmark the performance of object detectors on real-world traffic signs captured under a variety of conditions, making it an ideal environment to assess the practical security risks posed by adversarial attacks.
 
-For our model, we have selected \textbf{YOLOv8n (You Only Look Once, version 8 nano)}. As a one-stage detector, the YOLO architecture is renowned for its exceptional balance of speed and accuracy, making it a leading choice for real-time applications where low-latency inference is paramount. The 'nano' variant, in particular, is optimized for efficiency, making it highly suitable for deployment on resource-constrained hardware, such as the on-board computers in autonomous vehicles. Our trained YOLOv8n model establishes a strong performance baseline on the clean LISA dataset, achieving a mean Average Precision (\textbf{mAP\textsubscript{50-95}}) of \textbf{82.3\%} and a \textbf{mAP\textsubscript{50}} of \textbf{95.8\%}. This strong detection performance, coupled with a rapid inference time of approximately \textbf{3.9 milliseconds} per image on our hardware, confirms its suitability for real-world deployment.
+For our model, we have selected \textbf{YOLOv8n (You Only Look Once, version 8 nano)}. As a one-stage detector, the YOLO architecture is renowned for its exceptional balance of speed and accuracy, making it a leading choice for real-time applications where low-latency inference is paramount. The 'nano' variant, in particular, is optimized for efficiency, making it highly suitable for deployment on resource-constrained hardware, such as the on-board computers in autonomous vehicles. Our trained YOLOv8n model establishes a strong performance baseline on the clean LISA dataset, achieving a mean Average Precision (\textbf{mAP\textsubscript{50-95}}) of \textbf{81.1\%} and a \textbf{mAP\textsubscript{50}} of \textbf{92.7\%}. This strong detection performance, coupled with a rapid inference time of approximately \textbf{3.9 milliseconds} per image on our hardware, confirms its suitability for real-world deployment.
 
 Given that such a high-performing and efficient model is a prime candidate for use in safety-critical systems, this chapter will investigate its robustness against adversarial attacks. We will explore methods designed to fool object detectors into failing to detect signs or misclassifying them, and subsequently evaluate defenses intended to mitigate these critical vulnerabilities.\section{Attacks}
-\subsection{FGSM Attack on YOLO}
-\subsubsection{Introduction}
+\subsection{Evaluation Methodology}
+To assess the effectiveness of adversarial attacks, including the Fast Gradient Sign Method (FGSM), on the YOLO object detection model, a systematic evaluation framework was designed. The primary goal was to quantify the impact of perturbations on detection performance while ensuring the methodology is reproducible and aligned with standard practices in computer vision research.
+
+The evaluation was conducted on a test dataset of traffic sign images, with a fixed confidence threshold of 0.25 to filter predictions. This threshold was selected to balance precision and recall, ensuring that only highly confident detections were considered while minimizing false positives. Performance was measured using the mean Average Precision (mAP) metric, with a focus on mAP@0.5, which evaluates detection accuracy at an Intersection over Union (IoU) threshold of 0.5. This metric is widely adopted in object detection benchmarks (e.g., Pascal VOC, COCO) and provides a practical measure of model robustness under moderate localization requirements. Additionally, mAP@0.5:0.95 was computed, averaging precision across IoU thresholds from 0.5 to 0.95 in steps of 0.05, to assess the attack's impact on both detection and precise localization, offering a more stringent evaluation where relevant.
+
+Class-specific mAP@0.5 was evaluated to identify vulnerabilities across different traffic sign categories (e.g., Speed Limit signs, Stop signs), with the drop in mAP ($\Delta$ mAP) calculated to highlight the relative degradation for each class. This approach enables a detailed understanding of how visual saliency and feature distinctiveness affect robustness. The methodology was applied consistently across all attacks to ensure comparability, with results presented in subsequent sections to avoid redundancy in attack-specific discussions.
+\subsection{White-Box Attacks}
+\subsubsection{FGSM Attack on YOLO}
+
+\paragraph{Introduction}\leavevmode\\
 The Fast Gradient Sign Method (FGSM) is a single-step adversarial attack that generates adversarial examples by perturbing inputs along the gradient of the loss function \cite{goodfellow2015explaining}. For YOLO \cite{lu2017noneed}, FGSM targets high-confidence detections from raw model outputs before non-maximum suppression (NMS) to maximize classification errors, causing misclassifications or missed detections. The attack uses an $\ell_\infty$-bounded perturbation (controlled by $\epsilon$) to maintain similarity while disrupting the model's predictions.
 
-\subsubsection{Methodology}
+\paragraph{Methodology}\leavevmode\\
+
 \begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack on YOLO}
 \begin{algorithmic}[1]
 \Require $x_{\text{image}}$, $\text{model}$, $\epsilon$, $\text{conf\_threshold}$, $\text{device}$ \Comment{Input image, YOLO model, perturbation magnitude, confidence threshold, device}
@@ -604,42 +608,187 @@ The Fast Gradient Sign Method (FGSM) is a single-step adversarial attack that ge
 \end{algorithmic}
 \end{breakablealgorithm}
 
-\subsubsection{Results}
-The evaluation was conducted on the test dataset images, with the FGSM attack applied using $\epsilon=0.15$ and a confidence threshold of 0.25. The table below reports the mean Average Precision (mAP@0.5) for clean and adversarial images, the drop in mAP ($\Delta$), Peak Signal-to-Noise Ratio (PSNR), and Structural Similarity Index (SSIM) for each class and the overall average.
+\paragraph{Results}\leavevmode\\
 
-\begin{breakabletable}{Attack Effectiveness of FGSM on YOLO }
-\label{tab:yolo_fgsm_results}
-\centering
-\footnotesize
-\begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]S[table-format=2.2]S[table-format=1.2]@{\hspace{0.3cm}}}
-\toprule
-{Class} & {Clean mAP@0.5} & {A-mAP@0.5} & {$\Delta$mAP} & {PSNR (dB)} & {SSIM} \\
-\midrule
-\textbf{All} & 0.927 & 0.312 & -0.615 & 23.60 & 0.85 \\
-Green Light & 0.927 & 0.312 & -0.615 & 23.60 & 0.85 \\
-Red Light & 0.816 & 0.328 & -0.488 & 23.60 & 0.85 \\
-Speed Limit 10 & 0.863 & 0.000 & -0.863 & 23.60 & 0.85 \\
-Speed Limit 20 & 0.913 & 0.522 & -0.391 & 23.60 & 0.85 \\
-Speed Limit 30 & 0.937 & 0.511 & -0.426 & 23.60 & 0.85 \\
-Speed Limit 40 & 0.966 & 0.485 & -0.481 & 23.60 & 0.85 \\
-Speed Limit 50 & 0.916 & 0.295 & -0.621 & 23.60 & 0.85 \\
-Speed Limit 60 & 0.953 & 0.239 & -0.714 & 23.60 & 0.85 \\
-Speed Limit 70 & 0.866 & 0.519 & -0.347 & 23.60 & 0.85 \\
-Speed Limit 80 & 0.947 & 0.440 & -0.507 & 23.60 & 0.85 \\
-Speed Limit 90 & 0.806 & 0.440 & -0.366 & 23.60 & 0.85 \\
-Speed Limit 100 & 0.941 & 0.511 & -0.430 & 23.60 & 0.85 \\
-Speed Limit 110 & 0.959 & 0.511 & -0.448 & 23.60 & 0.85 \\
-Speed Limit 120 & 0.966 & 0.511 & -0.455 & 23.60 & 0.85 \\
-Stop & 0.990 & 0.510 & -0.480 & 23.60 & 0.85 \\
-\bottomrule
-\end{tabular}
-\end{breakabletable}
+The FGSM attack was applied with perturbation magnitudes $\epsilon=0.01$, $0.05$, and $0.1$. Figure~\ref{fig:fgsm_example} illustrates the effect of the attack on a "Speed Limit 120" sign with $\epsilon=0.1$, showing the original image, the adversarial image, and the pixel-wise difference.
+% Figure: FGSM Example Image
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/OD/fgsm.png} % Replace with the actual path to your image file
+    \caption{FGSM Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm_example}
+\end{figure}
 
-\section{Defenses}
+The following tables ~\ref{tab:yolo_fgsm_overall_performance}and ~\ref{tab:yolo_fgsm_class_results}present the overall performance metrics and class-specific mean Average Precision (mAP@0.5), highlighting the impact of adversarial attacks on detection performance.
+
+
+
+% Table 1: Overall Performance
+\begin{table}[H]
+\caption{Overall Performance of YOLO under Clean and FGSM Attacks}
+    \label{tab:yolo_fgsm_overall_performance}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{FGSM $\epsilon=0.01$}} & {\textbf{FGSM $\epsilon=0.05$}} & {\textbf{FGSM $\epsilon=0.1$}} \\
+        \midrule
+        Precision     & 0.935 & 0.893 & 0.722 & 0.582 \\
+        Recall        & 0.854 & 0.810 & 0.622 & 0.491 \\
+        mAP@0.5       & 0.927 & 0.836 & 0.595 & 0.416 \\
+        mAP@0.5:0.95  & 0.811 & 0.713 & 0.492 & 0.341 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% Table 2: mAP@0.5 per Class
+\begin{table}[H]
+\caption{Class-Specific mAP@0.5 under Clean and FGSM Attacks}
+    \label{tab:yolo_fgsm_class_results}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Class} & {\textbf{Clean}} & {\textbf{FGSM $\epsilon=0.01$}} & {\textbf{FGSM $\epsilon=0.05$}} & {\textbf{FGSM $\epsilon=0.1$}} & {\textbf{$\Delta$ mAP ($\epsilon=0.1$)}} \\
+        \midrule
+        All            & 0.927 & 0.836 & 0.595 & 0.416 & -0.511 \\
+        Green Light    & 0.927 & 0.783 & 0.617 & 0.459 & -0.468 \\
+        Red Light      & 0.816 & 0.736 & 0.538 & 0.405 & -0.411 \\
+        Speed Limit 10 & 0.863 & 0.584 & 0.000 & 0.000 & -0.863 \\
+        Speed Limit 100 & 0.925 & 0.827 & 0.611 & 0.504 & -0.421 \\
+        Speed Limit 110 & 0.852 & 0.821 & 0.555 & 0.000 & -0.852 \\
+        Speed Limit 120 & 0.966 & 0.830 & 0.609 & 0.580 & -0.386 \\
+        Speed Limit 20 & 0.991 & 0.946 & 0.791 & 0.543 & -0.448 \\
+        Speed Limit 30 & 0.916 & 0.839 & 0.663 & 0.361 & -0.555 \\
+        Speed Limit 40 & 0.978 & 0.934 & 0.662 & 0.508 & -0.470 \\
+        Speed Limit 50 & 0.910 & 0.803 & 0.676 & 0.589 & -0.321 \\
+        Speed Limit 60 & 0.951 & 0.875 & 0.312 & 0.245 & -0.706 \\
+        Speed Limit 70 & 0.948 & 0.898 & 0.623 & 0.529 & -0.419 \\
+        Speed Limit 80 & 0.975 & 0.855 & 0.706 & 0.426 & -0.549 \\
+        Speed Limit 90 & 0.891 & 0.831 & 0.694 & 0.515 & -0.376 \\
+        Stop           & 0.990 & 0.980 & 0.870 & 0.580 & -0.410 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+\subsubsection{PGD Attack on YOLO}
+
+% Writing introduction paragraph
+\paragraph{Introduction}\leavevmode\\
+The Projected Gradient Descent (PGD) attack is an iterative adversarial attack that generates adversarial examples by repeatedly perturbing the input image along the gradient of the loss function, with projections to ensure perturbations remain within an $\ell_\infty$-bounded $\epsilon$-ball \cite{madry2018towardspgd}. For YOLO \cite{lu2017noneed}, PGD targets high-confidence detections from raw model outputs before non-maximum suppression (NMS), aiming to maximize classification errors and cause misclassifications or missed detections. Unlike the single-step FGSM, PGD's iterative nature with smaller step sizes and optional random initialization enhances attack strength while maintaining visual similarity, controlled by the perturbation magnitude $\epsilon$.
+
+\newpage
+% Writing methodology paragraph with algorithm
+\paragraph{Methodology}\leavevmode\\
+\begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack on YOLO}
+\begin{algorithmic}[1]
+\Require $x_{\text{image}}$, $\text{model}$, $\epsilon$, $num\_steps$, $\alpha$, $\text{conf\_threshold}$, $\text{random\_start}$, $\text{device}$ \Comment{Input image, YOLO model, perturbation magnitude, iterations, step size, confidence threshold, random start flag, device}
+\Ensure $x_{\text{adv}}$ \Comment{Adversarial image}
+\State $x_{\text{input}} \gets \Call{preprocess\_image}{x_{\text{image}}}. \Call{to}{\text{device}}$ \Comment{Preprocess and move to device}
+\If{$x_{\text{input}}.\text{ndim} = 3$}
+    \State $x_{\text{input}} \gets x_{\text{input}}.\Call{unsqueeze}{0}$ \Comment{Add batch dimension}
+\EndIf
+\State $x_{\text{adv}} \gets x_{\text{input}}. \Call{clone}{}. \Call{detach}{}$ \Comment{Initialize adversarial image}
+\If{$\text{random\_start}$}
+    \State $noise \gets \Call{uniform}{-\epsilon, \epsilon, \text{shape}=x_{\text{adv}}.\text{shape}}$ \Comment{Random noise in $\epsilon$-ball}
+    \State $x_{\text{adv}} \gets x_{\text{adv}} + noise$
+    \State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, 0, 1}$ \Comment{Clamp to valid pixel range}
+\EndIf
+\For{$i = 1$ to $num\_steps$}
+    \State $x_{\text{adv}}. \Call{requires\_grad\_}{}$ \Comment{Enable gradient tracking}
+    \State $raw\_outputs \gets \text{model}(x_{\text{adv}})$ \Comment{Get raw predictions}
+    \State $raw\_preds \gets raw\_outputs[0]$ \Comment{Extract first detection head output}
+    \State $box\_coords \gets raw\_preds[..., :4]$ \Comment{Bounding box coordinates}
+    \State $obj\_scores \gets raw\_preds[..., 4:5]$ \Comment{Objectness scores}
+    \State $cls\_logits \gets raw\_preds[..., 5:]$ \Comment{Class logits}
+    \State $obj\_probs \gets \Call{sigmoid}{obj\_scores}$ \Comment{Convert objectness to probability}
+    \State $cls\_probs \gets \Call{softmax}{cls\_logits, \text{dim}=-1}.\Call{max}{\text{dim}=-1}$ \Comment{Max class probability}
+    \State $conf\_scores \gets obj\_probs \cdot cls\_probs$ \Comment{Combined confidence scores}
+    \State $mask \gets conf\_scores.\Call{squeeze}{-1} > \text{conf\_threshold}$ \Comment{Filter high-confidence detections}
+    \If{not $\Call{any}{mask}$}
+        \State \Return None \Comment{No high-confidence detections}
+    \EndIf
+    \State $target\_classes \gets cls\_logits.\Call{argmax}{\text{dim}=-1}[mask].\Call{detach}{}$ \Comment{Original predicted classes}
+    \State $current\_logits \gets cls\_logits[mask]$ \Comment{Logits for high-confidence detections}
+    \State $loss \gets \Call{cross\_entropy}{current\_logits, target\_classes}$ \Comment{Classification loss}
+    \State $\text{model}.\Call{zero\_grad}{}$ \Comment{Clear gradients}
+    \State $loss.\Call{backward}{}$ \Comment{Compute gradients}
+    \State $grad \gets x_{\text{adv}}.\text{grad}$ \Comment{Get image gradient}
+    \State $x_{\text{adv}} \gets x_{\text{adv}} + \alpha \cdot \Call{sign}{grad}$ \Comment{Update adversarial image}
+    \State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, x_{\text{input}} - \epsilon, x_{\text{input}} + \epsilon}$ \Comment{Project to $\epsilon$-ball}
+    \State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, 0, 1}$ \Comment{Clamp to valid pixel range}
+    \State $x_{\text{adv}} \gets x_{\text{adv}}.\Call{detach}{}$ \Comment{Detach for next iteration}
+\EndFor
+\State \Return $x_{\text{adv}}.\Call{detach}{}.\Call{cpu}{}$ \Comment{Return adversarial image}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+% Writing results placeholder paragraph
+\paragraph{Results}\leavevmode\\
+The PGD attack was applied with perturbation magnitudes $\epsilon=0.01$, $0.05$, and $0.1$, using $num\_steps=10$ and $step\_size (\alpha)=epsilon/4$. Figure~\ref{fig:pgd_example} illustrates the effect of the attack on a sample image with $\epsilon=0.1$ and $\alpha = 0.25$, showing the original image, the adversarial image, and the pixel-wise difference.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/OD/pgd.png} % Replace with the actual path to your image file
+    \caption{PGD Example showing the original, adversarial, and difference images.}
+    \label{fig:pgd_example}
+\end{figure}
+
+The impact of the PGD attack on YOLO's performance is detailed in Tables~\ref{tab:yolo_pgd_overall_performance} and \ref{tab:yolo_pgd_class_results}, presenting overall metrics (Precision, Recall, mAP@0.5, mAP@0.5:0.95) and class-specific mAP@0.5 across different $\epsilon$ values, highlighting the degradation in detection performance due to the iterative adversarial perturbations.
+
+% Table 1: Overall Performance
+\begin{table}[H]
+\caption{Overall Performance of YOLO under Clean and PGD Attacks}
+    \label{tab:yolo_pgd_overall_performance}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{PGD $\epsilon=0.01$}} & {\textbf{PGD $\epsilon=0.05$}} & {\textbf{PGD $\epsilon=0.1$}} \\
+        \midrule
+        Precision     & 0.935 & 0.756 & 0.356 & 0.127 \\
+        Recall        & 0.854 & 0.682 & 0.328 & 0.140 \\
+        mAP@0.5       & 0.927 & 0.699 & 0.349 & 0.174 \\
+        mAP@0.5:0.95  & 0.811 & 0.614 & 0.318 & 0.165 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% Table 2: mAP@0.5 per Class
+\begin{table}[H]
+\caption{Class-Specific mAP@0.5 under Clean and PGD Attacks}
+    \label{tab:yolo_pgd_class_results}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Class} & {\textbf{Clean}} & {\textbf{PGD $\epsilon=0.01$}} & {\textbf{PGD $\epsilon=0.05$}} & {\textbf{PGD $\epsilon=0.1$}} & {\textbf{$\Delta$ mAP ($\epsilon=0.1$)}} \\
+        \midrule
+        Green Light     & 0.927 & 0.681 & 0.230 & 0.014 & -0.913 \\
+        Red Light       & 0.816 & 0.639 & 0.294 & 0.098 & -0.718 \\
+        Speed Limit 10  & 0.863 & 0.500 & 0.000 & 0.000 & -0.863 \\
+        Speed Limit 100 & 0.925 & 0.874 & 0.369 & 0.128 & -0.797 \\
+        Speed Limit 110 & 0.852 & 0.807 & 0.445 & 0.385 & -0.467 \\
+        Speed Limit 120 & 0.966 & 0.842 & 0.521 & 0.387 & -0.579 \\
+        Speed Limit 20  & 0.991 & 0.913 & 0.373 & 0.000 & -0.991 \\
+        Speed Limit 30  & 0.916 & 0.850 & 0.286 & 0.163 & -0.753 \\
+        Speed Limit 40  & 0.978 & 0.966 & 0.653 & 0.233 & -0.745 \\
+        Speed Limit 50  & 0.910 & 0.812 & 0.448 & 0.409 & -0.501 \\
+        Speed Limit 60  & 0.951 & 0.773 & 0.273 & 0.309 & -0.642 \\
+        Speed Limit 70  & 0.948 & 0.854 & 0.492 & 0.338 & -0.610 \\
+        Speed Limit 80  & 0.975 & 0.891 & 0.543 & 0.265 & -0.710 \\
+        Speed Limit 90  & 0.891 & 0.773 & 0.418 & 0.407 & -0.484 \\
+        Stop            & 0.990 & 0.918 & 0.547 & 0.269 & -0.721 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Black Box Attacks}
+
+\subsection{Physical Attacks}
+
+
 \part{Language Models}
-% --- Introduction for Part II: Language Models ---
-% Place this code directly after your \part{Language Models} command.
-
 Human intelligence is inextricably linked to our ability to produce, understand, and reason with language. In the field of artificial intelligence, the quest to imbue machines with similar capabilities has culminated in the development of \textbf{Language Models}. At its core, a language model is a probabilistic model over sequences of linguistic units, such as words or tokens. While this concept began with simple statistical methods, it has evolved into the sophisticated deep learning architectures that now form the backbone of modern AI. This Part of the thesis provides a comprehensive investigation into the adversarial vulnerabilities of these models across their primary modalities and applications.
 
 Our exploration begins at the interface between the physical world and symbolic text: \textbf{Automatic Speech Recognition (ASR)}. We treat ASR not merely as an audio processing task, but as the foundational gateway for machines to process spoken language. The systems that transcribe human speech into text are, in essence, sequence-to-sequence language models that must interpret continuous acoustic signals. Their security is the first line of defense for any downstream language-based application.
@@ -649,6 +798,10 @@ Once speech is transcribed, or when text is the native input, we enter the domai
 The final stage of our investigation addresses the current paradigm shift in the field: \textbf{Large Language Models (LLMs)}. These vast, pre-trained models have redefined the scope of what is possible, demonstrating remarkable emergent abilities in reasoning, generation, and few-shot learning. By examining LLMs, we address the security challenges at the cutting edge of AI, where the attack surface is broader and the potential consequences of failure are more complex than ever before.
 
 Despite their diverse applications and varying levels of complexity—from processing audio waves to generating coherent essays—these systems all share a profound and unsettling characteristic: a vulnerability to adversarial attacks. Whether through subtle, imperceptible noise in an audio waveform or carefully chosen word substitutions in a block of text, adversaries can manipulate the inputs to these models to cause spectacular failures. This Part, therefore, provides a holistic examination of the adversarial landscape for language-centric AI, charting the evolution of threats from the specialized models of yesterday to the general-purpose intelligent systems of today.
+
+
+
+
 \chapter{Automatic Speech Recognition}
 \section{Introduction}
 \label{sec:asr_intro}
@@ -661,11 +814,12 @@ To conduct a rigorous and reproducible security evaluation, our experiments are 
 
 In this chapter, we will therefore probe the vulnerabilities of the pre-trained Wav2Vec 2.0 model against this well-defined testbed. On the 100 clean samples, our model establishes a strong performance baseline, achieving a \textbf{Character Error Rate (CER) of 0.9\%} and a \textbf{Word Error Rate (WER) of 2.84\%}. These low error rates confirm the model's high competence before the introduction of any malicious noise. The subsequent sections will detail the attack methodologies used to generate adversarial audio and explore potential defenses aimed at fortifying these advanced speech recognition systems.
 \section{Attacks}
-\subsection{FGSM Attack}
-\subsubsection{Introduction}
+\subsection{White Box Attacks}
+\subsubsection{FGSM Attack}
+\paragraph{Introduction}
 The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack technique designed to generate adversarial examples by introducing imperceptible perturbations to input data, thereby misleading machine learning models \cite{goodfellow2015explaining}. In the context of automatic speech recognition (ASR), this attack crafts adversarial audio samples that force the model to produce a specified target transcription\cite{zelasko2021adversarial}.
 
-\subsubsection{Methodology}
+\paragraph{Methodology}
 \begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack}
 \begin{algorithmic}[1]
 \Require $x_{\text{audio}}$, $t_{\text{target}}$, $\text{processor}$, $\text{model}$, $\epsilon$, $sr$, $\text{device}$ \Comment{Input audio signal, target transcription, processor, model, perturbation magnitude, sample rate, device}
@@ -688,12 +842,14 @@ The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack
 \end{breakablealgorithm}
 
 
-\subsubsection{Results}
-the evaluation happened over 100 samples from librespeech test dataset.
+\paragraph{Results}
+the evaluation happened over 100 samples from librespeech test dataset. The results are in Table~\ref{fgsm_wav2vec2}
 
 
 Original CER: 0.9\% - Original WER: 2.84\%.
-\begin{breakabletable}{Attack Effectiveness of FGSM}
+\begin{table}[H]
+\caption{Attack Effectiveness of FGSM}
+\label{fgsm_wav2vec2}
 \centering
 \footnotesize
 \label{tab:fgsm_results}
@@ -708,15 +864,15 @@ $\epsilon$   & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Del
 0.20 & 7.6 & 15.16 & 11.54 &6.7 & 12.32 \\
 \bottomrule
 \end{tabular}
-\end{breakabletable}
+\end{table}
 
 
-\subsection{PGD Attack}
-\subsubsection{Introduction}
+\subsubsection{PGD Attack}
+\paragraph{Introduction}
 The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial attack method that builds upon the principles of the Fast Gradient Sign Method (FGSM) by applying multiple small perturbations to optimize the adversarial example within an $\ell_\infty$ norm constraint \cite{madry2018towardspgd}. In automatic speech recognition (ASR) systems, PGD generates adversarial audio samples by iteratively adjusting the input waveform to maximize the loss function, aiming to force the model to produce a specified target transcription \cite{zelasko2021adversarial}.
 
 
-\subsubsection{Methodology}
+\paragraph{Methodology}
 \begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack}
 \begin{algorithmic}[1]
 \Require $x_{\text{audio}}$, $t_{\text{target}}$, $\text{model}$, $\text{processor}$, $\epsilon$, $\alpha$, $num\_iter$, $sr$, $\text{device}$, $\delta$ \Comment{Input audio, target transcription, model, processor, perturbation bound, step size, iterations, sample rate, device, convergence threshold}
@@ -752,12 +908,14 @@ The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial 
 \end{breakablealgorithm}
 
 
-\subsubsection{Results}
-the evaluation happened over 100 samples from librespeech test dataset.
+\paragraph{Results}
+the evaluation happened over 100 samples from librespeech test dataset.The results are in Table~\ref{pgd_attack_results}
 
 Original CER: 0.9\% - Original WER: 2.84\%
-\begin{breakabletable}{Attack Effectiveness of PGD}
-\label{tab:pgd_attack_results}
+\begin{table}[H]
+\caption{Attack Effectiveness of PGD}
+\centering
+\label{pgd_attack_results}
 \begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
 \toprule
 $\epsilon$ & $\alpha$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER}  \\
@@ -769,13 +927,13 @@ $\epsilon$ & $\alpha$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER}
 0.20 & 0.02 & 58.39 & 81.44 & 11.54 & 57.49 & 78.60  \\
 \bottomrule
 \end{tabular}
-\end{breakabletable}
+\end{table}
 
-\subsection{Cramér-IPM Attack}
-\subsubsection{Introduction}
+\subsubsection{Cramér-IPM Attack}
+\paragraph{Introduction}
 The Cramér Integral Probability Metric (IPM) attack is an advanced adversarial method designed to generate robust adversarial audio signals for automatic speech recognition (ASR) systems,\cite{esmaeilpour2021towards}. By leveraging the Cramér-IPM, this attack minimizes the discrepancy between the distributions of original and adversarial audio samples, ensuring the adversarial signals remain close to the legitimate speech manifold. Unlike traditional attacks like FGSM or PGD, the Cramér-IPM approach combines the Connectionist Temporal Classification (CTC) loss with a statistical distance metric, enhancing robustness against over-the-air playback without relying on costly Expectation Over Transformation (EOT) operations \cite{esmaeilpour2021towards}. This method optimizes perturbations to maximize transcription errors while maintaining perceptual similarity, making it effective for both targeted and non-targeted attacks.
 
-\subsubsection{Methodology}
+\paragraph{Methodology}
 
 \begin{breakablealgorithm}{Cramér-IPM Adversarial Attack}
 \begin{algorithmic}[1]
@@ -821,12 +979,14 @@ The Cramér Integral Probability Metric (IPM) attack is an advanced adversarial 
 
 
 
-\subsubsection{Results}
-The evaluation was conducted over 100 samples from the LibriSpeech test dataset.
+\paragraph{Results}
+The evaluation was conducted over 100 samples from the LibriSpeech test dataset. The results are in Table~\ref{cramer_ipm_results}
 
 Original CER: 0.9\%  - Original WER: 2.84\%
-\begin{breakabletable}{Attack Effectiveness of Cramér-IPM}
-\label{tab:cramer_ipm_results}
+\begin{table}[H]
+\caption{Attack Effectiveness of Cramér-IPM}
+\centering
+\label{cramer_ipm_results}
 \begin{tabular}{@{\hspace{0.3cm}}cS[table-format=1.2]S[table-format=1.2]S[table-format=2.2]lS[table-format=1.2]S[table-format=2.2]c@{\hspace{0.3cm}}}
 \toprule
 $\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)}  & {$\Delta$CER} & {$\Delta$WER}  \\
@@ -839,8 +999,9 @@ $\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)}  & {$\Delta$CER} & {$\Delt
 0.2   & 0.96 & 1.02 & -2.50  & 0.06 & -1.82  \\
 \bottomrule
 \end{tabular}
-\end{breakabletable}
+\end{table}
 
+\subsection{Black Box Attacks}
 
 \section{Defenses}
 \subsection{Randomized Smoothing}
@@ -895,10 +1056,11 @@ Randomized smoothing \cite{cohen2019certified} emerges as a promising defense by
 
 \subsubsection{Results with PGD Attacks}
 
-\begin{breakabletable}{Defense Effectiveness Against PGD Attacks with Adaptive Smoothing}
+\begin{table}[H]
+\caption{Defense Effectiveness Against PGD Attacks with Adaptive Smoothing}
 \centering
 \footnotesize
-\label{tab:pgd_results}
+\label{pgd_results}
 \begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
 \toprule
 $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)} & {$\Delta$CER} & {$\Delta$WER} & {Samp.} \\
@@ -910,7 +1072,7 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 0.2 & 0.02 & 58.39 & 81.44 & 42.07 & 67.04 & -16.32 & -14.40 & 100 \\
 \bottomrule
 \end{tabular}
-\end{breakabletable}
+\end{table}
 
 \subsection{MP3 Compression}
 \subsubsection{Introduction}
@@ -955,10 +1117,11 @@ MP3 compression, a lossy audio encoding scheme based on psychoacoustic models, s
 \newpage
 \subsubsection{Results with PGD Attacks}
 
-\begin{breakabletable}
+\begin{table}[H]
+\caption{Defense Effectiveness Against PGD Attacks with MP3 Compression}
 \centering
 \footnotesize
-\label{tab:mp3_results}
+\label{mp3_results}
 \begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
 \toprule
 $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)} & {$\Delta$CER} & {$\Delta$WER} & {Samp.} \\
@@ -1020,7 +1183,7 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 0.2 & 0.02 & 58.39 & 81.44 & 32.37 & 55.64 & -26.02 & -25.81 & 100 \\
 \bottomrule
 \end{tabular}
-\end{breakabletable}
+\end{table}
 
 
 
@@ -1070,12 +1233,13 @@ The spectral gating defense was evaluated on 100 adversarial audio samples acros
     \item Non-stationary, 80\% noise reduction, 200 Hz/25 ms smoothing (\texttt{nonstat\_p80\_f200\_t25}).
 \end{itemize}
 
-Table \ref{tab:spectral_gating_results} summarizes the results.
+Table \ref{spectral_gating_results} summarizes the results.
 
-\begin{breakabletable}{Defense Effectiveness Against PGD Attacks with Spectral Gating}
+\begin{table}[H]
+\caption{Defense Effectiveness Against PGD Attacks with Spectral Gating}
 \centering
 \footnotesize
-\label{tab:spectral_gating_results}
+\label{spectral_gating_results}
 \begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
 \toprule
 $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)} & {$\Delta$CER} & {$\Delta$WER} & {Samp.} \\
@@ -1116,7 +1280,7 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 0.2000 & 0.0200 & 58.39 & 81.44 & 11.26 & 23.48 & -47.13 & -57.96 & 100 \\
 \bottomrule
 \end{tabular}
-\end{breakabletable}
+\end{table}
 
 
 \subsection{Quantization Defense}
@@ -1152,12 +1316,13 @@ The pseudocode for the input quantization defense is shown in Algorithm \ref{alg
 
 
 \subsubsection{Results with PGD Attacks}
-\ref{tab:quantization_results} summarizes the results for $\epsilon=0.1, \alpha=0.01$, showing CER, WER, and their reductions ($\Delta$CER, $\Delta$WER) compared to the undefended case. Results for other epsilon values are available in the supplemental material.
+~\ref{quantization_results} summarizes the results for $\epsilon=0.1, \alpha=0.01$, showing CER, WER, and their reductions ($\Delta$CER, $\Delta$WER) compared to the undefended case. Results for other epsilon values are available in the supplemental material.
 
-\begin{breakabletable}{Defense Effectiveness Against PGD Attacks with Input Quantization}
+\begin{table}[H]
+\caption{Defense Effectiveness Against PGD Attacks with Input Quantization}
 \centering
 \footnotesize
-\label{tab:quantization_results}
+\label{quantization_results}
 \begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
 \toprule
 $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)} & {$\Delta$CER} & {$\Delta$WER} & {Samp.} \\
@@ -1184,7 +1349,8 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 0.2 & 0.02 & 58.39 & 81.44 & 29.49 & 50.38 & -28.90 & -31.06 & 100 \\
 \bottomrule
 \end{tabular}
-\end{breakabletable}
+\end{table}
+
 
 
 \bibliographystyle{unsrt}

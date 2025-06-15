@@ -581,36 +581,23 @@ The Fast Gradient Sign Method (FGSM) is a single-step adversarial attack that ge
 
 \begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack on YOLO}
 \begin{algorithmic}[1]
-\Require $x_{\text{image}}$, $\text{model}$, $\epsilon$, $\text{conf\_threshold}$, $\text{device}$ \Comment{Input image, YOLO model, perturbation magnitude, confidence threshold, device}
-\Ensure $x_{\text{adv}}$ \Comment{Adversarial image}
-\State $x_{\text{input}} \gets \Call{preprocess\_image}{x_{\text{image}}}. \Call{to}{\text{device}}$ \Comment{Preprocess and move to device}
-
-\State $x_{\text{input}}. \Call{requires\_grad\_}{}$ \Comment{Enable gradient tracking}
-\State $raw\_outputs \gets \text{model}(x_{\text{input}})$ \Comment{Get raw predictions}
-\State $raw\_preds \gets raw\_outputs[0]$ \Comment{Extract first detection head output}
-\State $box\_coords \gets raw\_preds[..., :4]$ \Comment{Bounding box coordinates}
-\State $obj\_scores \gets raw\_preds[..., 4:5]$ \Comment{Objectness scores}
-\State $cls\_logits \gets raw\_preds[..., 5:]$ \Comment{Class logits}
-\State $obj\_probs \gets \Call{sigmoid}{obj\_scores}$ \Comment{Convert objectness to probability}
-\State $cls\_probs \gets \Call{softmax}{cls\_logits, \text{dim}=-1}.\Call{max}{\text{dim}=-1}$ \Comment{Max class probability}
-\State $conf\_scores \gets obj\_probs \cdot cls\_probs$ \Comment{Combined confidence scores}
-\State $mask \gets conf\_scores.\Call{squeeze}{-1} > \text{conf\_threshold}$ \Comment{Filter high-confidence detections}
-\If{not $\Call{any}{mask}$}
+\Require $x \in \mathbb{R}^{H \times W \times C}$: input image, $model$: YOLO model, $\epsilon > 0$: perturbation magnitude, $\tau > 0$: confidence threshold
+\Ensure $x_{adv} \in \mathbb{R}^{H \times W \times C}$: adversarial image
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize to $[0, 1]$, resize}
+\State Compute model predictions: $p = model(x)$ \Comment{$p$ includes bounding boxes, objectness scores, class probabilities}
+\State Extract detections $\mathcal{D} = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$, where $b_i$ are bounding boxes, $s_i$ are objectness scores, $c_i \in \mathbb{R}^K$ are class probabilities for $K$ classes
+\If{$\mathcal{D} = \emptyset$}
     \State \Return None \Comment{No high-confidence detections}
 \EndIf
-\State $target\_classes \gets cls\_logits.\Call{argmax}{\text{dim}=-1}[mask].\Call{detach}{}$ \Comment{Original predicted classes}
-\State $current\_logits \gets cls\_logits[mask]$ \Comment{Logits for high-confidence detections}
-\State $loss \gets \Call{cross\_entropy}{current\_logits, target\_classes}$ \Comment{Classification loss}
-\State $\text{model}.\Call{zero\_grad}{}$ \Comment{Clear gradients}
-\State $loss.\Call{backward}{}$ \Comment{Compute gradients}
-\State $grad \gets x_{\text{input}}.\text{grad}$ \Comment{Get image gradient}
-\State $perturbation \gets \epsilon \cdot \Call{sign}{grad}$ \Comment{Compute perturbation}
-\State $x_{\text{adv}} \gets x_{\text{input}} + perturbation$ \Comment{Generate adversarial image}
-\State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, 0, 1}$ \Comment{Clamp to valid pixel range}
-\State \Return $x_{\text{adv}}$ \Comment{Return adversarial image}
+\State Select target class labels $y_i = \arg\max_k (c_i)_k$ for each detection $(b_i, s_i, c_i) \in \mathcal{D}$
+\State Define classification loss: $L(x, \mathcal{D}) = \sum_{(b_i, s_i, c_i) \in \mathcal{D}} \ell(c_i, y_i)$, where $\ell$ is cross-entropy loss
+\State Compute gradient: $g = \nabla_x L(x, \mathcal{D}) \in \mathbb{R}^{H \times W \times C}$ \Comment{Gradient of loss w.r.t. $x$}
+\State Compute perturbation: $\eta = \epsilon \cdot \text{sign}(g)$ \Comment{Scaled sign of gradient}
+\State Generate adversarial image: $x_{adv} = x + \eta$
+\State Clamp $x_{adv}$ to valid range: $x_{adv} = \text{clip}(x_{adv}, 0, 1)$ \Comment{Ensure pixel values in $[0, 1]$}
+\State \Return $x_{adv}$
 \end{algorithmic}
 \end{breakablealgorithm}
-
 \paragraph{Results}\leavevmode\\
 
 The FGSM attack was applied with perturbation magnitudes $\epsilon=0.01$, $0.05$, and $0.1$. Figure~\ref{fig:fgsm_example_yolo} illustrates the effect of the attack on a "Speed Limit 120" sign with $\epsilon=0.1$, showing the original image, the adversarial image, and the pixel-wise difference.
@@ -688,40 +675,29 @@ The Projected Gradient Descent (PGD) attack is an iterative adversarial attack t
 \paragraph{Methodology}\leavevmode\\
 \begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack on YOLO}
 \begin{algorithmic}[1]
-\Require $x_{\text{image}}$, $\text{model}$, $\epsilon$, $num\_steps$, $\alpha$, $\text{conf\_threshold}$, $\text{random\_start}$, $\text{device}$ \Comment{Input image, YOLO model, perturbation magnitude, iterations, step size, confidence threshold, random start flag, device}
-\Ensure $x_{\text{adv}}$ \Comment{Adversarial image}
-\State $x_{\text{input}} \gets \Call{preprocess\_image}{x_{\text{image}}}. \Call{to}{\text{device}}$ \Comment{Preprocess and move to device}
-\State $x_{\text{adv}} \gets x_{\text{input}}$ \Comment{Initialize adversarial image}
-\If{$\text{random\_start}$}
-    \State $noise \gets \Call{uniform}{-\epsilon, \epsilon, \text{shape}=x_{\text{adv}}.\text{shape}}$ \Comment{Random noise in $\epsilon$-ball}
-    \State $x_{\text{adv}} \gets x_{\text{adv}} + noise$
-    \State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, 0, 1}$ \Comment{Clamp to valid pixel range}
+\Require $x \in \mathbb{R}^{H \times W \times C}$: input image, $model$: YOLO model, $\epsilon > 0$: perturbation magnitude, $T > 0$: number of iterations, $\alpha > 0$: step size, $\tau > 0$: confidence threshold, $random\_start$: boolean for random initialization
+\Ensure $x_{adv} \in \mathbb{R}^{H \times W \times C}$: adversarial image
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize to $[0, 1]$, resize}
+\State Initialize $x_{adv} \gets x$ \Comment{Set initial adversarial image}
+\If{$random\_start$}
+    \State Sample $\eta \sim \mathcal{U}(-\epsilon, \epsilon)^{H \times W \times C}$ \Comment{Random noise in $\epsilon$-ball}
+    \State $x_{adv} \gets x + \eta$
+    \State $x_{adv} \gets \text{clip}(x_{adv}, 0, 1)$ \Comment{Ensure pixel values in $[0, 1]$}
 \EndIf
-\For{$i = 1$ to $num\_steps$}
-    \State $x_{\text{adv}}. \Call{requires\_grad\_}{}$ \Comment{Enable gradient tracking}
-    \State $raw\_outputs \gets \text{model}(x_{\text{adv}})$ \Comment{Get raw predictions}
-    \State $raw\_preds \gets raw\_outputs[0]$ \Comment{Extract first detection head output}
-    \State $box\_coords \gets raw\_preds[..., :4]$ \Comment{Bounding box coordinates}
-    \State $obj\_scores \gets raw\_preds[..., 4:5]$ \Comment{Objectness scores}
-    \State $cls\_logits \gets raw\_preds[..., 5:]$ \Comment{Class logits}
-    \State $obj\_probs \gets \Call{sigmoid}{obj\_scores}$ \Comment{Convert objectness to probability}
-    \State $cls\_probs \gets \Call{softmax}{cls\_logits, \text{dim}=-1}.\Call{max}{\text{dim}=-1}$ \Comment{Max class probability}
-    \State $conf\_scores \gets obj\_probs \cdot cls\_probs$ \Comment{Combined confidence scores}
-    \State $mask \gets conf\_scores.\Call{squeeze}{-1} > \text{conf\_threshold}$ \Comment{Filter high-confidence detections}
-    \If{not $\Call{any}{mask}$}
+\For{$t = 1$ to $T$}
+    \State Compute model predictions: $p \gets model(x_{adv})$ \Comment{$p$ includes bounding boxes, objectness scores, class probabilities}
+    \State Extract detections $\mathcal{D} = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$, where $b_i$ are bounding boxes, $s_i$ are objectness scores, $c_i \in \mathbb{R}^K$ are class probabilities for $K$ classes
+    \If{$\mathcal{D} = \emptyset$}
         \State \Return None \Comment{No high-confidence detections}
     \EndIf
-    \State $target\_classes \gets cls\_logits.\Call{argmax}{\text{dim}=-1}[mask].\Call{detach}{}$ \Comment{Original predicted classes}
-    \State $current\_logits \gets cls\_logits[mask]$ \Comment{Logits for high-confidence detections}
-    \State $loss \gets \Call{cross\_entropy}{current\_logits, target\_classes}$ \Comment{Classification loss}
-    \State $\text{model}.\Call{zero\_grad}{}$ \Comment{Clear gradients}
-    \State $loss.\Call{backward}{}$ \Comment{Compute gradients}
-    \State $grad \gets x_{\text{adv}}.\text{grad}$ \Comment{Get image gradient}
-    \State $x_{\text{adv}} \gets x_{\text{adv}} + \alpha \cdot \Call{sign}{grad}$ \Comment{Update adversarial image}
-    \State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, x_{\text{input}} - \epsilon, x_{\text{input}} + \epsilon}$ \Comment{Project to $\epsilon$-ball}
-    \State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, 0, 1}$ \Comment{Clamp to valid pixel range}
+    \State Select target class labels $y_i = \arg\max_k (c_i)_k$ for each $(b_i, s_i, c_i) \in \mathcal{D}$
+    \State Define classification loss: $L(x_{adv}, \mathcal{D}) = \sum_{(b_i, s_i, c_i) \in \mathcal{D}} \ell(c_i, y_i)$, where $\ell$ is cross-entropy loss
+    \State Compute gradient: $g \gets \nabla_{x_{adv}} L(x_{adv}, \mathcal{D}) \in \mathbb{R}^{H \times W \times C}$ \Comment{Gradient of loss w.r.t. $x_{adv}$}
+    \State Update adversarial image: $x_{adv} \gets x_{adv} + \alpha \cdot \text{sign}(g)$
+    \State Project to $\epsilon$-ball: $x_{adv} \gets \text{clip}(x_{adv}, x - \epsilon, x + \epsilon)$ \Comment{Ensure $||x_{adv} - x||_\infty \leq \epsilon$}
+    \State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, 0, 1)$ \Comment{Ensure pixel values in $[0, 1]$}
 \EndFor
-\State \Return $x_{\text{adv}}$ \Comment{Return adversarial image}
+\State \Return $x_{adv}$
 \end{algorithmic}
 \end{breakablealgorithm}
 
@@ -811,49 +787,50 @@ The DAG algorithm \cite{xie2017DAG} was originally designed as a \textit{targete
 \paragraph{Methodology}\leavevmode\\
 
 The following pseudocode outlines the unified DAG attack framework, with annotations to highlight the differences between the targeted and untargeted variants.
-\begin{breakablealgorithm}{Dense Adversary Generation (DAG) Attack}
+\begin{breakablealgorithm}{Dense Adversary Generation (DAG) Attack on YOLO}
 \begin{algorithmic}[1]
-\Require $x_{\text{image}}$, $\text{model}$, $[\text{adversarial\_class}]$, $num\_iterations$, $\gamma$, $\text{conf\_threshold}$, $\text{device}$ \Comment{Input image, YOLO model, optional adversarial class (targeted only), iterations, step size, confidence threshold, device}
-\Ensure $x_{\text{adv}}$, $[\text{success}]$ \Comment{Adversarial image, optional success flag (targeted only)}
-\State $x_{\text{adv}} \gets \Call{preprocess\_image}{x_{\text{image}}}. \Call{to}{\text{device}}. \Call{requires\_grad\_}{}$ \Comment{Initialize adversarial image}
-\State $\text{target\_classes} \gets \Call{get\_original\_classes}{x_{\text{adv}}, \text{model}, \text{conf\_threshold}}$ \Comment{Get original high-confidence classes (targeted only)}
-\For{$i = 1$ to $num\_iterations$}
-    \State $raw\_preds \gets \text{model}(x_{\text{adv}})$ \Comment{Get raw predictions}
-    \State $class\_logits \gets raw\_preds[..., 4:]$ \Comment{Extract class logits}
-    \State $conf \gets \Call{sigmoid}{class\_logits}$ \Comment{Compute confidence scores}
-    \State $pred\_conf, pred\_class \gets \Call{max}{conf, \text{dim}=-1}$ \Comment{Get predicted confidence and class}
-    \State $rows\_to\_attack \gets \Call{filter\_rows}$ \Comment{Select high-confidence rows; uses target\_classes for targeted}
-    \If{$rows\_to\_attack$ is empty}
-        \If{Targeted}
-            \State $loss \gets \sum_{i} class\_logits[0, i, \text{adversarial\_class}]$ \Comment{Boost adversarial class globally}
+\Require $x \in \mathbb{R}^{H \times W \times C}$: input image, $model$: YOLO model, $y' \in \{1, \dots, K\}$: adversarial class (targeted only), $T > 0$: number of iterations, $\gamma > 0$: step size, $\tau > 0$: confidence threshold
+\Ensure $x_{adv} \in \mathbb{R}^{H \times W \times C}$: adversarial image, $success$ (targeted only): boolean success flag
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize to $[0, 1]$, resize}
+\State Initialize $x_{adv} \gets x$ \Comment{Set initial adversarial image}
+\State Compute initial predictions: $p \gets model(x_{adv})$ \Comment{$p$ includes bounding boxes, objectness scores, class probabilities}
+\State Extract initial detections $\mathcal{D}_0 = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$, where $b_i$ are bounding boxes, $s_i \in [0, 1]$ are objectness scores, $c_i \in \mathbb{R}^K$ are class probabilities for $K$ classes
+\State Define original classes: $Y_0 = \{ \arg\max_k (c_i)_k \mid (b_i, s_i, c_i) \in \mathcal{D}_0 \}$ \Comment{Targeted only}
+\For{$t = 1$ to $T$}
+    \State Compute predictions: $p \gets model(x_{adv})$ \Comment{Bounding boxes, objectness scores, class probabilities}
+    \State Extract detections $\mathcal{D} = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$
+    \If{$\mathcal{D} = \emptyset$}
+        \If{targeted attack}
+            \State Define loss: $L(x_{adv}) = \sum_{i} c_i[y']$ \Comment{Boost adversarial class globally}
         \Else
-            \State \textbf{break} \Comment{Stop if no high-confidence detections (untargeted)}
+            \State \textbf{break} \Comment{Stop if no detections (untargeted)}
         \EndIf
     \Else
-        \If{Targeted}
-            \State $loss \gets \sum_{i \in rows\_to\_attack} (class\_logits[0, i, \text{adversarial\_class}] - class\_logits[0, i, pred\_class[0, i]])$ \Comment{Targeted loss}
+        \If{targeted attack}
+            \State Define loss: $L(x_{adv}, \mathcal{D}) = \sum_{(b_i, s_i, c_i) \in \mathcal{D}} (c_i[y'] - c_i[\arg\max_k (c_i)_k])$ \Comment{Encourage adversarial class}
         \Else
-            \State $loss \gets -\sum_{i \in rows\_to\_attack} class\_logits[0, i, pred\_class[0, i]]$ \Comment{untargeted loss}
+            \State Define loss: $L(x_{adv}, \mathcal{D}) = -\sum_{(b_i, s_i, c_i) \in \mathcal{D}} c_i[\arg\max_k (c_i)_k]$ \Comment{Reduce confidence in predicted classes}
         \EndIf
     \EndIf
-    \State $\text{model}.\Call{zero\_grad}{}$ \Comment{Clear gradients}
-    \State $loss.\Call{backward}{}$ \Comment{Compute gradients}
-    \State $x_{\text{adv}} \gets x_{\text{adv}} + \gamma \cdot \Call{sign}{x_{\text{adv}}.\text{grad}}$ \Comment{Update image}
-    \State $x_{\text{adv}} \gets \Call{clamp}{x_{\text{adv}}, 0, 1}$ \Comment{Clamp to valid range}
-    \If{Targeted}
-        \State $current\_classes \gets \Call{get\_current\_classes}{x_{\text{adv}}, \text{model}, \text{conf\_threshold}}$
-        \If{$\text{adversarial\_class} \in current\_classes$ and $current\_classes \cap \text{target\_classes} = \emptyset$}
-            \State \textbf{break} \Comment{Stop if success conditions met (targeted)}
+    \State Compute gradient: $g \gets \nabla_{x_{adv}} L \in \mathbb{R}^{H \times W \times C}$ \Comment{Gradient of loss w.r.t. $x_{adv}$}
+    \State Update adversarial image: $x_{adv} \gets x_{adv} + \gamma \cdot \text{sign}(g)$
+    \State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, 0, 1)$ \Comment{Ensure pixel values in $[0, 1]$}
+    \If{targeted attack}
+        \State Extract current detections $\mathcal{D}' = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$
+        \State Define current classes: $Y' = \{ \arg\max_k (c_i)_k \mid (b_i, s_i, c_i) \in \mathcal{D}' \}$
+        \If{$y' \in Y'$ and $Y' \cap Y_0 = \emptyset$}
+            \State \textbf{break} \Comment{Stop if adversarial class achieved and original classes removed}
         \EndIf
     \EndIf
 \EndFor
-\If{Targeted}
-    \State $final\_classes \gets \Call{get\_current\_classes}{x_{\text{adv}}, \text{model}, \text{conf\_threshold}}$
-    \State $success \gets (\text{adversarial\_class} \in final\_classes) \land (final\_classes \cap \text{target\_classes} = \emptyset)$
-    \State \Return $x_{\text{adv}}, success$
+\If{targeted attack}
+    \State Extract final detections $\mathcal{D}_f = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$
+    \State Define final classes: $Y_f = \{ \arg\max_k (c_i)_k \mid (b_i, s_i, c_i) \in \mathcal{D}_f \}$
+    \State $success \gets (y' \in Y_f) \land (Y_f \cap Y_0 = \emptyset)$
+    \State \Return $x_{adv}, success$
 \Else
-    \State \Return $x_{\text{adv}}$
-\EndIf
+    \State \Return $x_{adv}$
+\endIf
 \end{algorithmic}
 \end{breakablealgorithm}
 
@@ -986,46 +963,29 @@ The attack is implemented as an iterative process targeting specific traffic sig
 The algorithm is formalized as follows:
 
 
-The algorithm is formalized as follows:
-
-\begin{breakablealgorithm}{Adversarial Examples that Fool Detectors Attack}
+\begin{breakablealgorithm}{Adversarial Examples that Fool Detectors Attack on YOLO}
 \begin{algorithmic}[1]
-\Require $image\_path$, $model\_path$, $num\_iterations$, $\gamma$, $conf\_threshold$, $\lambda_{reg}$, $target\_classes$, $device$ \Comment{Input image path, model path, iterations, step size, confidence threshold, regularization weight, target classes, device}
-\Ensure $x_{adv}$ \Comment{Adversarial image tensor}
-\State $high\_level\_model \gets \Call{YOLO}{model\_path}$ \Comment{Load high-level model}
-\State $underlying\_model \gets \Call{YOLO}{model\_path}.model$ \Comment{Load underlying model}
-\State $underlying\_model.\Call{eval}{}$ \Comment{Set to evaluation mode}
-\For{$param$ in $underlying\_model.parameters()$}
-    \State $param.requires\_grad \gets \text{False}$ \Comment{Freeze parameters}
+\Require $x \in \mathbb{R}^{H \times W \times C}$: input image, $model$: YOLO model, $Y_t \subseteq \{1, \dots, K\}$: target classes to suppress, $T > 0$: number of iterations, $\gamma > 0$: step size, $\tau > 0$: confidence threshold, $\lambda_{reg} > 0$: L2 regularization weight
+\Ensure $x_{adv} \in \mathbb{R}^{H \times W \times C}$: adversarial image
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize to $[0, 1]$, resize}
+\State Initialize $x_{adv} \gets x$ \Comment{Set initial adversarial image}
+\State $x_0 \gets x$ \Comment{Save original image}
+\For{$t \gets 1$ to $T$}
+    \State Compute predictions: $p \gets model(x_{adv})$ \Comment{$p$ includes bounding boxes, objectness scores, class probabilities}
+    \State Extract detections $\mathcal{D} = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$, where $b_i$ are bounding boxes, $s_i \in [0, 1]$ are objectness scores, $c_i \in \mathbb{R}^K$ are class probabilities for $K$ classes
+    \State Define detected classes: $Y_d = \{ \arg\max_k (c_i)_k \mid (b_i, s_i, c_i) \in \mathcal{D} \}$
+    \If{$Y_t \cap Y_d = \emptyset$}
+        \State \textbf{break} \Comment{Stop if no target classes detected}
+    \EndIf
+    \State Extract target confidences: $c_{i,t} = c_i[y]$ for each $(b_i, s_i, c_i) \in \mathcal{D}$, $y \in Y_t$
+    \State Define detection loss: $L_{det}(x_{adv}, \mathcal{D}) = \frac{1}{|\mathcal{D}| \cdot |Y_t|} \sum_{(b_i, s_i, c_i) \in \mathcal{D}} \sum_{y \in Y_t} c_{i,t}$ \Comment{Mean confidence of target classes}
+    \State Define L2 penalty: $L_{reg}(x_{adv}) = \lambda_{reg} \cdot ||x_{adv} - x_0||_2^2$ \Comment{L2 distance from original image}
+    \State Define total loss: $L(x_{adv}, \mathcal{D}) = L_{det}(x_{adv}, \mathcal{D}) + L_{reg}(x_{adv})$
+    \State Compute gradient: $g \gets \nabla_{x_{adv}} L(x_{adv}, \mathcal{D}) \in \mathbb{R}^{H \times W \times C}$ \Comment{Gradient of loss w.r.t. $x_{adv}$}
+    \State Update adversarial image: $x_{adv} \gets x_{adv} - \gamma \cdot \text{sign}(g)$ \Comment{L-infinity PGD step}
+    \State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, 0, 1)$ \Comment{Ensure pixel values in $[0, 1]$}
 \EndFor
-\State $underlying\_model.\Call{to}{device}$ \Comment{Move to device}
-\State $x_{adv} \gets \Call{preprocess\_image}{image\_path}.to(device)$ \Comment{Preprocess image}
-\State $x_{adv}.\Call{requires\_grad\_}{}$ \Comment{Enable gradient computation}
-\State $x_{original} \gets x_{adv}.\Call{clone}{}.\Call{detach}{}$ \Comment{Save original image}
-\For{$i = 1$ to $num\_iterations$}
-    \State $raw\_preds, \_ \gets underlying\_model(x_{adv})$ \Comment{Get raw predictions}
-    \State $raw\_preds \gets raw\_preds.\Call{permute}{0, 2, 1}$ \Comment{Rearrange to [1, N\_boxes, channels]}
-    \State $class\_logits \gets raw\_preds[..., 4:]$ \Comment{Extract class logits}
-    \State $conf\_scores \gets \Call{sigmoid}{class\_logits}$ \Comment{Convert to confidence scores}
-    \State $target\_confidences \gets conf\_scores[..., target\_classes]$ \Comment{Extract target confidences}
-    \State $loss\_det \gets \Call{mean}{target\_confidences}$ \Comment{Mean confidence for target classes}
-    \State $loss\_l2 \gets \lambda_{reg} \cdot \Call{mse\_loss}{x_{adv}, x_{original}}$ \Comment{L2 penalty}
-    \State $loss \gets loss\_det + loss\_l2$ \Comment{Total loss}
-    \State \textbf{with} $torch.no\_grad()$:
-        \State $high\_level\_preds \gets high\_level\_model(x_{adv}, conf=conf\_threshold)$ \Comment{Check detections}
-        \State $results \gets high\_level\_preds[0]$
-        \State $detected\_classes \gets \Call{tolist}{results.boxes.cls}$ if $\text{hasattr}(results.boxes, "cls")$ else $[]$
-        \If{not $\text{set}(target\_classes) \cap \text{set}(detected\_classes)$}
-            \State \textbf{break} \Comment{Early stopping if no target classes detected}
-        \EndIf
-    \State $underlying\_model.\Call{zero\_grad}{}$ \Comment{Clear gradients}
-    \State $loss.\Call{backward}{}$ \Comment{Compute gradients}
-    \State $grad \gets x_{adv}.grad.data$ \Comment{Get image gradient}
-    \State $x_{adv} \gets x_{adv} - \gamma \cdot \Call{sign}{grad}$ \Comment{Update image}
-    \State $x_{adv} \gets \Call{clamp}{x_{adv}, 0, 1}$ \Comment{Clamp to valid range}
-    \State $x_{adv}.grad.\Call{zero\_}{}$ \Comment{Reset gradient}
-\EndFor
-\State \Return $x_{adv}{}$ \Comment{Return adversarial image}
+\State \Return $x_{adv}$ \Comment{Return adversarial image}
 \end{algorithmic}
 \end{breakablealgorithm}
 
@@ -1096,41 +1056,33 @@ Universal adversarial perturbations (UAP) paper shows existence of universal ima
 \paragraph{Methodology}\leavevmode\\
 The methodology adapts the universal adversarial perturbation approach from Moosavi-Dezfooli et al. \cite{moosavi2017universal} to target object detection models, specifically using a YOLOv8 model. The process trains a single perturbation vector, termed delta, that, when added to any input image, reduces the detection confidence across multiple images. The key steps involve iterative optimization over a set of training images, incorporating a regularization term to maintain perturbation subtlety. The algorithm was trained with an epsilon of 0.1 and 10 epochs to constrain the perturbation magnitude and utilized a dataset with 15 classes. The training dataset was constructed by sampling 100 images per class, ensuring a balanced representation. The algorithm is formalized as follows:
 
-\begin{breakablealgorithm}{Universal Adversarial Perturbation Training}
+\begin{breakablealgorithm}{Universal Adversarial Perturbation Training for YOLO}
 \begin{algorithmic}[1]
-\Require 
-$model$, $image\_paths$, $preprocess\_fn$, $device$, $num\_epochs$, $\lambda_{reg}$, $\epsilon$, $conf\_threshold$, $lr$, $momentum$ \Comment{Inputs for training}
-\Ensure $delta$, $epoch\_losses$ \Comment{Learned perturbation and loss history}
-\State $model \gets load\_model(device)$ \Comment{Load model onto device and initialize delta with zero values}
-\State $delta \gets initialize\_zero\_tensor(shape\_of\_sample)$ \Comment{Set up initial delta with gradient tracking}
-\State $optimizer \gets configure\_sgd(delta, lr, momentum)$ \Comment{Set up optimization method for delta}
-\State $epoch\_losses \gets create\_empty\_list$ \Comment{Initialize list to track epoch losses}
-\For{$epoch = 1$ to $num\_epochs$}
-    \State $epoch\_loss \gets 0.0$ \Comment{Reset epoch loss}
-    \For{$image\_path$ in $image\_paths$}
-        \State $image \gets preprocess\_fn(image\_path, device)$ \Comment{Process image and combine with current delta}
-        \State $adv\_image \gets image + delta$ \Comment{Form adversarial image}
-        \State $raw\_outputs \gets model(adv\_image)$ \Comment{Forward pass with perturbed image}
-        \State $obj\_scores, cls\_probs \gets extract\_detection\_outputs(raw\_outputs)$ \Comment{Extract detection scores and class probabilities}
-        \State $mask \gets filter\_detections(obj\_scores, cls\_probs, conf\_threshold)$ \Comment{Filter detections above confidence threshold}
-        \If{$mask$ is empty}
-            \State \textbf{continue} \Comment{Skip if no relevant detections}
+\Require $X = \{x_1, \dots, x_N\} \subset \mathbb{R}^{H \times W \times C}$: training images, $model$: YOLO model, $E > 0$: number of epochs, $\lambda_{reg} > 0$: L2 regularization weight, $\epsilon > 0$: perturbation bound, $\tau > 0$: confidence threshold, $\alpha > 0$: learning rate
+\Ensure $\delta \in \mathbb{R}^{H \times W \times C}$: universal perturbation
+\State Preprocess each $x_i \in X$ for input to $model$ \Comment{E.g., normalize to $[0, 1]$, resize}
+\State Initialize $\delta \gets 0$ \Comment{Set initial perturbation to zero}
+\For{$e \gets 1$ to $E$}
+    \State Initialize epoch loss: $L_e \gets 0$
+    \For{$x_i \in X$}
+        \State Compute adversarial image: $x_{adv} \gets x_i + \delta$
+        \State Compute predictions: $p \gets model(x_{adv})$ \Comment{$p$ includes bounding boxes, objectness scores, class probabilities}
+        \State Extract detections $\mathcal{D} = \{ (b_j, s_j, c_j) \mid s_j \cdot \max(c_j) > \tau \}$, where $b_j$ are bounding boxes, $s_j \in [0, 1]$ are objectness scores, $c_j \in \mathbb{R}^K$ are class probabilities for $K$ classes
+        \If{$\mathcal{D} = \emptyset$}
+            \State \textbf{continue} \Comment{Skip if no high-confidence detections}
         \EndIf
-        \State $target\_classes \gets determine\_target\_classes(cls\_probs, mask)$ \Comment{Compute classification loss based on detected classes}
-        \State $classification\_loss \gets calculate\_cross\_entropy(target\_classes)$ \Comment{Quantify error in class predictions}
-        \State $reg\_loss \gets \lambda_{reg} \times norm(delta, 2)$ \Comment{Add L2 regularization loss on delta}
-        \State $total\_loss \gets classification\_loss + reg\_loss$ \Comment{Combine losses}
-        \State $optimizer.clear\_gradients$ \Comment{Clear previous gradients and update delta}
-        \State $total\_loss.compute\_gradients$ \Comment{Compute gradients of loss}
-        \State $optimizer.update\_parameters$ \Comment{Apply gradient updates}
-        \State $delta \gets clamp\_delta(delta, -\epsilon, \epsilon)$ \Comment{Clamp delta within epsilon range}
-        \State $epoch\_loss \gets epoch\_loss + total\_loss$ \Comment{Accumulate loss}
+        \State Define target classes: $y_j = \arg\max_k (c_j)_k$ for each $(b_j, s_j, c_j) \in \mathcal{D}$
+        \State Define classification loss: $L_{cls}(x_{adv}, \mathcal{D}) = \sum_{(b_j, s_j, c_j) \in \mathcal{D}} \ell(c_j, y_j)$, where $\ell$ is cross-entropy loss
+        \State Define regularization loss: $L_{reg}(\delta) = \lambda_{reg} \cdot ||\delta||_2^2$ \Comment{L2 norm of perturbation}
+        \State Define total loss: $L(x_{adv}, \delta, \mathcal{D}) = L_{cls}(x_{adv}, \mathcal{D}) + L_{reg}(\delta)$
+        \State Compute gradient: $g \gets \nabla_{\delta} L(x_{adv}, \delta, \mathcal{D}) \in \mathbb{R}^{H \times W \times C}$ \Comment{Gradient w.r.t. $\delta$}
+        \State Update perturbation: $\delta \gets \delta - \alpha \cdot g$ \Comment{SGD update}
+        \State Clamp perturbation: $\delta \gets \text{clip}(\delta, -\epsilon, \epsilon)$ \Comment{Ensure $||\delta||_\infty \leq \epsilon$}
+        \State Accumulate epoch loss: $L_e \gets L_e + L(x_{adv}, \delta, \mathcal{D})$
     \EndFor
-    \State $avg\_loss \gets epoch\_loss / length(image\_paths)$ \Comment{Compute average loss}
-    \State $epoch\_losses.append(avg\_loss)$ \Comment{Record average loss for the epoch}
-    \State $display\_progress(epoch, num\_epochs, avg\_loss)$ \Comment{Display training progress}
+    \State Compute average epoch loss: $L_e \gets L_e / N$
 \EndFor
-\State \Return $delta$, $epoch\_losses$ \Comment{Return final delta and loss history}
+\State \Return $\delta$
 \end{algorithmic}
 \end{breakablealgorithm}
 
@@ -1250,19 +1202,19 @@ In this chapter, we will therefore probe the vulnerabilities of the pre-trained 
 The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack technique designed to generate adversarial examples by introducing imperceptible perturbations to input data, thereby misleading machine learning models \cite{goodfellow2015explaining}. In the context of automatic speech recognition (ASR), this attack crafts adversarial audio samples that force the model to produce a specified target transcription\cite{zelasko2021adversarial}.
 
 \paragraph{Methodology}
-\begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack}
+\begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack on wav2vec2 ASR}
 \begin{algorithmic}[1]
-\Require $x_{\text{audio}}$, $t_{\text{target}}$, $\text{processor}$, $\text{model}$, $\epsilon$, $sr$, $\text{device}$ \Comment{Input audio signal, target transcription, processor, model, perturbation magnitude, sample rate, device}
-\Ensure $x_{\text{adv}}$ \Comment{Adversarial audio signal}
-
-\State $x_{\text{input}}.\Call{requires\_grad\_}{}$ \Comment{Enable gradient tracking}
-\State $output \gets \text{model}(x_{\text{input}}, \text{labels}=labels)$ \Comment{Compute model output}
-\State $loss \gets output.\text{loss}$ \Comment{Extract CTC loss}
-\State $loss.\Call{backward}{}$ \Comment{Compute gradients}
-\State $grad \gets x_{\text{input}}.\text{grad}$ \Comment{Get gradients}
-\State $perturbation \gets \epsilon \cdot \Call{sign}{grad}$ \Comment{Compute perturbation}
-\State $x_{\text{adv}} \gets x_{\text{input}} + perturbation$ \Comment{Generate adversarial input}
-\State \Return $x_{\text{adv}}$ \Comment{Return adversarial audio}
+\Require $x \in \mathbb{R}^T$: input audio waveform, $model$: wav2vec2 ASR model, $y_t$: target transcription, $\epsilon > 0$: perturbation magnitude
+\Ensure $x_{adv} \in \mathbb{R}^T$: adversarial audio waveform
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize amplitude, resample}
+\State Compute model predictions: $p \gets model(x)$ \Comment{$p \in \mathbb{R}^{S \times K}$ includes logits for $S$ time steps, $K$ classes (e.g., tokens)}
+\State Encode target transcription: $y_t \gets \text{encode}(y_t)$ \Comment{Convert to token sequence}
+\State Define loss: $L(x, y_t) = \ell(p, y_t)$, where $\ell$ is CTC loss \Comment{Loss to enforce target transcription}
+\State Compute gradient: $g \gets \nabla_x L(x, y_t) \in \mathbb{R}^T$ \Comment{Gradient of loss w.r.t. $x$}
+\State Compute perturbation: $\eta \gets \epsilon \cdot \text{sign}(g)$ \Comment{Scaled sign of gradient}
+\State Generate adversarial waveform: $x_{adv} \gets x + \eta$
+\State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, -1, 1)$ \Comment{Ensure waveform amplitudes in $[-1, 1]$}
+\State \Return $x_{adv}$ \Comment{Return adversarial audio waveform}
 \end{algorithmic}
 \end{breakablealgorithm}
 
@@ -1342,33 +1294,29 @@ The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial 
 
 
 \paragraph{Methodology}
-\begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack}
+\begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack on wav2vec2 ASR}
 \begin{algorithmic}[1]
-\Require $x_{\text{audio}}$, $t_{\text{target}}$, $\text{model}$, $\text{processor}$, $\epsilon$, $\alpha$, $num\_iter$, $sr$, $\text{device}$, $\delta$ \Comment{Input audio, target transcription, model, processor, perturbation bound, step size, iterations, sample rate, device, convergence threshold}
-\Ensure $x_{\text{adv}}$ \Comment{Adversarial audio signal}
-
-\State $labels \gets \text{processor}.\text{tokenizer}(t_{\text{target}}, \text{return\_tensors}=\text{``pt''}).\text{input\_ids}.\Call{to}{\text{device}}$ \Comment{Tokenize target}
-\State $perturbation \gets \Call{zeros\_like}{x_{\text{input}}, \text{requires\_grad}=\text{True}, \text{device}=\text{device}}$ \Comment{Initialize perturbation}
-\State $prev\_loss \gets \infty$ \Comment{Initialize previous loss}
-\For{$i \gets 1$ to $num\_iter$} \Comment{Iterate up to max iterations}
-    \State $x_{\text{adv}} \gets x_{\text{input}} + perturbation$ \Comment{Compute adversarial input}
-    \State $output \gets \text{model}(x_{\text{adv}}, \text{labels}=labels)$ \Comment{Compute model output}
-    \State $loss \gets output.\text{loss}$ \Comment{Extract CTC loss}
-    \If{$i > 1$ and $|prev\_loss - loss| < \delta$} \Comment{Check convergence}
-        \State \textbf{break} \Comment{Stop if loss change is below threshold}
+\Require $x \in \mathbb{R}^T$: input audio waveform, $model$: wav2vec2 ASR model, $y_t$: target transcription, $\epsilon > 0$: perturbation bound, $\alpha > 0$: step size, $N > 0$: maximum iterations, $\delta > 0$: convergence threshold
+\Ensure $x_{adv} \in \mathbb{R}^T$: adversarial audio waveform
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize amplitude, resample}
+\State Encode target transcription: $y_t \gets \text{encode}(y_t)$ \Comment{Convert to token sequence}
+\State Initialize perturbation: $\eta \gets 0 \in \mathbb{R}^T$ \Comment{Zero perturbation}
+\State Initialize previous loss: $L_{prev} \gets \infty$
+\For{$i \gets 1$ to $N$}
+    \State Compute adversarial waveform: $x_{adv} \gets x + \eta$
+    \State Compute model predictions: $p \gets model(x_{adv})$ \Comment{$p \in \mathbb{R}^{S \times K}$ includes logits for $S$ time steps, $K$ classes}
+    \State Define loss: $L(x_{adv}, y_t) = \ell(p, y_t)$, where $\ell$ is CTC loss \Comment{Loss to enforce target transcription}
+    \If{$i > 1$ and $|L_{prev} - L(x_{adv}, y_t)| < \delta$}
+        \State \textbf{break} \Comment{Stop if loss converges}
     \EndIf
-    \State $prev\_loss \gets loss$ \Comment{Update previous loss}
-    \State $\text{model}.\Call{zero\_grad}{}$ \Comment{Clear gradients}
-    \State $loss.\Call{backward}{}$ \Comment{Compute gradients}
-    \State \Comment{Update perturbation without tracking gradients}
-    \State \Comment{Begin mixed precision block}
-    \State $perturbation \gets perturbation - \alpha \cdot \Call{sign}{perturbation.\text{grad}}$ \Comment{Update perturbation}
-    \State $perturbation \gets \Call{clamp}{perturbation, -\epsilon, \epsilon}$ \Comment{Project to $\ell_\infty$ ball}
-    \State \Comment{End mixed precision block}
-    \State $perturbation.\text{grad}.\Call{zero\_}{}$ \Comment{Reset gradient}
+    \State Update previous loss: $L_{prev} \gets L(x_{adv}, y_t)$
+    \State Compute gradient: $g \gets \nabla_{\eta} L(x_{adv}, y_t) \in \mathbb{R}^T$ \Comment{Gradient w.r.t. perturbation}
+    \State Update perturbation: $\eta \gets \eta - \alpha \cdot \text{sign}(g)$
+    \State Project to $\ell_\infty$ ball: $\eta \gets \text{clip}(\eta, -\epsilon, \epsilon)$ \Comment{Ensure $||\eta||_\infty \leq \epsilon$}
 \EndFor
-\State $x_{\text{adv}} \gets x_{\text{input}} + perturbation$ \Comment{Final adversarial input}
-\State \Return $x_{\text{adv}}$ \Comment{Return adversarial audio}
+\State Generate final adversarial waveform: $x_{adv} \gets x + \eta$
+\State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, -1, 1)$ \Comment{Ensure waveform amplitudes in $[-1, 1]$}
+\State \Return $x_{adv}$ \Comment{Return adversarial audio waveform}
 \end{algorithmic}
 \end{breakablealgorithm}
 
@@ -1399,46 +1347,72 @@ $\epsilon$ & $\alpha$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER}
 The Cramér Integral Probability Metric (IPM) attack is an advanced adversarial method designed to generate robust adversarial audio signals for automatic speech recognition (ASR) systems,\cite{esmaeilpour2021towards}. By leveraging the Cramér-IPM, this attack minimizes the discrepancy between the distributions of original and adversarial audio samples, ensuring the adversarial signals remain close to the legitimate speech manifold. Unlike traditional attacks like FGSM or PGD, the Cramér-IPM approach combines the Connectionist Temporal Classification (CTC) loss with a statistical distance metric, enhancing robustness against over-the-air playback without relying on costly Expectation Over Transformation (EOT) operations \cite{esmaeilpour2021towards}. This method optimizes perturbations to maximize transcription errors while maintaining perceptual similarity, making it effective for both targeted and non-targeted attacks.
 
 \paragraph{Methodology}
+The Cramér-IPM Attack algorithm works with the following components: 
 
-\begin{breakablealgorithm}{Cramér-IPM Adversarial Attack}
+\begin{enumerate}
+    \item \textbf{Compute Empirical CDF at Points:} This algorithm computes the empirical cumulative distribution function (CDF) for a sample vector at specified points, enabling comparison of original and adversarial audio distributions in the Cramér-IPM calculation.
+
+    \begin{breakablealgorithm}{Compute Empirical CDF at Points}
 \begin{algorithmic}[1]
-\Require $x_{\text{audio}}$, $t_{\text{target}}$, $\text{model}$, $\text{processor}$, $\epsilon$, $sr$, $\text{num\_iter}$, $\lambda_{\text{ipm}}$, $n_{\text{samples}}$, $\text{device}$ \Comment{Input audio, target transcription, model, processor, perturbation bound, sample rate, iterations, IPM weight, sample points, device}
-\Ensure $x_{\text{adv}}$ \Comment{Adversarial audio signal}
-
-\State $x_{\text{input}} \gets x_{\text{audio}}.\text{to}(\text{device})$ \Comment{Move audio to device}
-
-
-\State $labels \gets \text{processor}.\text{tokenizer}(t_{\text{target}}, \text{return\_tensors}=\text{``pt''}).\text{input\_ids}.\text{to}(\text{device})$ \Comment{Tokenize target}
-
-\State $x_{\text{adv}} \gets x_{\text{input}}.\text{clone}().\text{detach}().\text{requires\_grad\_}(\text{True})$ \Comment{Initialize adversarial input}
-
-\For{$i \gets 1$ to $\text{num\_iter}$} \Comment{Iterate up to max iterations}
-    \State $adv_{\text{iter}} \gets x_{\text{adv}}.\text{clone}().\text{detach}().\text{requires\_grad\_}(\text{True})$ \Comment{Copy for iteration}
-    \State $\text{model}.\text{zero\_grad}()$ \Comment{Clear gradients}
-    \State $output \gets \text{model}(adv_{\text{iter}}, \text{labels}=labels)$ \Comment{Compute model output}
-    \State $loss_{\text{ctc}} \gets output.\text{loss}$ \Comment{Extract CTC loss}
-    \State $loss_{\text{ctc}}.\text{backward}()$ \Comment{Compute CTC gradients}
-    \State $grad_{\text{ctc}} \gets adv_{\text{iter}}.\text{grad}.\text{clone}()$ \Comment{Store CTC gradient}
-    
-    \State \Comment{Compute IPM without gradients}
-    \State $ipm_{\text{val}} \gets \text{compute\_cramer\_ipm}(x_{\text{input}}, adv_{\text{iter}}.\text{detach}(), n_{\text{samples}})$ \Comment{Compute IPM}
-    \State $adv_{\text{ipm}} \gets x_{\text{adv}}.\text{clone}().\text{detach}().\text{requires\_grad\_}(\text{True})$ \Comment{Copy for IPM gradient}
-    \State $perturb \gets \text{randn\_like}(adv_{\text{ipm}}) \cdot 10^{-5}$ \Comment{Small random perturbation}
-    \State $adv_{\text{perturbed}} \gets adv_{\text{ipm}} + perturb$ \Comment{Perturbed input}
-    \State $ipm_{\text{val}} \gets \text{compute\_cramer\_ipm}(x_{\text{input}}, adv_{\text{ipm}}, n_{\text{samples}})$ \Comment{Base IPM}
-    \State $ipm_{\text{perturbed}} \gets \text{compute\_cramer\_ipm}(x_{\text{input}}, adv_{\text{perturbed}}, n_{\text{samples}})$ \Comment{Perturbed IPM}
-    \State $grad_{\text{ipm}} \gets \frac{ipm_{\text{perturbed}} - ipm_{\text{val}}}{10^{-5}} \cdot \text{mean}(perturb)$ \Comment{Finite difference gradient}
-    \State $grad_{\text{combined}} \gets grad_{\text{ctc}} - \lambda_{\text{ipm}} \cdot grad_{\text{ipm}}$ \Comment{Combine gradients}
-    \State $perturbation \gets \epsilon \cdot \text{sign}(grad_{\text{combined}})$ \Comment{Generate perturbation}
-    
-    \State \Comment{Update adversarial input}
-    \State $x_{\text{adv}} \gets x_{\text{adv}} - perturbation$ \Comment{Apply perturbation}
-    \State $x_{\text{adv}} \gets \text{clamp}(x_{\text{adv}}, -1.0, 1.0)$ \Comment{Clamp to valid range}
+\Require $z \in \mathbb{R}^N$: sample vector, $p \in \mathbb{R}^M$: evaluation points
+\Ensure $F_p \in \mathbb{R}^M$: empirical CDF values at points $p$
+\State Initialize CDF values: $F_p \gets 0 \in \mathbb{R}^M$
+\For{$j \gets 1$ to $M$}
+    \State Count samples below point: $c \gets \sum_{i=1}^N \mathbb{1}(z_i \leq p_j)$ \Comment{Indicator function $\mathbb{1}$}
+    \State Compute CDF: $F_p[j] \gets \frac{c}{N}$ \Comment{Fraction of samples $\leq p_j$}
 \EndFor
-
-\State \Return $x_{\text{adv}}$ \Comment{Return adversarial audio}
+\State \Return $F_p$ \Comment{Return empirical CDF values}
 \end{algorithmic}
 \end{breakablealgorithm}
+
+
+\item \textbf{Compute Cramér-IPM Distance:} This algorithm calculates the Cramér-IPM distance between original and adversarial audio batches by approximating the L2 distance between their empirical CDFs, used to regularize perturbations in the attack.
+\begin{breakablealgorithm}{Compute Cramér-IPM Distance}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^{B \times T}$: original audio batch, $x' \in \mathbb{R}^{B \times T}$: adversarial audio batch, $M > 0$: number of sample points
+\Ensure $d \in \mathbb{R}^B$: Cramér-IPM distances for batch
+\State Initialize distances: $d \gets 0 \in \mathbb{R}^B$
+\For{$b \gets 1$ to $B$} \Comment{Process each batch element}
+    \State Flatten samples: $z_b \gets \text{vec}(x_b) \in \mathbb{R}^T$, $z'_b \gets \text{vec}(x'_b) \in \mathbb{R}^T$
+    \State Determine integration range: $a \gets \min(\min(z_b), \min(z'_b))$, $b \gets \max(\max(z_b), \max(z'_b))$
+    \State Generate sample points: $p \gets \{ a + \frac{(b-a)(j-1)}{M-1} \mid j = 1, \dots, M \}$ \Comment{Linearly spaced points}
+    \State Compute CDFs: $F_b \gets \text{CDF}(z_b, p)$, $F'_b \gets \text{CDF}(z'_b, p)$ \Comment{Using Compute Empirical CDF}
+    \State Compute squared differences: $s \gets (F_b - F'_b)^2 \in \mathbb{R}^M$
+    \State Approximate integral: $d[b] \gets \frac{b-a}{M-1} \cdot \sum_{j=1}^M s_j$ \Comment{Trapezoidal rule}
+\EndFor
+\State \Return $d$ \Comment{Return Cramér-IPM distances}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
+\item \textbf{Cramér-IPM Adversarial Attack:} This algorithm generates adversarial audio by iteratively optimizing a combination of CTC loss (to enforce a target transcription) and Cramér-IPM distance (to ensure distributional similarity), using finite differences for the IPM gradient.
+\begin{breakablealgorithm}{Cramér-IPM Adversarial Attack on wav2vec2 ASR}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^{B \times T}$: input audio batch, $model$: wav2vec2 ASR model, $y_t$: target transcription, $\epsilon > 0$: perturbation magnitude, $\alpha > 0$: step size, $N > 0$: number of iterations, $\lambda > 0$: IPM weight, $M > 0$: number of CDF sample points, $\beta > 0$: finite difference step
+\Ensure $x_{adv} \in \mathbb{R}^{B \times T}$: adversarial audio batch
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize amplitude, resample}
+\State Encode target transcription: $y_t \gets \text{encode}(y_t)$ \Comment{Convert to token sequence}
+\State Initialize adversarial waveform: $x_{adv} \gets x$
+\For{$i \gets 1$ to $N$}
+    \State Compute predictions: $p \gets model(x_{adv})$ \Comment{$p \in \mathbb{R}^{B \times S \times K}$, logits for $S$ time steps, $K$ classes}
+    \State Define CTC loss: $L_{ctc}(x_{adv}, y_t) = \ell(p, y_t)$, where $\ell$ is CTC loss
+    \State Compute CTC gradient: $g_{ctc} \gets \nabla_{x_{adv}} L_{ctc}(x_{adv}, y_t) \in \mathbb{R}^{B \times T}$
+    \State Compute Cramér-IPM: $d \gets \text{Cramér-IPM}(x, x_{adv}, M)$ \Comment{Using Compute Cramér-IPM}
+    \State Generate random perturbation: $\xi \sim \mathcal{N}(0, I) \in \mathbb{R}^{B \times T}$
+    \State Compute perturbed IPM: $d' \gets \text{Cramér-IPM}(x, x_{adv} + \beta \xi, M)$
+    \State Approximate IPM gradient: $g_{ipm} \gets \frac{\text{mean}(d' - d)}{\beta} \cdot \xi$
+    \State Combine gradients: $g \gets g_{ctc} - \lambda \cdot g_{ipm}$
+    \State Update adversarial waveform: $x_{adv} \gets x_{adv} - \alpha \cdot \text{sign}(g)$
+    \State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+\EndFor
+\State \Return $x_{adv}$ \Comment{Return adversarial audio batch}
+\end{algorithmic}
+\end{breakablealgorithm}
+\end{enumerate}
+
+
+
+
 
 
 
@@ -1479,42 +1453,76 @@ Randomized smoothing \cite{cohen2019certified} emerges as a promising defense by
 
 
 \subsubsection{Methodology}
+The randomized smoothing algorithm works with the following components:
 
+\begin{enumerate}
+    \item \textbf{Calculate Local Variance:} This algorithm computes the local variance of an audio waveform using a sliding window, providing a measure of signal variability for adaptive noise scaling in the randomized smoothing defense.
 
-\begin{breakablealgorithm}{Randomized Smoothing Defense}
+    \begin{breakablealgorithm}{Calculate Local Variance of Audio Waveform}
 \begin{algorithmic}[1]
-\Require $x_{audio}$, processor, model, $\sigma_{base}$, $num_samples$ \Comment{Input audio signal, processor, model, base noise level, number of samples}
-\Ensure $transcription$, $\sigma_{used}$ \Comment{Defended transcription, used noise level}
-
-\State $\sigma \gets adaptive\_sigma(x_{audio}, \sigma_{base})$ \Comment{Compute adaptive noise level}
-\State $noisy\_audios \gets [add\_gaussian\_noise(x_{audio}, \sigma) \text{ for } i \text{ in } 1 \text{ to } num_samples]$ \Comment{Generate noisy samples}
-\State $transcriptions \gets []$ \Comment{Initialize transcription list}
-\For{$i \gets 1$ to $num_samples$ step $batch\_size$} \Comment{Process in batches}
-    \State $batch \gets noisy\_audios[i:i+batch\_size]$
-    \State $inputs \gets processor(batch, sampling\_rate=16000, return\_tensors="pt", padding="longest").input\_values.to(model.device)$ \Comment{Prepare inputs}
-    \State $logits \gets model(inputs).logits$ \Comment{Compute logits}
-    \State $pred\_ids \gets \arg\max(logits, dim=-1)$ \Comment{Get predicted IDs}
-    \State $batch\_transcriptions \gets processor.batch\_decode(pred\_ids)$ \Comment{Decode predictions}
-    \State $transcriptions \gets transcriptions \cup batch\_transcriptions$ \Comment{Add to transcription list}
+\centering
+\Require $x \in \mathbb{R}^T$: audio waveform, $W > 0$: window size
+\Ensure $v \in \mathbb{R}$: median local variance
+\State Initialize variances: $V \gets \emptyset$
+\For{$i \gets 1$ to $T-W+1$}
+    \State Extract window: $w_i \gets (x_i, x_{i+1}, \dots, x_{i+W-1}) \in \mathbb{R}^W$
+    \State Compute window variance: $v_i \gets \frac{1}{W} \sum_{j=1}^W (w_{i,j} - \bar{w}_i)^2$, where $\bar{w}_i = \frac{1}{W} \sum_{j=1}^W w_{i,j}$
+    \State $V \gets V \cup \{ v_i \}$
 \EndFor
-\State $word\_votes \gets dictionary()$ \Comment{Initialize vote counter}
-\For{$ts \in transcriptions$} \Comment{Count word votes}
-    \State $words \gets split(ts)$
-    \For{$idx, word \in enumerate(words)$}
-        \State $word\_votes[idx][word] \gets word\_votes[idx][word] + 1$
-    \EndFor
-\EndFor
-\State $final\_transcription \gets []$ \Comment{Initialize final transcription}
-\For{$idx \in sorted(keys(word\_votes))$} \Comment{Construct final transcription}
-    \If{$idx \in word\_votes$ and $word\_votes[idx]$}
-        \State $final\_word \gets word \text{ with } \max(word\_votes[idx][word])$
-        \State $final\_transcription \gets final\_transcription \cup \{final\_word\}$
-    \EndIf
-\EndFor
-\State $transcription \gets " ".join(final\_transcription)$ \Comment{Join words into transcription}
-\State \Return $transcription, \sigma$ \Comment{Return transcription and used sigma}
+\State Compute median variance: $v \gets \text{median}(V)$
+\State \Return $v$ \Comment{Return median local variance}
 \end{algorithmic}
 \end{breakablealgorithm}
+
+\item \textbf{Adaptive Sigma:} This algorithm adjusts the noise level for randomized smoothing based on the audio’s local variance, balancing robustness and speech content preservation in the defense.
+\begin{breakablealgorithm}{Compute Adaptive Noise Level}
+\begin{algorithmic}[1]
+\centering
+\Require $x \in \mathbb{R}^T$: audio waveform, $\sigma_{base} > 0$: base noise level, $\sigma_{max} > 0$: maximum noise level, $k > 0$: scaling factor
+\Ensure $\sigma \in \mathbb{R}$: adaptive noise level
+\State Compute local variance: $v \gets \text{LocalVariance}(x)$ \Comment{Using Calculate Local Variance}
+\State Calculate scaled noise level: $\sigma' \gets \sigma_{base} \cdot \left(1 + \frac{k}{v + \epsilon}\right)$, where $\epsilon > 0$ is small \Comment{Avoid division by zero}
+\State Clamp noise level: $\sigma \gets \text{clip}(\sigma', \sigma_{base}, \sigma_{max})$
+\State \Return $\sigma$ \Comment{Return adaptive noise level}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\item \textbf{Randomized Smoothing Transcribe:} This algorithm applies randomized smoothing to produce a robust transcription by adding adaptive Gaussian noise, processing noisy samples in batches, and using ROVER voting to aggregate transcriptions.
+\begin{breakablealgorithm}{Randomized Smoothing Transcription for wav2vec2 ASR}
+\begin{algorithmic}[1]
+\centering
+\Require $x \in \mathbb{R}^T$: input audio waveform, $model$: wav2vec2 ASR model, $\sigma_{base} > 0$: base noise level, $M > 0$: number of samples, $B > 0$: batch size
+\Ensure $y$: defended transcription, $\sigma$: used noise level
+\State Compute adaptive noise level: $\sigma \gets \text{AdaptiveSigma}(x, \sigma_{base})$ \Comment{Using Compute Adaptive Noise Level}
+\State Generate noisy waveforms: $X_n \gets \{ x + \eta_m \mid \eta_m \sim \mathcal{N}(0, \sigma^2 I), m = 1, \dots, M \}$ \Comment{Add Gaussian noise}
+\State Initialize transcription set: $\mathcal{Y} \gets \emptyset$
+\For{$i \gets 1$ to $M$ step $B$} \Comment{Process in batches}
+    \State Select batch: $X_b \gets \{ x + \eta_m \mid m = i, \dots, \min(i+B-1, M) \}$
+    \State Compute predictions: $P_b \gets \{ model(x_b) \mid x_b \in X_b \}$ \Comment{$P_b$ contains logits in $\mathbb{R}^{S_b \times K}$}
+    \State Decode transcriptions: $Y_b \gets \{ \text{decode}(p_b) \mid p_b \in P_b \}$ \Comment{Convert logits to transcriptions}
+    \State $\mathcal{Y} \gets \mathcal{Y} \cup Y_b$
+\EndFor
+\State Initialize vote counts: $V \gets \emptyset$ \Comment{Map for word votes at each position}
+\For{$y_m \in \mathcal{Y}$}
+    \State Split into words: $w_{m,1}, \dots, w_{m,L_m} \gets \text{split}(y_m)$
+    \For{$j \gets 1$ to $\max_m L_m$}
+        \If{$j \leq L_m$}
+            \State Update vote count: $V[j][w_{m,j}] \gets V[j][w_{m,j}] + 1$ \Comment{Increment count for word at position $j$}
+        \EndIf
+    \EndFor
+\EndFor
+\State Initialize final transcription: $y \gets []$
+\For{$j \gets 1$ to $\max_m L_m$}
+    \If{$V[j] \neq \emptyset$}
+        \State Select word: $w_j \gets \arg\max_w V[j][w]$ \Comment{Choose word with highest vote count}
+        \State $y \gets y \cup \{ w_j \}$
+    \EndIf
+\EndFor
+\State Combine words: $y \gets \text{join}(y, \text{`` ''})$ \Comment{Join words with spaces}
+\State \Return $y, \sigma$ \Comment{Return defended transcription and noise level}
+\end{algorithmic}
+\end{breakablealgorithm}
+\end{enumerate}
 
 
 \subsubsection{Results with PGD Attacks}
@@ -1538,46 +1546,52 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 \end{table}
 
 \subsection{MP3 Compression}
-\subsubsection{Introduction}
+ \subsubsection{Introduction}
 MP3 compression, a lossy audio encoding scheme based on psychoacoustic models, serves as an effective defense against Audio Adversarial Examples (AAEs) in Automatic Speech Recognition (ASR) systems \cite{andronic2020mp3}. By discarding audio information below human hearing thresholds, MP3 compression can reduce adversarial noise (AN) embedded in AAEs, which is often imperceptible to humans but misleads ASR systems into incorrect transcriptions \cite{andronic2020mp3}. We implement this defense with the following key components:
 
 \begin{itemize}
     \item \textbf{MP3 Compression and Decompression \cite{andronic2020mp3}:} The audio signal is compressed to MP3 format at varying bitrates (e.g., 128 kbps to 4 kbps) and then decompressed back to the time domain. This process removes frequency components where AN is typically hidden, improving transcription accuracy.
     \item \textbf{Bitrate Variation:} Different bitrates are tested to evaluate the trade-off between noise reduction and audio quality preservation. Lower bitrates increase noise reduction but may degrade speech content \cite{andronic2020mp3}.
-    \item \textbf{Evaluation Metrics:} Character Error Rate (CER) and Word Error Rate (WER) are used to measure the defense's effectiveness against Projected Gradient Descent (PGD) attacks, with Signal-to-Noise Ratio (SNR) improvements confirming AN reduction \cite{andronic2020mp3}.
 \end{itemize}
 
 \subsubsection{Methodology}
-\begin{breakablealgorithm}{MP3 Compression Defense}
-\begin{algorithmic}[1]
-\Require $x_{audio}$, processor, model, $bitrate$ \Comment{Input audio signal, processor, model, MP3 bitrate}
-\Ensure $transcription$, $bitrate_{used}$ \Comment{Defended transcription, used bitrate}
+The MP3 compression defense is implemented with the following components:
 
-\State $audio_{float32} \gets convert\_to\_float32(x_{audio})$ \Comment{Convert to float32}
-\State $audio_{float32} \gets clip(audio_{float32}, -1.0, 1.0)$ \Comment{Clip to [-1, 1]}
-\State $audio_{int16} \gets (audio_{float32} \cdot 32767) \text{ as } int16$ \Comment{Convert to 16-bit PCM}
-\If{$audio_{int16}$ has multiple channels}
-    \State $audio_{int16} \gets squeeze(audio_{int16})$ \Comment{Flatten to mono}
-\EndIf
-\State $audio_{segment} \gets AudioSegment(audio_{int16}, sample\_rate=16000, sample\_width=2, channels=1)$ \Comment{Create audio segment}
-\State $mp3\_buffer \gets create\_memory\_buffer()$ \Comment{Create in-memory buffer}
-\State $export(audio_{segment}, mp3\_buffer, format="mp3", bitrate=bitrate)$ \Comment{Export to memory as MP3}
-\State $compressed_{audio} \gets import\_audio(mp3\_buffer, format="mp3")$ \Comment{Read from memory}
-\State $close(mp3\_buffer)$ \Comment{Clean up buffer}
-\State $audio_{samples} \gets get\_samples(compressed_{audio}, dtype=float32)$ \Comment{Convert to numpy array}
-\State $audio_{normalized} \gets audio_{samples} / 32767$ \Comment{Normalize to [-1, 1]}
-\If{$length(audio_{normalized}) \neq length(x_{audio})$}
-    \If{$length(audio_{normalized}) > length(x_{audio})$}
-        \State $audio_{normalized} \gets audio_{normalized}[:length(x_{audio})]$ \Comment{Trim to match input}
-    \Else
-        \State $audio_{normalized} \gets concatenate([audio_{normalized}, zeros(length(x_{audio}) - length(audio_{normalized}))])$ \Comment{Pad with zeros}
-    \EndIf
-\EndIf
-\State $transcription \gets transcribe\_audio(audio_{normalized}, 16000, processor, model)$ \Comment{Transcribe defended audio}
-\State \Return $transcription, bitrate$ \Comment{Return transcription and used bitrate}
-\end{algorithmic}
-\end{breakablealgorithm}
-\newpage
+\begin{enumerate}
+    \item \textbf{MP3 Compression and Decompression:} Compresses the audio waveform to MP3 format at a specified bitrate and decompresses it back to the time domain, removing adversarial noise hidden in frequency components.
+
+    \begin{breakablealgorithm}{MP3 Compression and Decompression}
+    \begin{algorithmic}[1]
+    \Require $x \in \mathbb{R}^T$: input audio waveform, $r \in \mathbb{N}$: sample rate, $b \in \{32k, 64k, 96k, 128k\}$: bitrate
+    \Ensure $x_{def} \in \mathbb{R}^T$: defended audio waveform
+    \State Normalize waveform: $x \gets \text{clip}(x, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+    \State Convert to 16-bit PCM: $x_{pcm} \gets (x \cdot 32767) \in \mathbb{Z}^T$ \Comment{Scale to 16-bit integers}
+    \State Create audio segment: $s \gets \text{AudioSegment}(x_{pcm}, r, \text{channels}=1, \text{sample\_width}=2)$ \Comment{Prepare for MP3 encoding}
+    \State Compress to MP3: $s_{mp3} \gets \text{MP3Encode}(s, b)$ \Comment{Encode to MP3 at bitrate $b$}
+    \State Decompress to waveform: $s_{dec} \gets \text{MP3Decode}(s_{mp3})$ \Comment{Decode back to time domain}
+    \State Extract samples: $x_{dec} \gets \text{Samples}(s_{dec}) \in \mathbb{R}^T$ \Comment{Convert to float32}
+    \State Normalize: $x_{def} \gets x_{dec} / 32767$ \Comment{Scale back to $[-1, 1]$}
+    \State Adjust length: $x_{def} \gets \text{Resize}(x_{def}, T)$ \Comment{Pad or trim to match input length $T$}
+    \State \Return $x_{def}$ \Comment{Return defended waveform}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+
+    \item \textbf{Single-Sample Processing with Metrics:} Applies MP3 compression to a single adversarial sample, transcribes the defended audio, and computes Character Error Rate (CER) and Word Error Rate (WER) against the ground truth.
+
+    \begin{breakablealgorithm}{Process Single Sample with MP3 Compression}
+    \begin{algorithmic}[1]
+    \Require $s = \{x, y_{gt}\}$: sample with audio waveform $x \in \mathbb{R}^T$ and ground truth transcription $y_{gt}$, $model$: ASR model, $proc$: audio processor, $b$: bitrate
+    \Ensure $m = \{\text{cer}, \text{wer}\}$: evaluation metrics
+    \State Apply defense: $x_{def} \gets \text{MP3Compress}(x, r=16000, b)$ \Comment{Using MP3 Compression and Decompression}
+    \State Transcribe audio: $y_{def} \gets \text{Transcribe}(x_{def}, 16000, proc, model)$ \Comment{Generate transcription}
+    \State Compute CER: $\text{cer} \gets \text{CER}(y_{def}, y_{gt})$ \Comment{Character Error Rate}
+    \State Compute WER: $\text{wer} \gets \text{WER}(y_{def}, y_{gt})$ \Comment{Word Error Rate}
+    \State \Return $m = \{\text{cer}, \text{wer}\}$ \Comment{Return metrics}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+\end{enumerate}
+
+
 \subsubsection{Results with PGD Attacks}
 
 \begin{table}[H]
@@ -1663,27 +1677,67 @@ The spectral gating defense processes a 1D audio signal as follows:
 
 
 \subsubsection{Methodology}
+The spectral gating defense is implemented with the following components:
 
-\begin{breakablealgorithm}{Spectral Gating Defense}
-\label{alg:spectral_gating}
-\begin{algorithmic}[1]
-\Require Audio signal $x$ (float32 or convertible, [-1,1]), sample rate $sr$, stationary flag $s$, proportion decrease $p$, frequency smoothing $f_{hz}$, time smoothing $t_{ms}$
-\Ensure Denoised audio signal $y$ (float32, same length as $x$)
-\State $x \gets x.\text{astype}(\text{float32})$ \Comment{Convert to float32}
-\State $x \gets \text{Clip}(x, -1.0, 1.0)$ \Comment{Ensure signal is in [-1,1]}
-\State $x \gets \text{Squeeze}(x)$ \Comment{Remove singleton dimensions}
-\State $m \gets \text{VoiceActivityDetection}(x, sr)$ \Comment{Generate VAD mask}
-\State $n \gets \text{ExtractNoiseProfile}(x, m, sr)$ \Comment{Get noise from non-speech, fallback to edges if none}
-\State $y \gets \text{ReduceNoise}(x, sr, n, s, p, f_{hz}, t_{ms})$ \Comment{Apply spectral gating}
-\If{$\text{length}(y) > \text{length}(x)$}
-    \State $y \gets y[0:\text{length}(x)]$ \Comment{Trim excess from start}
-\ElsIf{$\text{length}(y) < \text{length}(x)$}
-    \State $y \gets \text{Pad}(y, \text{length}(x) - \text{length}(y), \text{mode="constant"})$ \Comment{Pad with zeros}
-\EndIf
-\State \Return $y.\text{astype}(\text{float32})$
-\end{algorithmic}
-\end{breakablealgorithm}
+\begin{enumerate}
+    \item \textbf{Voice Activity Detection:} Uses WebRTC VAD to generate a boolean mask identifying speech segments in the audio waveform, with a frame duration of 30 ms and an aggressiveness level of 2.
 
+    \begin{breakablealgorithm}{Voice Activity Detection}
+    \begin{algorithmic}[1]
+    \Require $x \in \mathbb{R}^T$: input audio waveform, $r \in \{8000, 16000, 32000, 48000\}$: sample rate, $d \in \mathbb{N}$: frame duration (ms)
+    \Ensure $m \in \{0, 1\}^T$: boolean mask indicating voice activity
+    \State Normalize waveform: $x \gets \text{clip}(x, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+    \State Convert to 16-bit PCM: $x_{pcm} \gets (x \cdot 32767) \in \mathbb{Z}^T$ \Comment{Scale to 16-bit integers}
+    \State Initialize VAD: $vad \gets \text{WebRTCVAD}(\text{mode}=2)$ \Comment{Set aggressiveness level to 2}
+    \State Compute frame length: $f \gets \lfloor d \cdot r / 1000 \rfloor$ \Comment{Number of samples per frame}
+    \State Initialize mask: $m \gets []$
+    \For{$i \gets 1$ to $T$ step $f$} \Comment{Process audio in frames}
+        \State Extract frame: $x_f \gets x_{pcm}[i : \min(i+f-1, T)]$ \Comment{Get frame of length $f$}
+        \If{$|x_f| < f$} \Comment{If frame is too short}
+            \State Pad frame: $x_f \gets \text{pad}(x_f, (0, f - |x_f|), 0)$ \Comment{Pad with zeros}
+        \EndIf
+        \State Detect speech: $s \gets vad.\text{isSpeech}(x_f, r)$ \Comment{True if speech, False otherwise}
+        \State Extend mask: $m \gets m \cup \{s\}^f$ \Comment{Append $f$ copies of $s$}
+    \EndFor
+    \State Trim mask: $m \gets m[1 : T]$ \Comment{Match input length}
+    \State \Return $m$ \Comment{Return boolean mask}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+
+    \item \textbf{Noise Profile Extraction:} Extracts non-speech segments from the audio waveform using the VAD mask to construct a noise profile for spectral gating.
+
+    \begin{breakablealgorithm}{Noise Profile Extraction}
+    \begin{algorithmic}[1]
+    \Require $x \in \mathbb{R}^T$: input audio waveform, $m \in \{0, 1\}^T$: VAD mask, $r \in \mathbb{N}$: sample rate
+    \Ensure $n \in \mathbb{R}^P$: noise profile
+    \State Compute non-speech mask: $m_n \gets \neg m$ \Comment{Identify non-speech segments}
+    \If{$\sum m_n = 0$} \Comment{If no non-speech segments}
+        \State Set segment length: $l \gets \min(\lfloor 0.5 \cdot r \rfloor, \lfloor T / 4 \rfloor)$ \Comment{0.5s or 1/4 of audio}
+        \State Extract noise: $n \gets [x[1 : l] \cup x[T-l+1 : T]]$ \Comment{Use start and end segments}
+    \Else
+        \State Extract noise: $n \gets x[m_n]$ \Comment{Select non-speech samples}
+    \EndIf
+    \State \Return $n$ \Comment{Return noise profile}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+
+    \item \textbf{Spectral Gating Defense:} Applies spectral subtraction to remove adversarial noise using the noise profile, with configurable parameters for noise reduction and smoothing, and ensures the output matches the input length.
+
+    \begin{breakablealgorithm}{Spectral Gating Defense}
+    \begin{algorithmic}[1]
+    \Require $x \in \mathbb{R}^T$: input audio waveform, $r \in \mathbb{N}$: sample rate, $s \in \{0, 1\}$: stationary noise flag, $p \in [0, 1]$: proportion of noise to remove, $f_s \in \mathbb{R}^+$: frequency smoothing width (Hz), $t_s \in \mathbb{R}^+$: time smoothing width (ms)
+    \Ensure $x_{def} \in \mathbb{R}^T$: defended audio waveform
+    \State Normalize waveform: $x \gets \text{clip}(x, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+    \State Remove singleton dimensions: $x \gets \text{squeeze}(x)$ \Comment{Ensure 1D array}
+    \State Compute VAD mask: $m \gets \text{VoiceActivityDetection}(x, r, d=30)$ \Comment{Using Voice Activity Detection}
+    \State Extract noise profile: $n \gets \text{NoiseProfileExtraction}(x, m, r)$ \Comment{Using Noise Profile Extraction}
+    \State Apply spectral subtraction: $x_{def} \gets \text{NoiseReduce}(x, n, r, s, p, f_s, t_s)$ \Comment{Remove noise}
+    \State Adjust length: $x_{def} \gets \text{Resize}(x_{def}, T)$ \Comment{Pad or trim to match input length $T$}
+    \State Cast to float32: $x_{def} \gets \text{cast}(x_{def}, \text{float32})$ \Comment{Ensure float32 format}
+    \State \Return $x_{def}$ \Comment{Return defended waveform}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+\end{enumerate}
 
 \subsubsection{Results with PGD Attacks}
 
@@ -1760,20 +1814,18 @@ The input quantization defense processes a 1D audio signal as follows:
     \item \textbf{Output}: Return the dequantized signal as a float32 array.
 \end{enumerate}
 
-The pseudocode for the input quantization defense is shown in Algorithm \ref{alg:input_quantization}.
-
+The pseudocode for the input quantization defense:
 \begin{breakablealgorithm}{Input Quantization Defense}
-\label{alg:input_quantization}
 \begin{algorithmic}[1]
-\Require Audio signal $x$ (float32, [-1,1]), bit-width $b$, device $d$
-\Ensure Quantized audio signal $y$ (float32, same shape as $x$)
-\State $x \gets \text{Clamp}(x, -1.0, 1.0)$ \Comment{Ensure signal is in [-1,1]}
-\State $x \gets \text{ToTensor}(x, d)$ \Comment{Convert to tensor on device}
-\State $n \gets 2^b$ \Comment{Number of quantization levels}
-\State $s \gets (x + 1) / 2 \times (n - 1)$ \Comment{Scale to [0, n-1]}
-\State $q \gets \text{Round}(s)$ \Comment{Quantize to integers}
-\State $y \gets (q / (n - 1)) \times 2 - 1$ \Comment{Dequantize to [-1,1]}
-\State \Return $y.\text{cpu}().\text{numpy}().\text{astype}(\text{float32})$
+\Require $x \in \mathbb{R}^T$: input audio waveform, $b \in \{4, 8, 16\}$: bit-width
+\Ensure $x_{def} \in \mathbb{R}^T$: defended audio waveform
+\State Clamp waveform: $x \gets \text{clip}(x, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+\State Compute quantization levels: $n \gets 2^b$ \Comment{Number of discrete levels}
+\State Scale to $[0, n-1]$: $x_s \gets (x + 1) / 2 \cdot (n - 1)$ \Comment{Map to quantization range}
+\State Quantize: $x_q \gets \text{round}(x_s)$ \Comment{Round to nearest integer}
+\State Dequantize to $[-1, 1]$: $x_{def} \gets (x_q / (n - 1)) \cdot 2 - 1$ \Comment{Scale back}
+\State Cast to float32: $x_{def} \gets \text{cast}(x_{def}, \text{float32})$ \Comment{Ensure float32 format}
+\State \Return $x_{def}$ \Comment{Return defended waveform}
 \end{algorithmic}
 \end{breakablealgorithm}
 

@@ -1349,73 +1349,90 @@ $\epsilon$ & $\alpha$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER}
 The Cramér Integral Probability Metric (IPM) attack is an advanced adversarial method designed to generate robust adversarial audio signals for automatic speech recognition (ASR) systems,\cite{esmaeilpour2021towards}. By leveraging the Cramér-IPM, this attack minimizes the discrepancy between the distributions of original and adversarial audio samples, ensuring the adversarial signals remain close to the legitimate speech manifold. Unlike traditional attacks like FGSM or PGD, the Cramér-IPM approach combines the Connectionist Temporal Classification (CTC) loss with a statistical distance metric, enhancing robustness against over-the-air playback without relying on costly Expectation Over Transformation (EOT) operations \cite{esmaeilpour2021towards}. This method optimizes perturbations to maximize transcription errors while maintaining perceptual similarity, making it effective for both targeted and non-targeted attacks.
 
 \paragraph{Methodology}
-The Cramér-IPM Attack algorithm works with the following components: 
+The Cramer-IPM Attack algorithm works with the following components:
 
 \begin{enumerate}
-    \item \textbf{Compute Empirical CDF at Points:} This algorithm computes the empirical cumulative distribution function (CDF) for a sample vector at specified points, enabling comparison of original and adversarial audio distributions in the Cramér-IPM calculation.
+    \item \textbf{Compute Empirical CDF at Points:} Computes the empirical cumulative distribution function (CDF) for a sample vector at specified points using a vectorized approach, enabling comparison of original and adversarial audio distributions.
 
     \begin{breakablealgorithm}{Compute Empirical CDF at Points}
-\begin{algorithmic}[1]
-\Require $z \in \mathbb{R}^N$: sample vector, $p \in \mathbb{R}^M$: evaluation points
-\Ensure $F_p \in \mathbb{R}^M$: empirical CDF values at points $p$
-\State Initialize CDF values: $F_p \gets 0 \in \mathbb{R}^M$
-\For{$j \gets 1$ to $M$}
-    \State Count samples below point: $c \gets \sum_{i=1}^N \mathbb{1}(z_i \leq p_j)$ \Comment{Indicator function $\mathbb{1}$}
-    \State Compute CDF: $F_p[j] \gets \frac{c}{N}$ \Comment{Fraction of samples $\leq p_j$}
-\EndFor
-\State \Return $F_p$ \Comment{Return empirical CDF values}
-\end{algorithmic}
-\end{breakablealgorithm}
+    \begin{algorithmic}[1]
+    \Require $z \in \mathbb{R}^N$: sample vector, $p \in \mathbb{R}^M$: evaluation points
+    \Ensure $F_p \in \mathbb{R}^M$: empirical CDF values at points $p$
+    \State Reshape for broadcasting: $p' \gets p \in \mathbb{R}^{M \times 1}$, $z' \gets z \in \mathbb{R}^{1 \times N}$ \Comment{Enable vectorized comparison}
+    \State Compute comparisons: $c \gets (z' \leq p') \in \{0, 1\}^{M \times N}$ \Comment{Indicator for $z_i \leq p_j$}
+    \State Compute CDF: $F_p \gets \text{mean}_N(c, \text{dim}=1) \in \mathbb{R}^M$ \Comment{Average over samples}
+    \State \Return $F_p$ \Comment{Return empirical CDF values}
+    \end{algorithmic}
+    \end{breakablealgorithm}
 
+    \item \textbf{Compute Cramer-IPM Distance:} Calculates the Cramer-IPM distance between original and adversarial audio batches using quantile-based integration and trapezoidal rule approximation.
 
-\item \textbf{Compute Cramér-IPM Distance:} This algorithm calculates the Cramér-IPM distance between original and adversarial audio batches by approximating the L2 distance between their empirical CDFs, used to regularize perturbations in the attack.
-\begin{breakablealgorithm}{Compute Cramér-IPM Distance}
-\begin{algorithmic}[1]
-\Require $x \in \mathbb{R}^{B \times T}$: original audio batch, $x' \in \mathbb{R}^{B \times T}$: adversarial audio batch, $M > 0$: number of sample points
-\Ensure $d \in \mathbb{R}^B$: Cramér-IPM distances for batch
-\State Initialize distances: $d \gets 0 \in \mathbb{R}^B$
-\For{$b \gets 1$ to $B$} \Comment{Process each batch element}
-    \State Flatten samples: $z_b \gets \text{vec}(x_b) \in \mathbb{R}^T$, $z'_b \gets \text{vec}(x'_b) \in \mathbb{R}^T$
-    \State Determine integration range: $a \gets \min(\min(z_b), \min(z'_b))$, $b \gets \max(\max(z_b), \max(z'_b))$
-    \State Generate sample points: $p \gets \{ a + \frac{(b-a)(j-1)}{M-1} \mid j = 1, \dots, M \}$ \Comment{Linearly spaced points}
-    \State Compute CDFs: $F_b \gets \text{CDF}(z_b, p)$, $F'_b \gets \text{CDF}(z'_b, p)$ \Comment{Using Compute Empirical CDF}
-    \State Compute squared differences: $s \gets (F_b - F'_b)^2 \in \mathbb{R}^M$
-    \State Approximate integral: $d[b] \gets \frac{b-a}{M-1} \cdot \sum_{j=1}^M s_j$ \Comment{Trapezoidal rule}
-\EndFor
-\State \Return $d$ \Comment{Return Cramér-IPM distances}
-\end{algorithmic}
-\end{breakablealgorithm}
+    \begin{breakablealgorithm}{Compute Cramer-IPM Distance}
+    \begin{algorithmic}[1]
+    \Require $x \in \mathbb{R}^{B \times T}$: original audio batch, $x' \in \mathbb{R}^{B \times T}$: adversarial audio batch, $M > 0$: number of sample points
+    \Ensure $d \in \mathbb{R}^B$: Cramer-IPM distances for batch
+    \State Initialize distances: $d \gets 0 \in \mathbb{R}^B$
+    \For{$b \gets 1$ to $B$} \Comment{Process each batch element}
+        \State Flatten samples: $z_b \gets \text{vec}(x_b) \in \mathbb{R}^T$, $z'_b \gets \text{vec}(x'_b) \in \mathbb{R}^T$
+        \State Combine samples: $z_c \gets z_b \cup z'_b \in \mathbb{R}^{2T}$
+        \State Compute quantiles: $a \gets \text{quantile}(z_c, 0.01)$, $b \gets \text{quantile}(z_c, 0.99)$ \Comment{1st and 99th percentiles}
+        \If{$|b - a| < 10^{-8}$} \Comment{Check numerical stability}
+            \State Set distance: $d[b] \gets 0$
+            \State Continue
+        \EndIf
+        \State Generate sample points: $p \gets \{ a + \frac{(b-a)(j-1)}{M-1} \mid j = 1, \dots, M \}$ \Comment{Linearly spaced points}
+        \State Compute CDFs: $F_b \gets \text{CDF}(z_b, p)$, $F'_b \gets \text{CDF}(z'_b, p)$ \Comment{Using Compute Empirical CDF}
+        \State Compute squared differences: $s \gets (F_b - F'_b)^2 \in \mathbb{R}^M$
+        \State Compute step size: $\Delta \gets (b - a) / (M - 1)$
+        \State Approximate integral: $d[b] \gets \Delta \cdot \sum_{j=1}^M s_j$ \Comment{Trapezoidal rule}
+    \EndFor
+    \State \Return $d$ \Comment{Return Cramer-IPM distances}
+    \end{algorithmic}
+    \end{breakablealgorithm}
 
+    \item \textbf{Cramer-IPM Adversarial Attack:} Generates adversarial audio by optimizing a combination of CTC loss and Cramer-IPM distance using an Adam optimizer, supporting both targeted and untargeted attacks.
 
-\item \textbf{Cramér-IPM Adversarial Attack:} This algorithm generates adversarial audio by iteratively optimizing a combination of CTC loss (to enforce a target transcription) and Cramér-IPM distance (to ensure distributional similarity), using finite differences for the IPM gradient.
-\begin{breakablealgorithm}{Cramér-IPM Adversarial Attack on wav2vec2 ASR}
-\begin{algorithmic}[1]
-\Require $x \in \mathbb{R}^{B \times T}$: input audio batch, $model$: wav2vec2 ASR model, $y_t$: target transcription, $\epsilon > 0$: perturbation magnitude, $\alpha > 0$: step size, $N > 0$: number of iterations, $\lambda > 0$: IPM weight, $M > 0$: number of CDF sample points, $\beta > 0$: finite difference step
-\Ensure $x_{adv} \in \mathbb{R}^{B \times T}$: adversarial audio batch
-\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize amplitude, resample}
-\State Encode target transcription: $y_t \gets \text{encode}(y_t)$ \Comment{Convert to token sequence}
-\State Initialize adversarial waveform: $x_{adv} \gets x$
-\For{$i \gets 1$ to $N$}
-    \State Compute predictions: $p \gets model(x_{adv})$ \Comment{$p \in \mathbb{R}^{B \times S \times K}$, logits for $S$ time steps, $K$ classes}
-    \State Define CTC loss: $L_{ctc}(x_{adv}, y_t) = \ell(p, y_t)$, where $\ell$ is CTC loss
-    \State Compute CTC gradient: $g_{ctc} \gets \nabla_{x_{adv}} L_{ctc}(x_{adv}, y_t) \in \mathbb{R}^{B \times T}$
-    \State Compute Cramér-IPM: $d \gets \text{Cramér-IPM}(x, x_{adv}, M)$ \Comment{Using Compute Cramér-IPM}
-    \State Generate random perturbation: $\xi \sim \mathcal{N}(0, I) \in \mathbb{R}^{B \times T}$
-    \State Compute perturbed IPM: $d' \gets \text{Cramér-IPM}(x, x_{adv} + \beta \xi, M)$
-    \State Approximate IPM gradient: $g_{ipm} \gets \frac{\text{mean}(d' - d)}{\beta} \cdot \xi$
-    \State Combine gradients: $g \gets g_{ctc} - \lambda \cdot g_{ipm}$
-    \State Update adversarial waveform: $x_{adv} \gets x_{adv} - \alpha \cdot \text{sign}(g)$
-    \State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
-\EndFor
-\State \Return $x_{adv}$ \Comment{Return adversarial audio batch}
-\end{algorithmic}
-\end{breakablealgorithm}
+    \begin{breakablealgorithm}{Cramer-IPM Adversarial Attack on wav2vec2 ASR}
+    \begin{algorithmic}[1]
+    \Require
+        \State $x \in \mathbb{R}^{B \times T}$: input audio batch
+        \State $model$: wav2vec2 ASR model
+        \State $y_t$: target transcription
+        \State $\epsilon > 0$: perturbation magnitude
+        \State $\eta > 0$: learning rate
+        \State $N > 0$: number of iterations
+        \State $\lambda > 0$: IPM weight
+        \State $M > 0$: number of CDF sample points
+        \State $\tau \in \{0, 1\}$: targeted flag
+    \Ensure $x_{adv} \in \mathbb{R}^{B \times T}$: adversarial audio batch
+    \State Preprocess $x$ for input to $model$ \Comment{Normalize amplitude, resample}
+    \State Encode target transcription: $y_t \gets \text{encode}(y_t)$ \Comment{Convert to token sequence}
+    \State Initialize perturbation: $\delta \gets 0 \in \mathbb{R}^{B \times T}$ \Comment{Trainable parameter}
+    \State Initialize optimizer: $opt \gets \text{Adam}(\{\delta\}, \eta)$ \Comment{Adam optimizer}
+    \For{$i \gets 1$ to $N$}
+        \State Clear gradients: $\text{zeroGrad}(opt)$
+        \State Compute adversarial input: $x_{adv} \gets x + \delta$
+        \State Clamp input: $x_{adv} \gets \text{clip}(x_{adv}, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+        \State Compute predictions: $p \gets \text{model}(x_{adv}, y_t)$ \Comment{Includes logits and CTC loss}
+        \State Extract CTC loss: $L_{ctc} \gets \text{loss}(p)$ \Comment{CTC loss from model}
+        \State Compute Cramer-IPM: $d \gets \text{Cramer-IPM}(x, x_{adv}, M)$ \Comment{Using Compute Cramer-IPM}
+        \State Compute IPM loss: $L_{ipm} \gets \text{mean}(d)$
+        \If{$\tau = 1$} \Comment{Targeted attack}
+            \State Compute total loss: $L \gets L_{ctc} + \lambda \cdot L_{ipm}$
+        \Else \Comment{Untargeted attack}
+            \State Compute total loss: $L \gets -L_{ctc} + \lambda \cdot L_{ipm}$
+        \EndIf
+        \State Compute gradients: $\nabla_{\delta} L$ \Comment{Backpropagate}
+        \State Clip gradients: $\nabla_{\delta} L \gets \text{clip}(\nabla_{\delta} L, 1)$ \Comment{Gradient clipping with max norm 1}
+        \State Update perturbation: $\text{step}(opt)$ \Comment{Apply Adam step}
+        \State Project perturbation: $\delta \gets \text{clip}(\delta, -\epsilon, \epsilon)$ \Comment{L-infinity norm}
+        \State Ensure valid range: $x_{adv} \gets \text{clip}(x + \delta, -1, 1)$
+        \State Update perturbation: $\delta \gets x_{adv} - x$
+    \EndFor
+    \State \Return $x_{adv}$ \Comment{Return adversarial audio batch}
+    \end{algorithmic}
+    \end{breakablealgorithm}
 \end{enumerate}
-
-
-
-
-
 
 
 \paragraph{Results}
@@ -1423,19 +1440,20 @@ The evaluation was conducted over 100 samples from the LibriSpeech test dataset.
 
 Original CER: 0.9\%  - Original WER: 2.84\%
 \begin{table}[H]
-\caption{Attack Effectiveness of Cramér-IPM}
+\caption{Attack Effectiveness of Cramer-IPM}
 \centering
 \label{cramer_ipm_results}
-\begin{tabular}{@{\hspace{0.3cm}}cS[table-format=1.2]S[table-format=1.2]S[table-format=2.2]lS[table-format=1.2]S[table-format=2.2]c@{\hspace{0.3cm}}}
+\begin{tabular}{@{\hspace{0.3cm}}cS[table-format=1.3]S[table-format=1.3]S[table-format=2.2]S[table-format=1.2]S[table-format=1.2]@{\hspace{0.3cm}}}
 \toprule
-$\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)}  & {$\Delta$CER} & {$\Delta$WER}  \\
+$\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER} \\
 \midrule
-0.001 & 0.18 & 0.34 & 16.21 &  -0.72 & -2.50  \\
-0.01  & 0.60 & 0.83 & 9.46   & -0.30 & -2.01  \\
-0.02  & 0.73 & 0.92 & 6.88  & -0.17 & -1.92  \\
-0.05  & 0.86 & 0.99 & 3.10   & -0.04 & -1.85  \\
-0.1   & 0.94 & 1.00 & 0.10   & 0.04 & -1.84 &  \\
-0.2   & 0.96 & 1.02 & -2.50  & 0.06 & -1.82  \\
+0.001 & 20.5 & 26.1 & 18.39 & -0.72 & -2.50 \\
+0.005 & 18.8 & 32.1 & 16.17 & -0.51 & -2.26 \\
+0.010 & 40.8 & 59.6 & 14.27 & -0.30 & -2.01 \\
+0.020 & 61.8 & 81.1 & 12.08 & -0.17 & -1.92 \\
+0.050 & 93.4 & 99.0 & 9.42 & -0.04 & -1.85 \\
+0.100 & 95.5 & 98.9 & 8.19 & 0.04 & -1.84 \\
+0.200 & 92.9 & 98.4 & 8.05 & 0.06 & -1.82 \\
 \bottomrule
 \end{tabular}
 \end{table}

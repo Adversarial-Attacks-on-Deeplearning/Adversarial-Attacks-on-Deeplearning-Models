@@ -605,7 +605,7 @@ The FGSM attack was applied with perturbation magnitudes $\epsilon=0.01$, $0.05$
 % Figure: FGSM Example Image
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/OD/fgsm.png} % Replace with the actual path to your image file
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/fgsm.png} % Replace with the actual path to your image file
     \caption{FGSM Example showing the original, adversarial, and difference images.}
     \label{fig:fgsm_example_yolo}
 \end{figure}
@@ -706,7 +706,7 @@ The Projected Gradient Descent (PGD) attack is an iterative adversarial attack t
 The PGD attack was applied with perturbation magnitudes $\epsilon=0.01$, $0.05$, and $0.1$, using $num\_steps=10$ and $step\_size (\alpha)=epsilon/4$. Figure~\ref{fig:pgd_example_yolo} illustrates the effect of the attack on a sample image with $\epsilon=0.1$ and $\alpha = 0.25$, showing the original image, the adversarial image, and the pixel-wise difference.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/OD/pgd.png} % Replace with the actual path to your image file
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/pgd.png} % Replace with the actual path to your image file
     \caption{PGD Example showing the original, adversarial, and difference images.}
     \label{fig:pgd_example_yolo}
 \end{figure}
@@ -838,7 +838,7 @@ The following pseudocode outlines the unified DAG attack framework, with annotat
 The DAG attack was applied with $\gamma=0.003$ unlike the original paper\cite{xie2017DAG} that used $\gamma=0.5$ that caused too much distortion when tested in YOLO, and $num\_iterations=20$ (a sufficient number of iterations is defined by trying) . Figures~\ref{fig:TDAG_example_yolo} and ~\ref{fig:UDAG_example_yolo} illustrate the effect of the attack (targeted and non-targeted) on a sample image with $\gamma=0.003$, $num\_iterations=20$ and green light as target for the targeted variant. showing the original image, the adversarial images, and the pixel-wise differences.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/OD/TDAG.png} % Replace with the actual path to your image file
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/TDAG.png} % Replace with the actual path to your image file
     \caption{Targeted DAG Example showing the original, adversarial, and difference images.}
     \label{fig:TDAG_example_yolo}
 \end{figure}
@@ -846,7 +846,7 @@ The DAG attack was applied with $\gamma=0.003$ unlike the original paper\cite{xi
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/OD/UDAG.png} % Replace with the actual path to your image file
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/UDAG.png} % Replace with the actual path to your image file
     \caption{Untargeted DAG Example showing the original, adversarial, and difference images.}
     \label{fig:UDAG_example_yolo}
 \end{figure}
@@ -993,7 +993,7 @@ The algorithm is formalized as follows:
 The "Adversarial Examples that Fool Detectors" attack was applied with $\gamma=0.01$ and $\lambda = 0.01$ within the ranges suggested by the original paper \cite{lu2017fooldetectors}, with $num\_iterations=10$ (a sufficient number of iterations is defined by trying). Figure~\ref{fig:fool_example_yolo} illustrates the effect of the attack (targeted and non-targeted) on a sample image with $\gamma=0.01$, $\lambda = 0.01$ and $num\_iterations=10$, showing the original image, the adversarial images, and the pixel-wise differences.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/OD/fool.png} % Replace with the actual path to your image file
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/fool.png} % Replace with the actual path to your image file
     \caption{"Adversarial Examples that Fool Detectors" Example showing the original, adversarial, and difference images.}
     \label{fig:fool_example_yolo}
 \end{figure}
@@ -1091,7 +1091,7 @@ The methodology adapts the universal adversarial perturbation approach from Moos
 Figure~\ref{fig:uap_example_yolo} illustrates the effect of the attack on a sample image showing the original image, the adversarial images, and the pixel-wise differences.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/OD/UAP_1.png} % Replace with the actual path to your image file
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/UAP_1.png} % Replace with the actual path to your image file
     \caption{UAP Example showing the original, adversarial, and difference images.}
     \label{fig:uap_example_yolo}
 \end{figure}
@@ -1172,6 +1172,8 @@ Despite their diverse applications and varying levels of complexity—from proce
 %% \paragraph{first attack}
 \subsection{Black Box Attacks}
 \section{Defenses}
+\subsection{APS Defense}
+
 
 
 \chapter{NLP}

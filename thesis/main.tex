@@ -1460,7 +1460,6 @@ The randomized smoothing algorithm works with the following components:
 
     \begin{breakablealgorithm}{Calculate Local Variance of Audio Waveform}
 \begin{algorithmic}[1]
-\centering
 \Require $x \in \mathbb{R}^T$: audio waveform, $W > 0$: window size
 \Ensure $v \in \mathbb{R}$: median local variance
 \State Initialize variances: $V \gets \emptyset$
@@ -1477,7 +1476,6 @@ The randomized smoothing algorithm works with the following components:
 \item \textbf{Adaptive Sigma:} This algorithm adjusts the noise level for randomized smoothing based on the audio’s local variance, balancing robustness and speech content preservation in the defense.
 \begin{breakablealgorithm}{Compute Adaptive Noise Level}
 \begin{algorithmic}[1]
-\centering
 \Require $x \in \mathbb{R}^T$: audio waveform, $\sigma_{base} > 0$: base noise level, $\sigma_{max} > 0$: maximum noise level, $k > 0$: scaling factor
 \Ensure $\sigma \in \mathbb{R}$: adaptive noise level
 \State Compute local variance: $v \gets \text{LocalVariance}(x)$ \Comment{Using Calculate Local Variance}
@@ -1490,7 +1488,6 @@ The randomized smoothing algorithm works with the following components:
 \item \textbf{Randomized Smoothing Transcribe:} This algorithm applies randomized smoothing to produce a robust transcription by adding adaptive Gaussian noise, processing noisy samples in batches, and using ROVER voting to aggregate transcriptions.
 \begin{breakablealgorithm}{Randomized Smoothing Transcription for wav2vec2 ASR}
 \begin{algorithmic}[1]
-\centering
 \Require $x \in \mathbb{R}^T$: input audio waveform, $model$: wav2vec2 ASR model, $\sigma_{base} > 0$: base noise level, $M > 0$: number of samples, $B > 0$: batch size
 \Ensure $y$: defended transcription, $\sigma$: used noise level
 \State Compute adaptive noise level: $\sigma \gets \text{AdaptiveSigma}(x, \sigma_{base})$ \Comment{Using Compute Adaptive Noise Level}

@@ -1,0 +1,699 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+\section{Introduction}
+\label{sec:asr_intro}
+
+Automatic Speech Recognition (ASR) is the technology that converts spoken language into machine-readable text, serving as the fundamental bridge between human speech and digital computation. It powers a vast array of modern applications, from ubiquitous voice assistants and hands-free device control to automated transcription services and security-sensitive systems like voice biometrics. As ASR becomes more deeply integrated into our daily lives, ensuring its reliability and security is of paramount importance. An attack that can maliciously alter a transcribed command or conversation poses a significant threat.
+
+The landscape of ASR was dramatically reshaped by self-supervised learning models, chief among them \textbf{Wav2Vec 2.0}. Unlike traditional pipelines that require vast amounts of transcribed audio for training, Wav2Vec 2.0 learns powerful and context-rich representations of speech directly from raw, unlabeled audio waveforms. This ability has enabled it to achieve state-of-the-art performance on speech recognition benchmarks. For our investigation, we use a pre-trained Wav2Vec 2.0 model, making our analysis representative of a powerful, real-world system that an adversary would likely target.
+
+To conduct a rigorous and reproducible security evaluation, our experiments are performed on a representative subset of \textbf{100 samples} drawn from the \textbf{LibriSpeech test-clean dataset}. LibriSpeech is a widely-recognized benchmark for ASR research, and by focusing on a specific subset, we can conduct a controlled and computationally manageable investigation into the effects of adversarial perturbations. This methodology ensures that our findings are grounded in a standard, high-quality corpus while allowing for a focused analysis of attack efficacy.
+
+In this chapter, we will therefore probe the vulnerabilities of the pre-trained Wav2Vec 2.0 model against this well-defined testbed. On the 100 clean samples, our model establishes a strong performance baseline, achieving a \textbf{Character Error Rate (CER) of 0.9\%} and a \textbf{Word Error Rate (WER) of 2.84\%}. These low error rates confirm the model's high competence before the introduction of any malicious noise. The subsequent sections will detail the attack methodologies used to generate adversarial audio and explore potential defenses aimed at fortifying these advanced speech recognition systems.
+\section{Attacks}
+\subsection{White Box Attacks}
+\subsubsection{FGSM Attack}
+\paragraph{Introduction}
+The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack technique designed to generate adversarial examples by introducing imperceptible perturbations to input data, thereby misleading machine learning models \cite{goodfellow2015explaining}. In the context of automatic speech recognition (ASR), this attack crafts adversarial audio samples that force the model to produce a specified target transcription\cite{zelasko2021adversarial}.
+
+\paragraph{Methodology}
+\begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack on wav2vec2 ASR}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^T$: input audio waveform, $model$: wav2vec2 ASR model, $y_t$: target transcription, $\epsilon > 0$: perturbation magnitude
+\Ensure $x_{adv} \in \mathbb{R}^T$: adversarial audio waveform
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize amplitude, resample}
+\State Compute model predictions: $p \gets model(x)$ \Comment{$p \in \mathbb{R}^{S \times K}$ includes logits for $S$ time steps, $K$ classes (e.g., tokens)}
+\State Encode target transcription: $y_t \gets \text{encode}(y_t)$ \Comment{Convert to token sequence}
+\State Define loss: $L(x, y_t) = \ell(p, y_t)$, where $\ell$ is CTC loss \Comment{Loss to enforce target transcription}
+\State Compute gradient: $g \gets \nabla_x L(x, y_t) \in \mathbb{R}^T$ \Comment{Gradient of loss w.r.t. $x$}
+\State Compute perturbation: $\eta \gets \epsilon \cdot \text{sign}(g)$ \Comment{Scaled sign of gradient}
+\State Generate adversarial waveform: $x_{adv} \gets x + \eta$
+\State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, -1, 1)$ \Comment{Ensure waveform amplitudes in $[-1, 1]$}
+\State \Return $x_{adv}$ \Comment{Return adversarial audio waveform}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
+\paragraph{Results}
+
+The effectiveness of the FGSM attack was evaluated across a range of epsilon values on 100 samples from the LibriSpeech test-clean dataset. The quantitative results, detailed in Table~\ref{fgsm_wav2vec2}.
+
+Original CER: 0.9\% - Original WER: 2.84\%.
+\begin{table}[H]
+\caption{Attack Effectiveness of FGSM}
+\label{fgsm_wav2vec2}
+\centering
+\footnotesize
+\label{tab:fgsm_results}
+\begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
+\toprule
+$\epsilon$   & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER}  \\
+\midrule
+0.01 & 1.73 & 5.89 & 37.56 & 0.83 & 3.05  \\
+0.02 & 2.42 & 7.6 & 31.54 & 1.52 & 4.76  \\
+0.05 & 2.85 & 7.83 & 23.58 & 1.95 & 4.99  \\
+0.10 & 3.57 & 9.68 & 17.56 &2.67  & 6.84 \\
+0.20 & 7.6 & 15.16 & 11.54 &6.7 & 12.32 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The following figures provide a visual analysis of this trend by showing the spectrogram of a single representative audio sample after being subjected to the attack at each epsilon level.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_01.png} % Replace with the actual path to your image file
+    \caption{FGSM $\epsilon = 0.01$ Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm01_example_wav}
+\end{figure}
+
+At $\epsilon = 0.01$ Figure~\ref{fig:fgsm01_example_wav}, the adversarial spectrogram is visually indistinguishable from the original. The difference spectrogram reveals a very low-energy, structured noise pattern that is inaudible to a human listener. This minimal perturbation aligns with the high SNR of 37.56 dB and results in only a minor increase in transcription errors.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_02.png} % Replace with the actual path to your image file
+    \caption{FGSM $\epsilon = 0.02$ Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm02_example_wav}
+\end{figure}
+Increasing the epsilon to $\epsilon = 0.02$ in Figure~\ref{fig:fgsm02_example_wav}, the adversarial audio remains perceptually identical to the original. The noise spectrogram shows a slight increase in energy but retains its targeted structure, concentrating on the same time-frequency regions as the original speech.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_05.png} % Replace with the actual path to your image file
+    \caption{FGSM $\epsilon = 0.05$ Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm05_example_wav}
+\end{figure}
+At $\epsilon = 0.05$ in Figure~\ref{fig:fgsm05_example_wav}, the noise energy becomes more prominent in the difference spectrogram. While the main formants of the speech are still perfectly clear in the adversarial example, the perturbation is now strong enough to significantly mislead the model, nearly doubling the WER compared to the original.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_1.png} % Replace with the actual path to your image file
+    \caption{FGSM $\epsilon = 0.1$ Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm1_example_wav}
+\end{figure}
+With $\epsilon = 0.1$ in Figure~\ref{fig:fgsm1_example_wav}, the adversarial noise is more visible and structured. The attack now introduces enough distortion to degrade the SNR to 17.56 dB, causing a substantial increase in transcription errors, as reflected by the A-WER of 9.68%.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_2.png} % Replace with the actual path to your image file
+    \caption{FGSM $\epsilon = 0.2$ Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm2_example_wav}
+\end{figure}
+
+Finally, at the highest tested $\epsilon = 0.2$ in Figure~\ref{fig:fgsm2_example_wav}, the noise spectrogram shows a high-energy perturbation that visibly distorts the signal's structure. This corresponds to the lowest SNR of 11.54 dB and has the most severe impact on transcription accuracy, causing the A-CER to increase by nearly 7 percentage points over the baseline.
+
+
+\subsubsection{PGD Attack}
+\paragraph{Introduction}
+The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial attack method that builds upon the principles of the Fast Gradient Sign Method (FGSM) by applying multiple small perturbations to optimize the adversarial example within an $\ell_\infty$ norm constraint \cite{madry2018towardspgd}. In automatic speech recognition (ASR) systems, PGD generates adversarial audio samples by iteratively adjusting the input waveform to maximize the loss function, aiming to force the model to produce a specified target transcription \cite{zelasko2021adversarial}.
+
+
+\paragraph{Methodology}
+\begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack on wav2vec2 ASR}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^T$: input audio waveform, $model$: wav2vec2 ASR model, $y_t$: target transcription, $\epsilon > 0$: perturbation bound, $\alpha > 0$: step size, $N > 0$: maximum iterations, $\delta > 0$: convergence threshold
+\Ensure $x_{adv} \in \mathbb{R}^T$: adversarial audio waveform
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize amplitude, resample}
+\State Encode target transcription: $y_t \gets \text{encode}(y_t)$ \Comment{Convert to token sequence}
+\State Initialize perturbation: $\eta \gets 0 \in \mathbb{R}^T$ \Comment{Zero perturbation}
+\State Initialize previous loss: $L_{prev} \gets \infty$
+\For{$i \gets 1$ to $N$}
+    \State Compute adversarial waveform: $x_{adv} \gets x + \eta$
+    \State Compute model predictions: $p \gets model(x_{adv})$ \Comment{$p \in \mathbb{R}^{S \times K}$ includes logits for $S$ time steps, $K$ classes}
+    \State Define loss: $L(x_{adv}, y_t) = \ell(p, y_t)$, where $\ell$ is CTC loss \Comment{Loss to enforce target transcription}
+    \If{$i > 1$ and $|L_{prev} - L(x_{adv}, y_t)| < \delta$}
+        \State \textbf{break} \Comment{Stop if loss converges}
+    \EndIf
+    \State Update previous loss: $L_{prev} \gets L(x_{adv}, y_t)$
+    \State Compute gradient: $g \gets \nabla_{\eta} L(x_{adv}, y_t) \in \mathbb{R}^T$ \Comment{Gradient w.r.t. perturbation}
+    \State Update perturbation: $\eta \gets \eta - \alpha \cdot \text{sign}(g)$
+    \State Project to $\ell_\infty$ ball: $\eta \gets \text{clip}(\eta, -\epsilon, \epsilon)$ \Comment{Ensure $||\eta||_\infty \leq \epsilon$}
+\EndFor
+\State Generate final adversarial waveform: $x_{adv} \gets x + \eta$
+\State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, -1, 1)$ \Comment{Ensure waveform amplitudes in $[-1, 1]$}
+\State \Return $x_{adv}$ \Comment{Return adversarial audio waveform}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
+\paragraph{Results}
+the evaluation happened over 100 samples from librespeech test dataset.The results are in Table~\ref{pgd_attack_results}
+
+Original CER: 0.9\% - Original WER: 2.84\%
+\begin{table}[H]
+\caption{Attack Effectiveness of PGD}
+\centering
+\label{pgd_attack_results}
+\begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
+\toprule
+$\epsilon$ & $\alpha$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER}  \\
+\midrule
+0.01 & 0.001 & 5.34 & 14.70 & 37.56 & 4.44 & 11.86  \\
+0.02 & 0.002 & 9.80 & 22.72 & 31.54 & 8.90 & 19.88  \\
+0.05 & 0.005 & 24.21 & 44.36 & 23.58 & 23.31 & 41.52 \\
+0.10 & 0.01 & 37.90 & 61.98 & 17.56 & 37.00 & 59.14  \\
+0.20 & 0.02 & 58.39 & 81.44 & 11.54 & 57.49 & 78.60  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Cramér-IPM Attack}
+\paragraph{Introduction}
+The Cramér Integral Probability Metric (IPM) attack is an advanced adversarial method designed to generate robust adversarial audio signals for automatic speech recognition (ASR) systems,\cite{esmaeilpour2021towards}. By leveraging the Cramér-IPM, this attack minimizes the discrepancy between the distributions of original and adversarial audio samples, ensuring the adversarial signals remain close to the legitimate speech manifold. Unlike traditional attacks like FGSM or PGD, the Cramér-IPM approach combines the Connectionist Temporal Classification (CTC) loss with a statistical distance metric, enhancing robustness against over-the-air playback without relying on costly Expectation Over Transformation (EOT) operations \cite{esmaeilpour2021towards}. This method optimizes perturbations to maximize transcription errors while maintaining perceptual similarity, making it effective for both targeted and non-targeted attacks.
+
+\paragraph{Methodology}
+The Cramer-IPM Attack algorithm works with the following components:
+
+\begin{enumerate}
+    \item \textbf{Compute Empirical CDF at Points:} Computes the empirical cumulative distribution function (CDF) for a sample vector at specified points using a vectorized approach, enabling comparison of original and adversarial audio distributions.
+
+    \begin{breakablealgorithm}{Compute Empirical CDF at Points}
+    \begin{algorithmic}[1]
+    \Require $z \in \mathbb{R}^N$: sample vector, $p \in \mathbb{R}^M$: evaluation points
+    \Ensure $F_p \in \mathbb{R}^M$: empirical CDF values at points $p$
+    \State Reshape for broadcasting: $p' \gets p \in \mathbb{R}^{M \times 1}$, $z' \gets z \in \mathbb{R}^{1 \times N}$ \Comment{Enable vectorized comparison}
+    \State Compute comparisons: $c \gets (z' \leq p') \in \{0, 1\}^{M \times N}$ \Comment{Indicator for $z_i \leq p_j$}
+    \State Compute CDF: $F_p \gets \text{mean}_N(c, \text{dim}=1) \in \mathbb{R}^M$ \Comment{Average over samples}
+    \State \Return $F_p$ \Comment{Return empirical CDF values}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+
+    \item \textbf{Compute Cramer-IPM Distance:} Calculates the Cramer-IPM distance between original and adversarial audio batches using quantile-based integration and trapezoidal rule approximation.
+
+    \begin{breakablealgorithm}{Compute Cramer-IPM Distance}
+    \begin{algorithmic}[1]
+    \Require $x \in \mathbb{R}^{B \times T}$: original audio batch, $x' \in \mathbb{R}^{B \times T}$: adversarial audio batch, $M > 0$: number of sample points
+    \Ensure $d \in \mathbb{R}^B$: Cramer-IPM distances for batch
+    \State Initialize distances: $d \gets 0 \in \mathbb{R}^B$
+    \For{$b \gets 1$ to $B$} \Comment{Process each batch element}
+        \State Flatten samples: $z_b \gets \text{vec}(x_b) \in \mathbb{R}^T$, $z'_b \gets \text{vec}(x'_b) \in \mathbb{R}^T$
+        \State Combine samples: $z_c \gets z_b \cup z'_b \in \mathbb{R}^{2T}$
+        \State Compute quantiles: $a \gets \text{quantile}(z_c, 0.01)$, $b \gets \text{quantile}(z_c, 0.99)$ \Comment{1st and 99th percentiles}
+        \If{$|b - a| < 10^{-8}$} \Comment{Check numerical stability}
+            \State Set distance: $d[b] \gets 0$
+            \State Continue
+        \EndIf
+        \State Generate sample points: $p \gets \{ a + \frac{(b-a)(j-1)}{M-1} \mid j = 1, \dots, M \}$ \Comment{Linearly spaced points}
+        \State Compute CDFs: $F_b \gets \text{CDF}(z_b, p)$, $F'_b \gets \text{CDF}(z'_b, p)$ \Comment{Using Compute Empirical CDF}
+        \State Compute squared differences: $s \gets (F_b - F'_b)^2 \in \mathbb{R}^M$
+        \State Compute step size: $\Delta \gets (b - a) / (M - 1)$
+        \State Approximate integral: $d[b] \gets \Delta \cdot \sum_{j=1}^M s_j$ \Comment{Trapezoidal rule}
+    \EndFor
+    \State \Return $d$ \Comment{Return Cramer-IPM distances}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+
+    \item \textbf{Cramer-IPM Adversarial Attack:} Generates adversarial audio by optimizing a combination of CTC loss and Cramer-IPM distance using an Adam optimizer, supporting both targeted and untargeted attacks.
+
+    \begin{breakablealgorithm}{Cramer-IPM Adversarial Attack on wav2vec2 ASR}
+    \begin{algorithmic}[1]
+    \Require
+        \State $x \in \mathbb{R}^{B \times T}$: input audio batch
+        \State $model$: wav2vec2 ASR model
+        \State $y_t$: target transcription
+        \State $\epsilon > 0$: perturbation magnitude
+        \State $\eta > 0$: learning rate
+        \State $N > 0$: number of iterations
+        \State $\lambda > 0$: IPM weight
+        \State $M > 0$: number of CDF sample points
+        \State $\tau \in \{0, 1\}$: targeted flag
+    \Ensure $x_{adv} \in \mathbb{R}^{B \times T}$: adversarial audio batch
+    \State Preprocess $x$ for input to $model$ \Comment{Normalize amplitude, resample}
+    \State Encode target transcription: $y_t \gets \text{encode}(y_t)$ \Comment{Convert to token sequence}
+    \State Initialize perturbation: $\delta \gets 0 \in \mathbb{R}^{B \times T}$ \Comment{Trainable parameter}
+    \State Initialize optimizer: $opt \gets \text{Adam}(\{\delta\}, \eta)$ \Comment{Adam optimizer}
+    \For{$i \gets 1$ to $N$}
+        \State Clear gradients: $\text{zeroGrad}(opt)$
+        \State Compute adversarial input: $x_{adv} \gets x + \delta$
+        \State Clamp input: $x_{adv} \gets \text{clip}(x_{adv}, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+        \State Compute predictions: $p \gets \text{model}(x_{adv}, y_t)$ \Comment{Includes logits and CTC loss}
+        \State Extract CTC loss: $L_{ctc} \gets \text{loss}(p)$ \Comment{CTC loss from model}
+        \State Compute Cramer-IPM: $d \gets \text{Cramer-IPM}(x, x_{adv}, M)$ \Comment{Using Compute Cramer-IPM}
+        \State Compute IPM loss: $L_{ipm} \gets \text{mean}(d)$
+        \If{$\tau = 1$} \Comment{Targeted attack}
+            \State Compute total loss: $L \gets L_{ctc} + \lambda \cdot L_{ipm}$
+        \Else \Comment{Untargeted attack}
+            \State Compute total loss: $L \gets -L_{ctc} + \lambda \cdot L_{ipm}$
+        \EndIf
+        \State Compute gradients: $\nabla_{\delta} L$ \Comment{Backpropagate}
+        \State Clip gradients: $\nabla_{\delta} L \gets \text{clip}(\nabla_{\delta} L, 1)$ \Comment{Gradient clipping with max norm 1}
+        \State Update perturbation: $\text{step}(opt)$ \Comment{Apply Adam step}
+        \State Project perturbation: $\delta \gets \text{clip}(\delta, -\epsilon, \epsilon)$ \Comment{L-infinity norm}
+        \State Ensure valid range: $x_{adv} \gets \text{clip}(x + \delta, -1, 1)$
+        \State Update perturbation: $\delta \gets x_{adv} - x$
+    \EndFor
+    \State \Return $x_{adv}$ \Comment{Return adversarial audio batch}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+\end{enumerate}
+
+
+\paragraph{Results}
+The evaluation was conducted over 100 samples from the LibriSpeech test dataset. The results are in Table~\ref{cramer_ipm_results}
+
+Original CER: 0.9\%  - Original WER: 2.84\%
+\begin{table}[H]
+\caption{Attack Effectiveness of Cramer-IPM}
+\centering
+\label{cramer_ipm_results}
+\begin{tabular}{@{\hspace{0.3cm}}cS[table-format=1.3]S[table-format=1.3]S[table-format=2.2]S[table-format=1.2]S[table-format=1.2]@{\hspace{0.3cm}}}
+\toprule
+$\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER} \\
+\midrule
+0.001 & 20.5 & 26.1 & 18.39 & -0.72 & -2.50 \\
+0.005 & 18.8 & 32.1 & 16.17 & -0.51 & -2.26 \\
+0.010 & 40.8 & 59.6 & 14.27 & -0.30 & -2.01 \\
+0.020 & 61.8 & 81.1 & 12.08 & -0.17 & -1.92 \\
+0.050 & 93.4 & 99.0 & 9.42 & -0.04 & -1.85 \\
+0.100 & 95.5 & 98.9 & 8.19 & 0.04 & -1.84 \\
+0.200 & 92.9 & 98.4 & 8.05 & 0.06 & -1.82 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Black Box Attacks}
+
+\section{Defenses}
+\subsection{Randomized Smoothing}
+\subsubsection{Introduction}
+Randomized smoothing \cite{cohen2019certified} emerges as a promising defense by creating noise-invariant predictions. And it is an effective defense with speech to text models\cite{zelasko2021adversarial}. We implemented it with:
+
+\begin{itemize}
+    \item \textbf{Adaptive variance scaling \cite{li2024adaptive}:} This technique adjusts the noise level (variance) added to an input signal based on its local characteristics, such as signal variance. In speech recognition, it dynamically scales the noise to be lower in high-variance regions (to preserve speech content) and higher in low-variance regions (to mask potential adversarial perturbations), enhancing robustness while maintaining accuracy.
+    \item \textbf{Batch Processing for Efficient Monte Carlo Sampling \cite{cohen2019certified}:} This approach improves the efficiency of randomized smoothing by processing multiple noisy versions of an input signal in batches. Instead of evaluating each perturbed sample individually, batch processing leverages parallel computation to perform Monte Carlo sampling, estimating the smoothed classifier's prediction faster and more scalably. 
+    \item \textbf{ROVER voting \cite{olivier2022sequential}:} ROVER (Recognizer Output Voting Error Reduction) is a method for combining multiple transcription outputs from a speech recognition system. It aggregates transcriptions by voting on words at each position across noisy samples, selecting the most frequent word to produce a final, more robust transcription, reducing errors caused by noise or adversarial attacks.
+\end{itemize}
+
+
+\subsubsection{Methodology}
+The randomized smoothing algorithm works with the following components:
+
+\begin{enumerate}
+    \item \textbf{Calculate Local Variance:} This algorithm computes the local variance of an audio waveform using a sliding window, providing a measure of signal variability for adaptive noise scaling in the randomized smoothing defense.
+
+    \begin{breakablealgorithm}{Calculate Local Variance of Audio Waveform}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^T$: audio waveform, $W > 0$: window size
+\Ensure $v \in \mathbb{R}$: median local variance
+\State Initialize variances: $V \gets \emptyset$
+\For{$i \gets 1$ to $T-W+1$}
+    \State Extract window: $w_i \gets (x_i, x_{i+1}, \dots, x_{i+W-1}) \in \mathbb{R}^W$
+    \State Compute window variance: $v_i \gets \frac{1}{W} \sum_{j=1}^W (w_{i,j} - \bar{w}_i)^2$, where $\bar{w}_i = \frac{1}{W} \sum_{j=1}^W w_{i,j}$
+    \State $V \gets V \cup \{ v_i \}$
+\EndFor
+\State Compute median variance: $v \gets \text{median}(V)$
+\State \Return $v$ \Comment{Return median local variance}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\item \textbf{Adaptive Sigma:} This algorithm adjusts the noise level for randomized smoothing based on the audio’s local variance, balancing robustness and speech content preservation in the defense.
+\begin{breakablealgorithm}{Compute Adaptive Noise Level}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^T$: audio waveform, $\sigma_{base} > 0$: base noise level, $\sigma_{max} > 0$: maximum noise level, $k > 0$: scaling factor
+\Ensure $\sigma \in \mathbb{R}$: adaptive noise level
+\State Compute local variance: $v \gets \text{LocalVariance}(x)$ \Comment{Using Calculate Local Variance}
+\State Calculate scaled noise level: $\sigma' \gets \sigma_{base} \cdot \left(1 + \frac{k}{v + \epsilon}\right)$, where $\epsilon > 0$ is small \Comment{Avoid division by zero}
+\State Clamp noise level: $\sigma \gets \text{clip}(\sigma', \sigma_{base}, \sigma_{max})$
+\State \Return $\sigma$ \Comment{Return adaptive noise level}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\item \textbf{Randomized Smoothing Transcribe:} This algorithm applies randomized smoothing to produce a robust transcription by adding adaptive Gaussian noise, processing noisy samples in batches, and using ROVER voting to aggregate transcriptions.
+\begin{breakablealgorithm}{Randomized Smoothing Transcription for wav2vec2 ASR}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^T$: input audio waveform, $model$: wav2vec2 ASR model, $\sigma_{base} > 0$: base noise level, $M > 0$: number of samples, $B > 0$: batch size
+\Ensure $y$: defended transcription, $\sigma$: used noise level
+\State Compute adaptive noise level: $\sigma \gets \text{AdaptiveSigma}(x, \sigma_{base})$ \Comment{Using Compute Adaptive Noise Level}
+\State Generate noisy waveforms: $X_n \gets \{ x + \eta_m \mid \eta_m \sim \mathcal{N}(0, \sigma^2 I), m = 1, \dots, M \}$ \Comment{Add Gaussian noise}
+\State Initialize transcription set: $\mathcal{Y} \gets \emptyset$
+\For{$i \gets 1$ to $M$ step $B$} \Comment{Process in batches}
+    \State Select batch: $X_b \gets \{ x + \eta_m \mid m = i, \dots, \min(i+B-1, M) \}$
+    \State Compute predictions: $P_b \gets \{ model(x_b) \mid x_b \in X_b \}$ \Comment{$P_b$ contains logits in $\mathbb{R}^{S_b \times K}$}
+    \State Decode transcriptions: $Y_b \gets \{ \text{decode}(p_b) \mid p_b \in P_b \}$ \Comment{Convert logits to transcriptions}
+    \State $\mathcal{Y} \gets \mathcal{Y} \cup Y_b$
+\EndFor
+\State Initialize vote counts: $V \gets \emptyset$ \Comment{Map for word votes at each position}
+\For{$y_m \in \mathcal{Y}$}
+    \State Split into words: $w_{m,1}, \dots, w_{m,L_m} \gets \text{split}(y_m)$
+    \For{$j \gets 1$ to $\max_m L_m$}
+        \If{$j \leq L_m$}
+            \State Update vote count: $V[j][w_{m,j}] \gets V[j][w_{m,j}] + 1$ \Comment{Increment count for word at position $j$}
+        \EndIf
+    \EndFor
+\EndFor
+\State Initialize final transcription: $y \gets []$
+\For{$j \gets 1$ to $\max_m L_m$}
+    \If{$V[j] \neq \emptyset$}
+        \State Select word: $w_j \gets \arg\max_w V[j][w]$ \Comment{Choose word with highest vote count}
+        \State $y \gets y \cup \{ w_j \}$
+    \EndIf
+\EndFor
+\State Combine words: $y \gets \text{join}(y, \text{`` ''})$ \Comment{Join words with spaces}
+\State \Return $y, \sigma$ \Comment{Return defended transcription and noise level}
+\end{algorithmic}
+\end{breakablealgorithm}
+\end{enumerate}
+
+
+\subsubsection{Results with PGD Attacks}
+
+\begin{table}[H]
+\caption{Defense Effectiveness Against PGD Attacks with Adaptive Smoothing}
+\centering
+\footnotesize
+\label{pgd_results}
+\begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
+\toprule
+$\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)} & {$\Delta$CER} & {$\Delta$WER} & {Samp.} \\
+\midrule
+0.01 & 0.001 & 5.34 & 14.70 & 1.65 & 5.12 & -3.69 & -9.57 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 1.90 & 5.60 & -7.89 & -17.12 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 3.09 & 8.19 & -21.12 & -36.17 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 11.46 & 22.95 & -26.44 & -39.03 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 42.07 & 67.04 & -16.32 & -14.40 & 100 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{MP3 Compression}
+ \subsubsection{Introduction}
+MP3 compression, a lossy audio encoding scheme based on psychoacoustic models, serves as an effective defense against Audio Adversarial Examples (AAEs) in Automatic Speech Recognition (ASR) systems \cite{andronic2020mp3}. By discarding audio information below human hearing thresholds, MP3 compression can reduce adversarial noise (AN) embedded in AAEs, which is often imperceptible to humans but misleads ASR systems into incorrect transcriptions \cite{andronic2020mp3}. We implement this defense with the following key components:
+
+\begin{itemize}
+    \item \textbf{MP3 Compression and Decompression \cite{andronic2020mp3}:} The audio signal is compressed to MP3 format at varying bitrates (e.g., 128 kbps to 4 kbps) and then decompressed back to the time domain. This process removes frequency components where AN is typically hidden, improving transcription accuracy.
+    \item \textbf{Bitrate Variation:} Different bitrates are tested to evaluate the trade-off between noise reduction and audio quality preservation. Lower bitrates increase noise reduction but may degrade speech content \cite{andronic2020mp3}.
+\end{itemize}
+
+\subsubsection{Methodology}
+The MP3 compression defense is implemented with the following components:
+
+\begin{enumerate}
+    \item \textbf{MP3 Compression and Decompression:} Compresses the audio waveform to MP3 format at a specified bitrate and decompresses it back to the time domain, removing adversarial noise hidden in frequency components.
+
+    \begin{breakablealgorithm}{MP3 Compression and Decompression}
+    \begin{algorithmic}[1]
+    \Require $x \in \mathbb{R}^T$: input audio waveform, $r \in \mathbb{N}$: sample rate, $b \in \{32k, 64k, 96k, 128k\}$: bitrate
+    \Ensure $x_{def} \in \mathbb{R}^T$: defended audio waveform
+    \State Normalize waveform: $x \gets \text{clip}(x, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+    \State Convert to 16-bit PCM: $x_{pcm} \gets (x \cdot 32767) \in \mathbb{Z}^T$ \Comment{Scale to 16-bit integers}
+    \State Create audio segment: $s \gets \text{AudioSegment}(x_{pcm}, r, \text{channels}=1, \text{sample\_width}=2)$ \Comment{Prepare for MP3 encoding}
+    \State Compress to MP3: $s_{mp3} \gets \text{MP3Encode}(s, b)$ \Comment{Encode to MP3 at bitrate $b$}
+    \State Decompress to waveform: $s_{dec} \gets \text{MP3Decode}(s_{mp3})$ \Comment{Decode back to time domain}
+    \State Extract samples: $x_{dec} \gets \text{Samples}(s_{dec}) \in \mathbb{R}^T$ \Comment{Convert to float32}
+    \State Normalize: $x_{def} \gets x_{dec} / 32767$ \Comment{Scale back to $[-1, 1]$}
+    \State Adjust length: $x_{def} \gets \text{Resize}(x_{def}, T)$ \Comment{Pad or trim to match input length $T$}
+    \State \Return $x_{def}$ \Comment{Return defended waveform}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+
+    \item \textbf{Single-Sample Processing with Metrics:} Applies MP3 compression to a single adversarial sample, transcribes the defended audio, and computes Character Error Rate (CER) and Word Error Rate (WER) against the ground truth.
+
+    \begin{breakablealgorithm}{Process Single Sample with MP3 Compression}
+    \begin{algorithmic}[1]
+    \Require $s = \{x, y_{gt}\}$: sample with audio waveform $x \in \mathbb{R}^T$ and ground truth transcription $y_{gt}$, $model$: ASR model, $proc$: audio processor, $b$: bitrate
+    \Ensure $m = \{\text{cer}, \text{wer}\}$: evaluation metrics
+    \State Apply defense: $x_{def} \gets \text{MP3Compress}(x, r=16000, b)$ \Comment{Using MP3 Compression and Decompression}
+    \State Transcribe audio: $y_{def} \gets \text{Transcribe}(x_{def}, 16000, proc, model)$ \Comment{Generate transcription}
+    \State Compute CER: $\text{cer} \gets \text{CER}(y_{def}, y_{gt})$ \Comment{Character Error Rate}
+    \State Compute WER: $\text{wer} \gets \text{WER}(y_{def}, y_{gt})$ \Comment{Word Error Rate}
+    \State \Return $m = \{\text{cer}, \text{wer}\}$ \Comment{Return metrics}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+\end{enumerate}
+
+
+\subsubsection{Results with PGD Attacks}
+
+\begin{table}[H]
+\caption{Defense Effectiveness Against PGD Attacks with MP3 Compression}
+\centering
+\footnotesize
+\label{mp3_results}
+\begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
+\toprule
+$\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)} & {$\Delta$CER} & {$\Delta$WER} & {Samp.} \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Bitrate: 128 kbps} \\
+0.01 & 0.001 & 5.34 & 14.70 & 2.63 & 7.40 & -2.72 & -7.30 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 3.48 & 9.63 & -6.31 & -13.09 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 7.13 & 15.66 & -17.08 & -28.69 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 11.81 & 24.73 & -26.09 & -37.25 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 24.87 & 45.13 & -33.52 & -36.31 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Bitrate: 96 kbps} \\
+0.01 & 0.001 & 5.34 & 14.70 & 2.59 & 7.22 & -2.75 & -7.48 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 3.51 & 9.67 & -6.28 & -13.05 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 6.98 & 15.42 & -17.23 & -28.94 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 11.79 & 25.04 & -26.11 & -36.94 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 25.04 & 44.75 & -33.35 & -36.69 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Bitrate: 64 kbps} \\
+0.01 & 0.001 & 5.34 & 14.70 & 2.41 & 6.98 & -2.93 & -7.71 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 3.15 & 9.00 & -6.64 & -13.73 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 6.47 & 14.70 & -17.74 & -29.66 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 10.63 & 22.53 & -27.27 & -39.45 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 22.84 & 41.60 & -35.55 & -39.84 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Bitrate: 32 kbps} \\
+0.01 & 0.001 & 5.34 & 14.70 & 2.02 & 6.27 & -3.33 & -8.43 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 2.45 & 7.25 & -7.34 & -15.47 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 4.40 & 10.92 & -19.81 & -33.44 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 7.08 & 14.94 & -30.82 & -47.04 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 14.23 & 27.59 & -44.16 & -53.85 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Bitrate: 24 kbps} \\
+0.01 & 0.001 & 5.34 & 14.70 & 2.05 & 6.02 & -3.30 & -8.67 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 2.24 & 6.61 & -7.56 & -16.12 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 3.25 & 8.59 & -20.96 & -35.77 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 5.91 & 12.62 & -32.00 & -49.36 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 8.96 & 17.72 & -49.43 & -63.72 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Bitrate: 16 kbps} \\
+0.01 & 0.001 & 5.34 & 14.70 & 3.45 & 8.93 & -1.90 & -5.77 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 3.39 & 8.83 & -6.41 & -13.89 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 4.20 & 10.19 & -20.01 & -34.17 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 5.42 & 11.81 & -32.48 & -50.17 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 8.05 & 16.14 & -50.34 & -65.30 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Bitrate: 8 kbps} \\
+0.01 & 0.001 & 5.34 & 14.70 & 23.46 & 44.03 & 18.11 & 29.33 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 24.46 & 44.58 & 14.66 & 21.85 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 25.98 & 46.84 & 1.77 & 2.48 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 28.30 & 49.60 & -9.61 & -12.38 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 32.37 & 55.64 & -26.02 & -25.81 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Bitrate: 4 kbps} \\
+0.01 & 0.001 & 5.34 & 14.70 & 23.46 & 44.03 & 18.11 & 29.33 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 24.46 & 44.58 & 14.66 & 21.85 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 25.98 & 46.84 & 1.77 & 2.48 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 28.30 & 49.60 & -9.61 & -12.38 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 32.37 & 55.64 & -26.02 & -25.81 & 100 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\subsection{Spectral Gating Defense}
+\subsubsection{Introduction}
+Spectral gating is a defense strategy that applies noise reduction to audio signals to remove adversarial perturbations\cite{oreilly2022voiceblock}.
+The spectral gating defense processes a 1D audio signal as follows:
+\begin{enumerate}
+    \item \textbf{Voice Activity Detection}: Apply WebRTC VAD to generate a boolean mask identifying speech segments, using a frame duration of 30 ms and an aggressiveness level of 2.
+    \item \textbf{Noise Profile Extraction}: Extract non-speech segments based on the VAD mask. If no non-speech segments exist, use portions from the audio's beginning and end (0.5 seconds each).
+    \item \textbf{Noise Reduction}: Use the \texttt{noisereduce} library to perform spectral subtraction, configured with parameters for stationary noise, proportion of noise to remove, and frequency/time smoothing.
+    \item \textbf{Output Adjustment}: Ensure the output audio matches the input length by trimming or padding as needed, and cast to float32 format.
+\end{enumerate}
+
+
+\subsubsection{Methodology}
+The spectral gating defense is implemented with the following components:
+
+\begin{enumerate}
+    \item \textbf{Voice Activity Detection:} Uses WebRTC VAD to generate a boolean mask identifying speech segments in the audio waveform, with a frame duration of 30 ms and an aggressiveness level of 2.
+
+    \begin{breakablealgorithm}{Voice Activity Detection}
+    \begin{algorithmic}[1]
+    \Require $x \in \mathbb{R}^T$: input audio waveform, $r \in \{8000, 16000, 32000, 48000\}$: sample rate, $d \in \mathbb{N}$: frame duration (ms)
+    \Ensure $m \in \{0, 1\}^T$: boolean mask indicating voice activity
+    \State Normalize waveform: $x \gets \text{clip}(x, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+    \State Convert to 16-bit PCM: $x_{pcm} \gets (x \cdot 32767) \in \mathbb{Z}^T$ \Comment{Scale to 16-bit integers}
+    \State Initialize VAD: $vad \gets \text{WebRTCVAD}(\text{mode}=2)$ \Comment{Set aggressiveness level to 2}
+    \State Compute frame length: $f \gets \lfloor d \cdot r / 1000 \rfloor$ \Comment{Number of samples per frame}
+    \State Initialize mask: $m \gets []$
+    \For{$i \gets 1$ to $T$ step $f$} \Comment{Process audio in frames}
+        \State Extract frame: $x_f \gets x_{pcm}[i : \min(i+f-1, T)]$ \Comment{Get frame of length $f$}
+        \If{$|x_f| < f$} \Comment{If frame is too short}
+            \State Pad frame: $x_f \gets \text{pad}(x_f, (0, f - |x_f|), 0)$ \Comment{Pad with zeros}
+        \EndIf
+        \State Detect speech: $s \gets vad.\text{isSpeech}(x_f, r)$ \Comment{True if speech, False otherwise}
+        \State Extend mask: $m \gets m \cup \{s\}^f$ \Comment{Append $f$ copies of $s$}
+    \EndFor
+    \State Trim mask: $m \gets m[1 : T]$ \Comment{Match input length}
+    \State \Return $m$ \Comment{Return boolean mask}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+
+    \item \textbf{Noise Profile Extraction:} Extracts non-speech segments from the audio waveform using the VAD mask to construct a noise profile for spectral gating.
+
+    \begin{breakablealgorithm}{Noise Profile Extraction}
+    \begin{algorithmic}[1]
+    \Require $x \in \mathbb{R}^T$: input audio waveform, $m \in \{0, 1\}^T$: VAD mask, $r \in \mathbb{N}$: sample rate
+    \Ensure $n \in \mathbb{R}^P$: noise profile
+    \State Compute non-speech mask: $m_n \gets \neg m$ \Comment{Identify non-speech segments}
+    \If{$\sum m_n = 0$} \Comment{If no non-speech segments}
+        \State Set segment length: $l \gets \min(\lfloor 0.5 \cdot r \rfloor, \lfloor T / 4 \rfloor)$ \Comment{0.5s or 1/4 of audio}
+        \State Extract noise: $n \gets [x[1 : l] \cup x[T-l+1 : T]]$ \Comment{Use start and end segments}
+    \Else
+        \State Extract noise: $n \gets x[m_n]$ \Comment{Select non-speech samples}
+    \EndIf
+    \State \Return $n$ \Comment{Return noise profile}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+
+    \item \textbf{Spectral Gating Defense:} Applies spectral subtraction to remove adversarial noise using the noise profile, with configurable parameters for noise reduction and smoothing, and ensures the output matches the input length.
+
+    \begin{breakablealgorithm}{Spectral Gating Defense}
+    \begin{algorithmic}[1]
+    \Require $x \in \mathbb{R}^T$: input audio waveform, $r \in \mathbb{N}$: sample rate, $s \in \{0, 1\}$: stationary noise flag, $p \in [0, 1]$: proportion of noise to remove, $f_s \in \mathbb{R}^+$: frequency smoothing width (Hz), $t_s \in \mathbb{R}^+$: time smoothing width (ms)
+    \Ensure $x_{def} \in \mathbb{R}^T$: defended audio waveform
+    \State Normalize waveform: $x \gets \text{clip}(x, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+    \State Remove singleton dimensions: $x \gets \text{squeeze}(x)$ \Comment{Ensure 1D array}
+    \State Compute VAD mask: $m \gets \text{VoiceActivityDetection}(x, r, d=30)$ \Comment{Using Voice Activity Detection}
+    \State Extract noise profile: $n \gets \text{NoiseProfileExtraction}(x, m, r)$ \Comment{Using Noise Profile Extraction}
+    \State Apply spectral subtraction: $x_{def} \gets \text{NoiseReduce}(x, n, r, s, p, f_s, t_s)$ \Comment{Remove noise}
+    \State Adjust length: $x_{def} \gets \text{Resize}(x_{def}, T)$ \Comment{Pad or trim to match input length $T$}
+    \State Cast to float32: $x_{def} \gets \text{cast}(x_{def}, \text{float32})$ \Comment{Ensure float32 format}
+    \State \Return $x_{def}$ \Comment{Return defended waveform}
+    \end{algorithmic}
+    \end{breakablealgorithm}
+\end{enumerate}
+
+\subsubsection{Results with PGD Attacks}
+
+The spectral gating defense was evaluated on 100 adversarial audio samples across five epsilon values (0.01 to 0.2) and corresponding alpha values (0.001 to 0.02). The character error rate (CER) and word error rate (WER) were computed for the original (undefended) and defended audio using five defense configurations:
+\begin{itemize}
+    \item Non-stationary, 80\% noise reduction, 500 Hz/50 ms smoothing (\texttt{nonstat\_p80\_f500\_t50}).
+    \item Stationary, 80\% noise reduction, 500 Hz/50 ms smoothing (\texttt{stat\_p80\_f500\_t50}).
+    \item Non-stationary, 60\% noise reduction, 500 Hz/50 ms smoothing (\texttt{nonstat\_p60\_f500\_t50}).
+    \item Non-stationary, 100\% noise reduction, 500 Hz/50 ms smoothing (\texttt{nonstat\_p100\_f500\_t50}).
+    \item Non-stationary, 80\% noise reduction, 200 Hz/25 ms smoothing (\texttt{nonstat\_p80\_f200\_t25}).
+\end{itemize}
+
+Table \ref{spectral_gating_results} summarizes the results.
+
+\begin{table}[H]
+\caption{Defense Effectiveness Against PGD Attacks with Spectral Gating}
+\centering
+\footnotesize
+\label{spectral_gating_results}
+\begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
+\toprule
+$\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)} & {$\Delta$CER} & {$\Delta$WER} & {Samp.} \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Config: nonstat\_p80\_f500\_t50} \\
+0.0100 & 0.0010 & 5.34 & 14.70 & 1.79 & 5.13 & -3.56 & -9.56 & 100 \\
+0.0200 & 0.0020 & 9.80 & 22.72 & 2.28 & 6.26 & -7.52 & -16.47 & 100 \\
+0.0500 & 0.0050 & 24.21 & 44.36 & 4.05 & 9.89 & -20.16 & -34.46 & 100 \\
+0.1000 & 0.0100 & 37.90 & 61.98 & 7.25 & 16.47 & -30.65 & -45.51 & 100 \\
+0.2000 & 0.0200 & 58.39 & 81.44 & 15.77 & 31.66 & -42.62 & -49.78 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Config: stat\_p80\_f500\_t50} \\
+0.0100 & 0.0010 & 5.34 & 14.70 & 2.19 & 6.58 & -3.16 & -8.12 & 100 \\
+0.0200 & 0.0020 & 9.80 & 22.72 & 2.76 & 7.70 & -7.04 & -15.02 & 100 \\
+0.0500 & 0.0050 & 24.21 & 44.36 & 4.69 & 11.66 & -19.52 & -32.70 & 100 \\
+0.1000 & 0.0100 & 37.90 & 61.98 & 7.47 & 17.22 & -30.43 & -44.76 & 100 \\
+0.2000 & 0.0200 & 58.39 & 81.44 & 14.56 & 29.73 & -43.83 & -51.71 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Config: nonstat\_p60\_f500\_t50} \\
+0.0100 & 0.0010 & 5.34 & 14.70 & 2.23 & 6.31 & -3.12 & -8.39 & 100 \\
+0.0200 & 0.0020 & 9.80 & 22.72 & 2.94 & 8.02 & -6.86 & -14.70 & 100 \\
+0.0500 & 0.0050 & 24.21 & 44.36 & 6.03 & 13.69 & -18.19 & -30.67 & 100 \\
+0.1000 & 0.0100 & 37.90 & 61.98 & 9.88 & 21.39 & -28.02 & -40.59 & 100 \\
+0.2000 & 0.0200 & 58.39 & 81.44 & 21.28 & 40.32 & -37.11 & -41.12 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Config: nonstat\_p100\_f500\_t50} \\
+0.0100 & 0.0010 & 5.34 & 14.70 & 2.26 & 5.83 & -3.08 & -8.87 & 100 \\
+0.0200 & 0.0020 & 9.80 & 22.72 & 2.22 & 5.83 & -7.58 & -16.89 & 100 \\
+0.0500 & 0.0050 & 24.21 & 44.36 & 2.32 & 5.94 & -21.89 & -38.42 & 100 \\
+0.1000 & 0.0100 & 37.90 & 61.98 & 2.84 & 7.01 & -35.06 & -54.97 & 100 \\
+0.2000 & 0.0200 & 58.39 & 81.44 & 3.32 & 8.13 & -55.07 & -73.31 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Config: nonstat\_p80\_f200\_t25} \\
+0.0100 & 0.0010 & 5.34 & 14.70 & 1.64 & 4.76 & -3.71 & -9.94 & 100 \\
+0.0200 & 0.0020 & 9.80 & 22.72 & 1.98 & 5.45 & -7.82 & -17.27 & 100 \\
+0.0500 & 0.0050 & 24.21 & 44.36 & 3.05 & 8.07 & -21.16 & -36.28 & 100 \\
+0.1000 & 0.0100 & 37.90 & 61.98 & 5.10 & 11.82 & -32.80 & -50.16 & 100 \\
+0.2000 & 0.0200 & 58.39 & 81.44 & 11.26 & 23.48 & -47.13 & -57.96 & 100 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Quantization Defense}
+\subsubsection{Introduction}
+Input quantization reduces the precision of audio signals by mapping continuous values to discrete levels, effectively attenuating adversarial perturbations \cite{li2024investigating}. The defense preprocesses audio inputs by quantizing them to a specified bit-width (e.g., 4-bit, 8-bit, 16-bit), scaling values to a discrete range, and dequantizing back to the original scale. This process introduces noise that can disrupt adversarial perturbations while preserving speech intelligibility.
+
+\subsubsection{Methodology}
+The input quantization defense processes a 1D audio signal as follows:
+\begin{enumerate}
+    \item \textbf{Clamping}: Ensure the audio signal is within the range $[-1, 1]$.
+    \item \textbf{Scaling}: Map the signal to $[0, 2^b - 1]$, where $b$ is the bit-width.
+    \item \textbf{Quantization}: Round the scaled values to the nearest integer.
+    \item \textbf{Dequantization}: Scale the quantized values back to $[-1, 1]$.
+    \item \textbf{Output}: Return the dequantized signal as a float32 array.
+\end{enumerate}
+
+The pseudocode for the input quantization defense:
+\begin{breakablealgorithm}{Input Quantization Defense}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^T$: input audio waveform, $b \in \{4, 8, 16\}$: bit-width
+\Ensure $x_{def} \in \mathbb{R}^T$: defended audio waveform
+\State Clamp waveform: $x \gets \text{clip}(x, -1, 1)$ \Comment{Ensure amplitudes in $[-1, 1]$}
+\State Compute quantization levels: $n \gets 2^b$ \Comment{Number of discrete levels}
+\State Scale to $[0, n-1]$: $x_s \gets (x + 1) / 2 \cdot (n - 1)$ \Comment{Map to quantization range}
+\State Quantize: $x_q \gets \text{round}(x_s)$ \Comment{Round to nearest integer}
+\State Dequantize to $[-1, 1]$: $x_{def} \gets (x_q / (n - 1)) \cdot 2 - 1$ \Comment{Scale back}
+\State Cast to float32: $x_{def} \gets \text{cast}(x_{def}, \text{float32})$ \Comment{Ensure float32 format}
+\State \Return $x_{def}$ \Comment{Return defended waveform}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
+\subsubsection{Results with PGD Attacks}
+~\ref{quantization_results} summarizes the results for $\epsilon=0.1, \alpha=0.01$, showing CER, WER, and their reductions ($\Delta$CER, $\Delta$WER) compared to the undefended case. Results for other epsilon values are available in the supplemental material.
+
+\begin{table}[H]
+\caption{Defense Effectiveness Against PGD Attacks with Input Quantization}
+\centering
+\footnotesize
+\label{quantization_results}
+\begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
+\toprule
+$\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)} & {$\Delta$CER} & {$\Delta$WER} & {Samp.} \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Config: 4-bit} \\
+0.01 & 0.001 & 5.34 & 14.70 & 3.13 & 8.36 & -2.21 & -6.34 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 3.16 & 7.95 & -6.64 & -14.77 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 3.87 & 10.12 & -20.34 & -34.24 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 5.56 & 12.91 & -32.34 & -49.07 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 17.72 & 33.74 & -40.67 & -47.70 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Config: 8-bit} \\
+0.01 & 0.001 & 5.34 & 14.70 & 2.61 & 7.53 & -2.73 & -7.17 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 3.85 & 10.20 & -5.95 & -12.52 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 9.41 & 19.32 & -14.80 & -25.04 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 14.70 & 29.56 & -23.20 & -32.42 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 29.44 & 50.71 & -28.95 & -30.73 & 100 \\
+\midrule
+\multicolumn{9}{@{\hspace{0.3cm}}l@{\hspace{0.3cm}}}{Config: 16-bit} \\
+0.01 & 0.001 & 5.34 & 14.70 & 2.93 & 8.16 & -2.41 & -6.54 & 100 \\
+0.02 & 0.002 & 9.80 & 22.72 & 4.30 & 11.27 & -5.50 & -11.45 & 100 \\
+0.05 & 0.005 & 24.21 & 44.36 & 9.87 & 20.56 & -14.34 & -23.80 & 100 \\
+0.1 & 0.01 & 37.90 & 61.98 & 14.85 & 29.91 & -23.05 & -32.07 & 100 \\
+0.2 & 0.02 & 58.39 & 81.44 & 29.49 & 50.38 & -28.90 & -31.06 & 100 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}

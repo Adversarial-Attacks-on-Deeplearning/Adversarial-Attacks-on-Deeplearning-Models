@@ -1,0 +1,23 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+
+Computer Vision, a field of artificial intelligence and computer science, strives to grant machines the ability to see, interpret, and understand the visual world. In a manner analogous to human vision, it processes and analyzes data from images and videos to produce numerical or symbolic information. In recent years, driven by the revolutionary success of deep learning, particularly \textbf{Convolutional Neural Networks (CNNs)}, computer vision has transitioned from a niche academic pursuit to a cornerstone of modern technology. Its applications are pervasive, powering everything from autonomous vehicles and facial recognition systems to medical image analysis and automated quality control in manufacturing.
+
+Despite their often superhuman performance on specific tasks, the deep learning models that underpin these systems exhibit a critical and surprising vulnerability: a profound sensitivity to adversarial attacks. These attacks consist of meticulously crafted, often imperceptible perturbations to input data that are designed to cause the model to make a confident but incorrect prediction. For example, a minor, human-unnoticeable modification to the pixels of an image can cause a state-of-the-art classifier to misidentify a panda as a gibbon, or a stop sign as a speed limit sign.
+
+The implications of this fragility are profound and far-reaching, posing significant security and safety risks. In safety-critical systems like autonomous driving, an adversarial attack that fools an object detector could have catastrophic consequences. Similarly, in medical diagnostics, a manipulated scan that leads to a misdiagnosis could endanger patient health. Therefore, understanding the mechanics of these attacks and developing robust defense mechanisms is not merely an academic exercise but a fundamental requirement for the trustworthy deployment of AI in the real world.
+
+This part of the thesis embarks on a systematic investigation of adversarial phenomena across core computer vision tasks. We will dissect these vulnerabilities by examining three fundamental and progressively complex domains:
+
+\begin{enumerate}
+    \item \textbf{Image Classification:} The foundational task of assigning a single label to an entire image.
+    \item \textbf{Image Segmentation:} A more granular task requiring a pixel-level classification to partition an image into meaningful segments.
+    \item \textbf{Object Detection:} A composite task that combines classification with localization to identify and draw bounding boxes around multiple objects within a scene.
+\end{enumerate}
+
+By exploring these three pillars of computer vision, we aim to provide a comprehensive overview of the threat landscape. For each domain, our approach will be consistent: we will first introduce the task and the benchmark models and datasets under consideration, then explore prominent adversarial attack strategies tailored to that task, and finally, analyze state-of-the-art defense mechanisms designed to enhance model robustness.
+
+
+
+\end{document}

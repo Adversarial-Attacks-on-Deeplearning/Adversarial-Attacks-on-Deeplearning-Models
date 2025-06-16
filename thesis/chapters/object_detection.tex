@@ -1,0 +1,600 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+\section{Introduction}
+\label{sec:detection_intro}
+Object detection represents a significant leap in complexity beyond simple image classification. Instead of assigning a single label to an entire image, object detection aims to solve a dual problem: identifying \textit{what} objects are present in an image and precisely localizing \textit{where} they are located using \textbf{bounding boxes}. This capability for fine-grained scene understanding is critical for applications that require interaction with the physical world, most notably autonomous driving. In this context, the reliable detection of traffic signs, pedestrians, and other vehicles is a fundamental prerequisite for safe navigation.
+
+To align our research with this critical application, our experiments are centered on the \textbf{LISA (Laboratory for Intelligent \& Safe Automobiles) Traffic Sign Dataset}. This dataset is specifically designed to benchmark the performance of object detectors on real-world traffic signs captured under a variety of conditions, making it an ideal environment to assess the practical security risks posed by adversarial attacks.
+
+For our model, we have selected \textbf{YOLOv8n (You Only Look Once, version 8 nano)}. As a one-stage detector, the YOLO architecture is renowned for its exceptional balance of speed and accuracy, making it a leading choice for real-time applications where low-latency inference is paramount. The 'nano' variant, in particular, is optimized for efficiency, making it highly suitable for deployment on resource-constrained hardware, such as the on-board computers in autonomous vehicles. Our trained YOLOv8n model establishes a strong performance baseline on the clean LISA dataset, achieving a mean Average Precision (\textbf{mAP\textsubscript{50-95}}) of \textbf{81.1\%} and a \textbf{mAP\textsubscript{50}} of \textbf{92.7\%}. This strong detection performance, coupled with a rapid inference time of approximately \textbf{3.9 milliseconds} per image on our hardware, confirms its suitability for real-world deployment.
+
+Given that such a high-performing and efficient model is a prime candidate for use in safety-critical systems, this chapter will investigate its robustness against adversarial attacks. We will explore methods designed to fool object detectors into failing to detect signs or misclassifying them, and subsequently evaluate defenses intended to mitigate these critical vulnerabilities.\section{Attacks}
+\subsection{Evaluation Methodology}
+To assess the effectiveness of adversarial attacks, including the Fast Gradient Sign Method (FGSM), on the YOLO object detection model, a systematic evaluation framework was designed. The primary goal was to quantify the impact of perturbations on detection performance while ensuring the methodology is reproducible and aligned with standard practices in computer vision research.
+
+The evaluation was conducted on a test dataset of traffic sign images, with a fixed confidence threshold of 0.25 to filter predictions. This threshold was selected to balance precision and recall, ensuring that only highly confident detections were considered while minimizing false positives. Performance was measured using the mean Average Precision (mAP) metric, with a focus on mAP@0.5, which evaluates detection accuracy at an Intersection over Union (IoU) threshold of 0.5. This metric is widely adopted in object detection benchmarks (e.g., Pascal VOC, COCO) and provides a practical measure of model robustness under moderate localization requirements. Additionally, mAP@0.5:0.95 was computed, averaging precision across IoU thresholds from 0.5 to 0.95 in steps of 0.05, to assess the attack's impact on both detection and precise localization, offering a more stringent evaluation where relevant.
+
+Class-specific mAP@0.5 was evaluated to identify vulnerabilities across different traffic sign categories (e.g., Speed Limit signs, Stop signs), with the drop in mAP ($\Delta$ mAP) calculated to highlight the relative degradation for each class. This approach enables a detailed understanding of how visual saliency and feature distinctiveness affect robustness. The methodology was applied consistently across all attacks to ensure comparability, with results presented in subsequent sections to avoid redundancy in attack-specific discussions.
+\subsection{White-Box Attacks}
+\subsubsection{FGSM Attack on YOLO}
+
+\paragraph{Introduction}\leavevmode\\
+The Fast Gradient Sign Method (FGSM) is a single-step adversarial attack that generates adversarial examples by perturbing inputs along the gradient of the loss function \cite{goodfellow2015explaining}. For YOLO \cite{lu2017noneed}, FGSM targets high-confidence detections from raw model outputs before non-maximum suppression (NMS) to maximize classification errors, causing misclassifications or missed detections. The attack uses an $\ell_\infty$-bounded perturbation (controlled by $\epsilon$) to maintain similarity while disrupting the model's predictions.
+
+\paragraph{Methodology}\leavevmode\\
+
+\begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack on YOLO}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^{H \times W \times C}$: input image, $model$: YOLO model, $\epsilon > 0$: perturbation magnitude, $\tau > 0$: confidence threshold
+\Ensure $x_{adv} \in \mathbb{R}^{H \times W \times C}$: adversarial image
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize to $[0, 1]$, resize}
+\State Compute model predictions: $p = model(x)$ \Comment{$p$ includes bounding boxes, objectness scores, class probabilities}
+\State Extract detections $\mathcal{D} = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$, where $b_i$ are bounding boxes, $s_i$ are objectness scores, $c_i \in \mathbb{R}^K$ are class probabilities for $K$ classes
+\If{$\mathcal{D} = \emptyset$}
+    \State \Return None \Comment{No high-confidence detections}
+\EndIf
+\State Select target class labels $y_i = \arg\max_k (c_i)_k$ for each detection $(b_i, s_i, c_i) \in \mathcal{D}$
+\State Define classification loss: $L(x, \mathcal{D}) = \sum_{(b_i, s_i, c_i) \in \mathcal{D}} \ell(c_i, y_i)$, where $\ell$ is cross-entropy loss
+\State Compute gradient: $g = \nabla_x L(x, \mathcal{D}) \in \mathbb{R}^{H \times W \times C}$ \Comment{Gradient of loss w.r.t. $x$}
+\State Compute perturbation: $\eta = \epsilon \cdot \text{sign}(g)$ \Comment{Scaled sign of gradient}
+\State Generate adversarial image: $x_{adv} = x + \eta$
+\State Clamp $x_{adv}$ to valid range: $x_{adv} = \text{clip}(x_{adv}, 0, 1)$ \Comment{Ensure pixel values in $[0, 1]$}
+\State \Return $x_{adv}$
+\end{algorithmic}
+\end{breakablealgorithm}
+\paragraph{Results}\leavevmode\\
+
+The FGSM attack was applied with perturbation magnitudes $\epsilon=0.01$, $0.05$, and $0.1$. Figure~\ref{fig:fgsm_example_yolo} illustrates the effect of the attack on a "Speed Limit 120" sign with $\epsilon=0.1$, showing the original image, the adversarial image, and the pixel-wise difference.
+
+% Figure: FGSM Example Image
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/fgsm.png} % Replace with the actual path to your image file
+    \caption{FGSM Example showing the original, adversarial, and difference images.}
+    \label{fig:fgsm_example_yolo}
+\end{figure}
+
+  Although the relatively large epsilon ($\epsilon=0.1$), the adversarial image is not much different from the original image, as the perturbations are small and the original detections disappeared. 
+
+The following tables ~\ref{tab:yolo_fgsm_overall_performance}and ~\ref{tab:yolo_fgsm_class_results}present the overall performance metrics and class-specific mean Average Precision (mAP@0.5), highlighting the impact of adversarial attacks on detection performance.
+
+
+
+% Table 1: Overall Performance
+\begin{table}[H]
+\caption{Overall Performance of YOLO under Clean and FGSM Attacks}
+    \label{tab:yolo_fgsm_overall_performance}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{FGSM $\epsilon=0.01$}} & {\textbf{FGSM $\epsilon=0.05$}} & {\textbf{FGSM $\epsilon=0.1$}} \\
+        \midrule
+        Precision     & 0.935 & 0.893 & 0.722 & 0.582 \\
+        Recall        & 0.854 & 0.810 & 0.622 & 0.491 \\
+        mAP@0.5       & 0.927 & 0.836 & 0.595 & 0.416 \\
+        mAP@0.5:0.95  & 0.811 & 0.713 & 0.492 & 0.341 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% Table 2: mAP@0.5 per Class
+\begin{table}[H]
+\caption{Class-Specific mAP@0.5 under Clean and FGSM Attacks}
+    \label{tab:yolo_fgsm_class_results}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Class} & {\textbf{Clean}} & {\textbf{FGSM $\epsilon=0.01$}} & {\textbf{FGSM $\epsilon=0.05$}} & {\textbf{FGSM $\epsilon=0.1$}} & {\textbf{$\Delta$ mAP ($\epsilon=0.1$)}} \\
+        \midrule
+        All            & 0.927 & 0.836 & 0.595 & 0.416 & -0.511 \\
+        Green Light    & 0.927 & 0.783 & 0.617 & 0.459 & -0.468 \\
+        Red Light      & 0.816 & 0.736 & 0.538 & 0.405 & -0.411 \\
+        Speed Limit 10 & 0.863 & 0.584 & 0.000 & 0.000 & -0.863 \\
+        Speed Limit 100 & 0.925 & 0.827 & 0.611 & 0.504 & -0.421 \\
+        Speed Limit 110 & 0.852 & 0.821 & 0.555 & 0.000 & -0.852 \\
+        Speed Limit 120 & 0.966 & 0.830 & 0.609 & 0.580 & -0.386 \\
+        Speed Limit 20 & 0.991 & 0.946 & 0.791 & 0.543 & -0.448 \\
+        Speed Limit 30 & 0.916 & 0.839 & 0.663 & 0.361 & -0.555 \\
+        Speed Limit 40 & 0.978 & 0.934 & 0.662 & 0.508 & -0.470 \\
+        Speed Limit 50 & 0.910 & 0.803 & 0.676 & 0.589 & -0.321 \\
+        Speed Limit 60 & 0.951 & 0.875 & 0.312 & 0.245 & -0.706 \\
+        Speed Limit 70 & 0.948 & 0.898 & 0.623 & 0.529 & -0.419 \\
+        Speed Limit 80 & 0.975 & 0.855 & 0.706 & 0.426 & -0.549 \\
+        Speed Limit 90 & 0.891 & 0.831 & 0.694 & 0.515 & -0.376 \\
+        Stop           & 0.990 & 0.980 & 0.870 & 0.580 & -0.410 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+\subsubsection{PGD Attack on YOLO}
+
+% Writing introduction paragraph
+\paragraph{Introduction}\leavevmode\\
+The Projected Gradient Descent (PGD) attack is an iterative adversarial attack that generates adversarial examples by repeatedly perturbing the input image along the gradient of the loss function, with projections to ensure perturbations remain within an $\ell_\infty$-bounded $\epsilon$-ball \cite{madry2018towardspgd}. For YOLO \cite{lu2017noneed}, PGD targets high-confidence detections from raw model outputs before non-maximum suppression (NMS), aiming to maximize classification errors and cause misclassifications or missed detections. Unlike the single-step FGSM, PGD's iterative nature with smaller step sizes and optional random initialization enhances attack strength while maintaining visual similarity, controlled by the perturbation magnitude $\epsilon$.
+
+% Writing methodology paragraph with algorithm
+\paragraph{Methodology}\leavevmode\\
+\begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack on YOLO}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^{H \times W \times C}$: input image, $model$: YOLO model, $\epsilon > 0$: perturbation magnitude, $T > 0$: number of iterations, $\alpha > 0$: step size, $\tau > 0$: confidence threshold, $random\_start$: boolean for random initialization
+\Ensure $x_{adv} \in \mathbb{R}^{H \times W \times C}$: adversarial image
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize to $[0, 1]$, resize}
+\State Initialize $x_{adv} \gets x$ \Comment{Set initial adversarial image}
+\If{$random\_start$}
+    \State Sample $\eta \sim \mathcal{U}(-\epsilon, \epsilon)^{H \times W \times C}$ \Comment{Random noise in $\epsilon$-ball}
+    \State $x_{adv} \gets x + \eta$
+    \State $x_{adv} \gets \text{clip}(x_{adv}, 0, 1)$ \Comment{Ensure pixel values in $[0, 1]$}
+\EndIf
+\For{$t = 1$ to $T$}
+    \State Compute model predictions: $p \gets model(x_{adv})$ \Comment{$p$ includes bounding boxes, objectness scores, class probabilities}
+    \State Extract detections $\mathcal{D} = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$, where $b_i$ are bounding boxes, $s_i$ are objectness scores, $c_i \in \mathbb{R}^K$ are class probabilities for $K$ classes
+    \If{$\mathcal{D} = \emptyset$}
+        \State \Return None \Comment{No high-confidence detections}
+    \EndIf
+    \State Select target class labels $y_i = \arg\max_k (c_i)_k$ for each $(b_i, s_i, c_i) \in \mathcal{D}$
+    \State Define classification loss: $L(x_{adv}, \mathcal{D}) = \sum_{(b_i, s_i, c_i) \in \mathcal{D}} \ell(c_i, y_i)$, where $\ell$ is cross-entropy loss
+    \State Compute gradient: $g \gets \nabla_{x_{adv}} L(x_{adv}, \mathcal{D}) \in \mathbb{R}^{H \times W \times C}$ \Comment{Gradient of loss w.r.t. $x_{adv}$}
+    \State Update adversarial image: $x_{adv} \gets x_{adv} + \alpha \cdot \text{sign}(g)$
+    \State Project to $\epsilon$-ball: $x_{adv} \gets \text{clip}(x_{adv}, x - \epsilon, x + \epsilon)$ \Comment{Ensure $||x_{adv} - x||_\infty \leq \epsilon$}
+    \State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, 0, 1)$ \Comment{Ensure pixel values in $[0, 1]$}
+\EndFor
+\State \Return $x_{adv}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+% Writing results placeholder paragraph
+\paragraph{Results}\leavevmode\\
+The PGD attack was applied with perturbation magnitudes $\epsilon=0.01$, $0.05$, and $0.1$, using $num\_steps=10$ and $step\_size (\alpha)=epsilon/4$. Figure~\ref{fig:pgd_example_yolo} illustrates the effect of the attack on a sample image with $\epsilon=0.1$ and $\alpha = 0.25$, showing the original image, the adversarial image, and the pixel-wise difference.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/pgd.png} % Replace with the actual path to your image file
+    \caption{PGD Example showing the original, adversarial, and difference images.}
+    \label{fig:pgd_example_yolo}
+\end{figure}
+
+  Although the relatively large epsilon ($\epsilon=0.1$), the adversarial image is not much different from the original image, as the perturbations are small, even smaller than ~\ref{fig:fgsm_example_yolo} and the original detections disappeared with the appearance of a new incorrect class. 
+
+  
+The impact of the PGD attack on YOLO's performance is detailed in Tables~\ref{tab:yolo_pgd_overall_performance} and \ref{tab:yolo_pgd_class_results}, which present general metrics (precision, recall, mAP@0.5, mAP@0.5:0.95) and class-specific mAP@0.5 across different $\epsilon$ values, highlighting the degradation in detection performance due to iterative adversarial perturbations.
+
+% Table 1: Overall Performance
+\begin{table}[H]
+\caption{Overall Performance of YOLO under Clean and PGD Attacks}
+    \label{tab:yolo_pgd_overall_performance}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{PGD $\epsilon=0.01$}} & {\textbf{PGD $\epsilon=0.05$}} & {\textbf{PGD $\epsilon=0.1$}} \\
+        \midrule
+        Precision     & 0.935 & 0.756 & 0.356 & 0.127 \\
+        Recall        & 0.854 & 0.682 & 0.328 & 0.140 \\
+        mAP@0.5       & 0.927 & 0.699 & 0.349 & 0.174 \\
+        mAP@0.5:0.95  & 0.811 & 0.614 & 0.318 & 0.165 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% Table 2: mAP@0.5 per Class
+\begin{table}[H]
+\caption{Class-Specific mAP@0.5 under Clean and PGD Attacks}
+    \label{tab:yolo_pgd_class_results}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Class} & {\textbf{Clean}} & {\textbf{PGD $\epsilon=0.01$}} & {\textbf{PGD $\epsilon=0.05$}} & {\textbf{PGD $\epsilon=0.1$}} & {\textbf{$\Delta$ mAP ($\epsilon=0.1$)}} \\
+        \midrule
+        Green Light     & 0.927 & 0.681 & 0.230 & 0.014 & -0.913 \\
+        Red Light       & 0.816 & 0.639 & 0.294 & 0.098 & -0.718 \\
+        Speed Limit 10  & 0.863 & 0.500 & 0.000 & 0.000 & -0.863 \\
+        Speed Limit 100 & 0.925 & 0.874 & 0.369 & 0.128 & -0.797 \\
+        Speed Limit 110 & 0.852 & 0.807 & 0.445 & 0.385 & -0.467 \\
+        Speed Limit 120 & 0.966 & 0.842 & 0.521 & 0.387 & -0.579 \\
+        Speed Limit 20  & 0.991 & 0.913 & 0.373 & 0.000 & -0.991 \\
+        Speed Limit 30  & 0.916 & 0.850 & 0.286 & 0.163 & -0.753 \\
+        Speed Limit 40  & 0.978 & 0.966 & 0.653 & 0.233 & -0.745 \\
+        Speed Limit 50  & 0.910 & 0.812 & 0.448 & 0.409 & -0.501 \\
+        Speed Limit 60  & 0.951 & 0.773 & 0.273 & 0.309 & -0.642 \\
+        Speed Limit 70  & 0.948 & 0.854 & 0.492 & 0.338 & -0.610 \\
+        Speed Limit 80  & 0.975 & 0.891 & 0.543 & 0.265 & -0.710 \\
+        Speed Limit 90  & 0.891 & 0.773 & 0.418 & 0.407 & -0.484 \\
+        Stop            & 0.990 & 0.918 & 0.547 & 0.269 & -0.721 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+\subsubsection{Dense Adversary Generation (DAG)}
+
+\paragraph{Introduction}\leavevmode\\
+The DAG algorithm \cite{xie2017DAG} was originally designed as a \textit{targeted} adversarial attack for object detection and semantic segmentation. In this work, we extend the framework to include both \textit{targeted} and \textit{untargeted} variants, implementing key modifications:
+
+\noindent\textbf{Targeted Implementation:}
+\begin{itemize}
+    \item Follows the original formulation: Assigns specific adversarial labels $l'_n \neq l_n$ for each target
+    \item Optimizes the loss $\mathcal{L} = \sum_{n} (f_{l_n}(X,t_n) - f_{l'_n}(X,t_n))$ to force misclassifications into predefined classes
+    \item Maintains spatial perturbation structure through normalized gradient steps ($\gamma$)
+\end{itemize}
+
+\noindent\textbf{untargeted Implementation:}
+\begin{itemize}
+    \item Novel adaptation: Removes class-specific targeting
+    \item Uses loss $\mathcal{L} = -\sum_{n} f_{l_n}(X,t_n)$ to degrade model confidence without directional guidance
+    \item Requires modified convergence criteria as no specific target class exists
+    \item Usually requires less conversion time as no target is specified.   
+\end{itemize}
+
+\paragraph{Methodology}\leavevmode\\
+
+The following pseudocode outlines the unified DAG attack framework, with annotations to highlight the differences between the targeted and untargeted variants.
+\begin{breakablealgorithm}{Dense Adversary Generation (DAG) Attack on YOLO}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^{H \times W \times C}$: input image, $model$: YOLO model, $y' \in \{1, \dots, K\}$: adversarial class (targeted only), $T > 0$: number of iterations, $\gamma > 0$: step size, $\tau > 0$: confidence threshold
+\Ensure $x_{adv} \in \mathbb{R}^{H \times W \times C}$: adversarial image, $success$ (targeted only): boolean success flag
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize to $[0, 1]$, resize}
+\State Initialize $x_{adv} \gets x$ \Comment{Set initial adversarial image}
+\State Compute initial predictions: $p \gets model(x_{adv})$ \Comment{$p$ includes bounding boxes, objectness scores, class probabilities}
+\State Extract initial detections $\mathcal{D}_0 = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$, where $b_i$ are bounding boxes, $s_i \in [0, 1]$ are objectness scores, $c_i \in \mathbb{R}^K$ are class probabilities for $K$ classes
+\State Define original classes: $Y_0 = \{ \arg\max_k (c_i)_k \mid (b_i, s_i, c_i) \in \mathcal{D}_0 \}$ \Comment{Targeted only}
+\For{$t = 1$ to $T$}
+    \State Compute predictions: $p \gets model(x_{adv})$ \Comment{Bounding boxes, objectness scores, class probabilities}
+    \State Extract detections $\mathcal{D} = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$
+    \If{$\mathcal{D} = \emptyset$}
+        \If{targeted attack}
+            \State Define loss: $L(x_{adv}) = \sum_{i} c_i[y']$ \Comment{Boost adversarial class globally}
+        \Else
+            \State \textbf{break} \Comment{Stop if no detections (untargeted)}
+        \EndIf
+    \Else
+        \If{targeted attack}
+            \State Define loss: $L(x_{adv}, \mathcal{D}) = \sum_{(b_i, s_i, c_i) \in \mathcal{D}} (c_i[y'] - c_i[\arg\max_k (c_i)_k])$ \Comment{Encourage adversarial class}
+        \Else
+            \State Define loss: $L(x_{adv}, \mathcal{D}) = -\sum_{(b_i, s_i, c_i) \in \mathcal{D}} c_i[\arg\max_k (c_i)_k]$ \Comment{Reduce confidence in predicted classes}
+        \EndIf
+    \EndIf
+    \State Compute gradient: $g \gets \nabla_{x_{adv}} L \in \mathbb{R}^{H \times W \times C}$ \Comment{Gradient of loss w.r.t. $x_{adv}$}
+    \State Update adversarial image: $x_{adv} \gets x_{adv} + \gamma \cdot \text{sign}(g)$
+    \State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, 0, 1)$ \Comment{Ensure pixel values in $[0, 1]$}
+    \If{targeted attack}
+        \State Extract current detections $\mathcal{D}' = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$
+        \State Define current classes: $Y' = \{ \arg\max_k (c_i)_k \mid (b_i, s_i, c_i) \in \mathcal{D}' \}$
+        \If{$y' \in Y'$ and $Y' \cap Y_0 = \emptyset$}
+            \State \textbf{break} \Comment{Stop if adversarial class achieved and original classes removed}
+        \EndIf
+    \EndIf
+\EndFor
+\If{targeted attack}
+    \State Extract final detections $\mathcal{D}_f = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$
+    \State Define final classes: $Y_f = \{ \arg\max_k (c_i)_k \mid (b_i, s_i, c_i) \in \mathcal{D}_f \}$
+    \State $success \gets (y' \in Y_f) \land (Y_f \cap Y_0 = \emptyset)$
+    \State \Return $x_{adv}, success$
+\Else
+    \State \Return $x_{adv}$
+\endIf
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\paragraph{Results}
+The DAG attack was applied with $\gamma=0.003$ unlike the original paper\cite{xie2017DAG} that used $\gamma=0.5$ that caused too much distortion when tested in YOLO, and $num\_iterations=20$ (a sufficient number of iterations is defined by trying) . Figures~\ref{fig:TDAG_example_yolo} and ~\ref{fig:UDAG_example_yolo} illustrate the effect of the attack (targeted and non-targeted) on a sample image with $\gamma=0.003$, $num\_iterations=20$ and green light as target for the targeted variant. showing the original image, the adversarial images, and the pixel-wise differences.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/TDAG.png} % Replace with the actual path to your image file
+    \caption{Targeted DAG Example showing the original, adversarial, and difference images.}
+    \label{fig:TDAG_example_yolo}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/UDAG.png} % Replace with the actual path to your image file
+    \caption{Untargeted DAG Example showing the original, adversarial, and difference images.}
+    \label{fig:UDAG_example_yolo}
+\end{figure}
+
+Both targeted and untargeted attacks show visually small perturbations~\ref{fig:TDAG_example_yolo}~\ref{fig:UDAG_example_yolo}. The targeted attack successfully suppressed the original detection and boosted the target one, while the untargeted attack did its job and suppressed the original detection. 
+
+  
+The Dense Adversary Generation (DAG) attack both targeted and untargeted overall performance are summarized in Tables ~\ref{tab:yolo_dag_untargeted_overall_performance} and ~\ref{tab:yolo_dag_targeted_overall_performance} and the Class-Specific mAP@0.5 results are in Tables ~\ref{tab:yolo_dag_untargeted_class_results} and ~\ref{tab:yolo_dag_targeted_class_results}
+
+
+% Table 1: Untargeted Overall Performance
+\begin{table}[H]
+    \centering
+    \caption{Overall Performance of YOLO under Clean and Untargeted DAG Attacks}
+    \label{tab:yolo_dag_untargeted_overall_performance}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{Untargeted DAG}} \\
+        \midrule
+        Precision & 0.935 & 0.693 \\
+        Recall & 0.854 & 0.385 \\
+        mAP@0.5 & 0.927 & 0.547 \\
+        mAP@0.5:0.95 & 0.811 & 0.441 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% Table 2: Untargeted Class-Specific mAP@0.5
+\begin{table}[H]
+    \centering
+    \caption{Class-Specific mAP@0.5 under Clean and Untargeted DAG Attacks}
+    \label{tab:yolo_dag_untargeted_class_results}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Class} & {\textbf{Clean}} & {\textbf{Untargeted DAG}} & {\textbf{$\Delta$ mAP}} \\
+        \midrule
+        Green Light    & 0.927 & 0.325 & -0.602 \\
+        Red Light      & 0.816 & 0.480 & -0.336 \\
+        Speed Limit 10 & 0.863 & 0.667 & -0.196 \\
+        Speed Limit 20 & 0.920 & 0.516 & -0.404 \\
+        Speed Limit 30 & 0.916 & 0.533 & -0.383 \\
+        Speed Limit 40 & 0.925 & 0.614 & -0.311 \\
+        Speed Limit 50 & 0.966 & 0.710 & -0.256 \\
+        Speed Limit 60 & 0.910 & 0.440 & -0.470 \\
+        Speed Limit 70 & 0.860 & 0.590 & -0.270 \\
+        Speed Limit 80 & 0.978 & 0.500 & -0.478 \\
+        Speed Limit 90 & 0.961 & 0.616 & -0.345 \\
+        Speed Limit 100 & 0.925 & 0.538 & -0.387 \\
+        Speed Limit 110 & 0.952 & 0.416 & -0.536 \\
+        Speed Limit 120 & 0.966 & 0.543 & -0.423 \\
+        Stop           & 0.990 & 0.807 & -0.183 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% Table 3: Targeted Overall Performance
+\begin{table}[H]
+    \centering
+    \caption{Overall Performance of YOLO under Clean and Targeted DAG Attacks}
+    \label{tab:yolo_dag_targeted_overall_performance}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{Targeted DAG}} \\
+        \midrule
+        Precision & 0.935 & 0.148 \\
+        Recall & 0.854 & 0.0931 \\
+        mAP@0.5 & 0.927 & 0.0947 \\
+        mAP@0.5:0.95 & 0.811 & 0.0819 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% Table 4: Targeted Class-Specific mAP@0.5
+\begin{table}[H]
+    \centering
+    \caption{Class-Specific mAP@0.5 under Clean and Targeted DAG Attacks}
+    \label{tab:yolo_dag_targeted_class_results}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Class} & {\textbf{Clean}} & {\textbf{Targeted DAG}} & {\textbf{$\Delta$ mAP}} \\
+        \midrule
+        Green Light    & 0.927 & 0.0125 & -0.9145 \\
+        Red Light      & 0.863 & 0.0659 & -0.7971 \\
+        Speed Limit 10 & 0.863 & 0.0679 & -0.7951 \\
+        Speed Limit 100 & 0.852 & 0.0679 & -0.7841 \\
+        Speed Limit 110 & 0.921 & 0.321 & -0.600 \\
+        Speed Limit 120 & 0.953 & 0.0733 & -0.8797 \\
+        Speed Limit 20 & 0.96 & 0.0733 & -0.8867 \\
+        Speed Limit 30 & 0.95 & 0.0737 & -0.8763 \\
+        Speed Limit 40 & 0.943 & 0.0755 & -0.8675 \\
+        Speed Limit 50 & 0.95 & 0.0737 & -0.8763 \\
+        Speed Limit 60 & 0.943 & 0.0763 & -0.8667 \\
+        Speed Limit 70 & 0.943 & 0.0771 & -0.8659 \\
+        Speed Limit 80 & 0.943 & 0.0801 & -0.8629 \\
+        Speed Limit 90 & 0.989 & 0.0801 & -0.9089 \\
+        Stop           & 0.989 & 0.234 & -0.755 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsection{"Adversarial Examples that Fool Detectors" Attack}
+\paragraph{Introduction}\leavevmode\\
+The "Adversarial Examples that Fool Detectors" method, introduced by Lu et al. \cite{lu2017fooldetectors}, presents a technique for creating adversarial examples designed specifically to deceive object detection models.The authors demonstrate its effectiveness by generating robust digital and physical perturbations for objects like stop signs and faces, showing successful generalization from Faster R-CNN to YOLO.
+
+The core of the attack is an iterative optimization process that seeks to minimize the mean confidence score of all detection proposals corresponding to a specific target class. To ensure the adversarial perturbation remains visually subtle, the objective function includes an L2 regularization term that penalizes deviations from the original image. The image is updated at each step using the sign of the gradient (an L-infinity projected gradient descent step) to minimize this objective.
+
+In this work, we implement the attack strategy detailed in \cite{lu2017fooldetectors}. We adapt their stop sign-focused methodology to target traffic sign classes within the LISA (Laboratory for Intelligent \& Safe Automobiles) dataset. Our goal is to evaluate the effectiveness of this attack on a fine-tuned YOLOv8 model.
+\paragraph{Methodology}\leavevmode\\
+The attack is implemented as an iterative process targeting specific traffic sign classes within an input image, aiming to reduce the YOLOv8 model's confidence in detecting those classes.
+The algorithm is formalized as follows:
+
+
+\begin{breakablealgorithm}{Adversarial Examples that Fool Detectors Attack on YOLO}
+\begin{algorithmic}[1]
+\Require $x \in \mathbb{R}^{H \times W \times C}$: input image, $model$: YOLO model, $Y_t \subseteq \{1, \dots, K\}$: target classes to suppress, $T > 0$: number of iterations, $\gamma > 0$: step size, $\tau > 0$: confidence threshold, $\lambda_{reg} > 0$: L2 regularization weight
+\Ensure $x_{adv} \in \mathbb{R}^{H \times W \times C}$: adversarial image
+\State Preprocess $x$ for input to $model$ \Comment{E.g., normalize to $[0, 1]$, resize}
+\State Initialize $x_{adv} \gets x$ \Comment{Set initial adversarial image}
+\State $x_0 \gets x$ \Comment{Save original image}
+\For{$t \gets 1$ to $T$}
+    \State Compute predictions: $p \gets model(x_{adv})$ \Comment{$p$ includes bounding boxes, objectness scores, class probabilities}
+    \State Extract detections $\mathcal{D} = \{ (b_i, s_i, c_i) \mid s_i \cdot \max(c_i) > \tau \}$, where $b_i$ are bounding boxes, $s_i \in [0, 1]$ are objectness scores, $c_i \in \mathbb{R}^K$ are class probabilities for $K$ classes
+    \State Define detected classes: $Y_d = \{ \arg\max_k (c_i)_k \mid (b_i, s_i, c_i) \in \mathcal{D} \}$
+    \If{$Y_t \cap Y_d = \emptyset$}
+        \State \textbf{break} \Comment{Stop if no target classes detected}
+    \EndIf
+    \State Extract target confidences: $c_{i,t} = c_i[y]$ for each $(b_i, s_i, c_i) \in \mathcal{D}$, $y \in Y_t$
+    \State Define detection loss: $L_{det}(x_{adv}, \mathcal{D}) = \frac{1}{|\mathcal{D}| \cdot |Y_t|} \sum_{(b_i, s_i, c_i) \in \mathcal{D}} \sum_{y \in Y_t} c_{i,t}$ \Comment{Mean confidence of target classes}
+    \State Define L2 penalty: $L_{reg}(x_{adv}) = \lambda_{reg} \cdot ||x_{adv} - x_0||_2^2$ \Comment{L2 distance from original image}
+    \State Define total loss: $L(x_{adv}, \mathcal{D}) = L_{det}(x_{adv}, \mathcal{D}) + L_{reg}(x_{adv})$
+    \State Compute gradient: $g \gets \nabla_{x_{adv}} L(x_{adv}, \mathcal{D}) \in \mathbb{R}^{H \times W \times C}$ \Comment{Gradient of loss w.r.t. $x_{adv}$}
+    \State Update adversarial image: $x_{adv} \gets x_{adv} - \gamma \cdot \text{sign}(g)$ \Comment{L-infinity PGD step}
+    \State Clamp to valid range: $x_{adv} \gets \text{clip}(x_{adv}, 0, 1)$ \Comment{Ensure pixel values in $[0, 1]$}
+\EndFor
+\State \Return $x_{adv}$ \Comment{Return adversarial image}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\paragraph{Results}\leavevmode\\
+The "Adversarial Examples that Fool Detectors" attack was applied with $\gamma=0.01$ and $\lambda = 0.01$ within the ranges suggested by the original paper \cite{lu2017fooldetectors}, with $num\_iterations=10$ (a sufficient number of iterations is defined by trying). Figure~\ref{fig:fool_example_yolo} illustrates the effect of the attack (targeted and non-targeted) on a sample image with $\gamma=0.01$, $\lambda = 0.01$ and $num\_iterations=10$, showing the original image, the adversarial images, and the pixel-wise differences.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/fool.png} % Replace with the actual path to your image file
+    \caption{"Adversarial Examples that Fool Detectors" Example showing the original, adversarial, and difference images.}
+    \label{fig:fool_example_yolo}
+\end{figure}
+
+The adversarial image is not much different from the original image, as the perturbations are visually small, and the original detections disappeared with the appearance of a new incorrect class.
+
+The impact of the "Adversarial Examples that Fool Detectors" attack on YOLO's performance is detailed in Tables~\ref{tab:yolo_fool_overall_performance} and \ref{tab:yolo_fool_class_results}, which present general metrics (precision, recall, mAP@0.5, mAP@0.5:0.95) and class-specific mAP@0.5, highlighting the degradation in detection performance due to iterative adversarial perturbations.
+
+\begin{table}[H]
+    \centering
+    \caption{Overall Performance of YOLO under Clean and "Adversarial Examples that Fool Detectors" Attack}
+    \label{tab:yolo_fool_overall_performance}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{Adversarial Attack}} \\
+        \midrule
+        Precision & 0.935 & 0.238 \\
+        Recall & 0.854 & 0.16 \\
+        mAP@0.5 & 0.927 & 0.155 \\
+        mAP@0.5:0.95 & 0.811 & 0.125 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Class-Specific mAP@0.5 under Clean and "Adversarial Examples that Fool Detectors" Attack}
+    \label{tab:yolo_fool_class_results}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Class} & {\textbf{Clean}} & {\textbf{Adversarial Attack}} & {\textbf{$\Delta$ mAP}} \\
+        \midrule
+        All            & 0.927 & 0.155 & -0.772 \\
+        Green Light    & 0.927 & 0.0204 & -0.906 \\
+        Red Light      & 0.816 & 0.213 & -0.603 \\
+        Speed Limit 10 & 0.863 & 0.000 & -0.863 \\
+        Speed Limit 20 & 0.913 & 0.160 & -0.753 \\
+        Speed Limit 30 & 0.937 & 0.0471 & -0.890 \\
+        Speed Limit 40 & 0.966 & 0.220 & -0.746 \\
+        Speed Limit 50 & 0.916 & 0.136 & -0.780 \\
+        Speed Limit 60 & 0.953 & 0.0842 & -0.869 \\
+        Speed Limit 70 & 0.866 & 0.132 & -0.734 \\
+        Speed Limit 80 & 0.947 & 0.246 & -0.701 \\
+        Speed Limit 90 & 0.806 & 0.229 & -0.577 \\
+        Speed Limit 100 & 0.941 & 0.0695 & -0.871 \\
+        Speed Limit 110 & 0.959 & 0.223 & -0.736 \\
+        Speed Limit 120 & 0.966 & 0.125 & -0.841 \\
+        Stop           & 0.990 & 0.421 & -0.569 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+\subsubsection{Universal Adversarial Perturbations (UAP)}
+\paragraph{Introduction}\leavevmode\\
+Universal adversarial perturbations (UAP) paper shows existence of universal image-agnostic perturbations for state-of-the-art deep neural networks \cite{moosavi2017universal}. The algorithm searches a universal perturbation for a set of training points. In this work, we modified the original algorithm to be more suitable to find universal adversarial perturbations that can fool object detectors.
+
+\paragraph{Methodology}\leavevmode\\
+The methodology adapts the universal adversarial perturbation approach from Moosavi-Dezfooli et al. \cite{moosavi2017universal} to target object detection models, specifically using a YOLOv8 model. The process trains a single perturbation vector, termed delta, that, when added to any input image, reduces the detection confidence across multiple images. The key steps involve iterative optimization over a set of training images, incorporating a regularization term to maintain perturbation subtlety. The algorithm was trained with an epsilon of 0.1 and 10 epochs to constrain the perturbation magnitude and utilized a dataset with 15 classes. The training dataset was constructed by sampling 100 images per class, ensuring a balanced representation. The algorithm is formalized as follows:
+
+\begin{breakablealgorithm}{Universal Adversarial Perturbation Training for YOLO}
+\begin{algorithmic}[1]
+\Require $X = \{x_1, \dots, x_N\} \subset \mathbb{R}^{H \times W \times C}$: training images, $model$: YOLO model, $E > 0$: number of epochs, $\lambda_{reg} > 0$: L2 regularization weight, $\epsilon > 0$: perturbation bound, $\tau > 0$: confidence threshold, $\alpha > 0$: learning rate
+\Ensure $\delta \in \mathbb{R}^{H \times W \times C}$: universal perturbation
+\State Preprocess each $x_i \in X$ for input to $model$ \Comment{E.g., normalize to $[0, 1]$, resize}
+\State Initialize $\delta \gets 0$ \Comment{Set initial perturbation to zero}
+\For{$e \gets 1$ to $E$}
+    \State Initialize epoch loss: $L_e \gets 0$
+    \For{$x_i \in X$}
+        \State Compute adversarial image: $x_{adv} \gets x_i + \delta$
+        \State Compute predictions: $p \gets model(x_{adv})$ \Comment{$p$ includes bounding boxes, objectness scores, class probabilities}
+        \State Extract detections $\mathcal{D} = \{ (b_j, s_j, c_j) \mid s_j \cdot \max(c_j) > \tau \}$, where $b_j$ are bounding boxes, $s_j \in [0, 1]$ are objectness scores, $c_j \in \mathbb{R}^K$ are class probabilities for $K$ classes
+        \If{$\mathcal{D} = \emptyset$}
+            \State \textbf{continue} \Comment{Skip if no high-confidence detections}
+        \EndIf
+        \State Define target classes: $y_j = \arg\max_k (c_j)_k$ for each $(b_j, s_j, c_j) \in \mathcal{D}$
+        \State Define classification loss: $L_{cls}(x_{adv}, \mathcal{D}) = \sum_{(b_j, s_j, c_j) \in \mathcal{D}} \ell(c_j, y_j)$, where $\ell$ is cross-entropy loss
+        \State Define regularization loss: $L_{reg}(\delta) = \lambda_{reg} \cdot ||\delta||_2^2$ \Comment{L2 norm of perturbation}
+        \State Define total loss: $L(x_{adv}, \delta, \mathcal{D}) = L_{cls}(x_{adv}, \mathcal{D}) + L_{reg}(\delta)$
+        \State Compute gradient: $g \gets \nabla_{\delta} L(x_{adv}, \delta, \mathcal{D}) \in \mathbb{R}^{H \times W \times C}$ \Comment{Gradient w.r.t. $\delta$}
+        \State Update perturbation: $\delta \gets \delta - \alpha \cdot g$ \Comment{SGD update}
+        \State Clamp perturbation: $\delta \gets \text{clip}(\delta, -\epsilon, \epsilon)$ \Comment{Ensure $||\delta||_\infty \leq \epsilon$}
+        \State Accumulate epoch loss: $L_e \gets L_e + L(x_{adv}, \delta, \mathcal{D})$
+    \EndFor
+    \State Compute average epoch loss: $L_e \gets L_e / N$
+\EndFor
+\State \Return $\delta$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
+\paragraph{Results}\leavevmode\\
+Figure~\ref{fig:uap_example_yolo} illustrates the effect of the attack on a sample image showing the original image, the adversarial images, and the pixel-wise differences.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/CV/OD/UAP_1.png} % Replace with the actual path to your image file
+    \caption{UAP Example showing the original, adversarial, and difference images.}
+    \label{fig:uap_example_yolo}
+\end{figure}
+
+The adversarial image is not much different from the original image, as the perturbations are visually small, and the original detections disappeared.
+
+The impact of the UAP attack on YOLO's performance is detailed in Tables~\ref{tab:yolo_uap_overall_performance} and \ref{tab:yolo_uap_class_results}, which present general metrics (precision, recall, mAP@0.5, mAP@0.5:0.95) and class-specific mAP@0.5, highlighting the degradation in detection performance due to iterative adversarial perturbations.
+
+\begin{table}[H]
+    \centering
+    \caption{Overall Performance of YOLO under Clean and UAP Attack}
+    \label{tab:yolo_uap_overall_performance}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{UAP Attack}} \\
+        \midrule
+        Precision & 0.935 & 0.661 \\
+        Recall & 0.854 & 0.197 \\
+        mAP@0.5 & 0.927 & 0.443 \\
+        mAP@0.5:0.95 & 0.811 & 0.365 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Class-Specific mAP@0.5 under Clean and UAP Attack}
+    \label{tab:yolo_uap_class_results}
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=-1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Class} & {\textbf{Clean}} & {\textbf{UAP Attack}} & {\textbf{$\Delta$ mAP}} \\
+        \midrule
+        all            & 0.927 & 0.443 & -0.484 \\
+        Green Light    & 0.927 & 0.454 & -0.473 \\
+        Red Light      & 0.816 & 0.533 & -0.283 \\
+        Speed Limit 10 & 0.863 & 0.000 & -0.863 \\
+        Speed Limit 20 & 0.913 & 0.265 & -0.648 \\
+        Speed Limit 30 & 0.937 & 0.526 & -0.411 \\
+        Speed Limit 40 & 0.966 & 0.543 & -0.423 \\
+        Speed Limit 50 & 0.916 & 0.526 & -0.390 \\
+        Speed Limit 60 & 0.953 & 0.416 & -0.537 \\
+        Speed Limit 70 & 0.866 & 0.487 & -0.379 \\
+        Speed Limit 80 & 0.947 & 0.578 & -0.369 \\
+        Speed Limit 90 & 0.806 & 0.603 & -0.203 \\
+        Speed Limit 100 & 0.941 & 0.506 & -0.435 \\
+        Speed Limit 110 & 0.959 & 0.000 & -0.959 \\
+        Speed Limit 120 & 0.966 & 0.558 & -0.408 \\
+        Stop           & 0.990 & 0.570 & -0.420 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+\subsection{Black Box Attacks}
+
+\subsection{Physical Attacks}
+
+\section{Defenses}
+
+\end{document}

@@ -1,0 +1,14 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+Human intelligence is inextricably linked to our ability to produce, understand, and reason with language. In the field of artificial intelligence, the quest to imbue machines with similar capabilities has culminated in the development of \textbf{Language Models}. At its core, a language model is a probabilistic model over sequences of linguistic units, such as words or tokens. While this concept began with simple statistical methods, it has evolved into the sophisticated deep learning architectures that now form the backbone of modern AI. This Part of the thesis provides a comprehensive investigation into the adversarial vulnerabilities of these models across their primary modalities and applications.
+
+Our exploration begins at the interface between the physical world and symbolic text: \textbf{Automatic Speech Recognition (ASR)}. We treat ASR not merely as an audio processing task, but as the foundational gateway for machines to process spoken language. The systems that transcribe human speech into text are, in essence, sequence-to-sequence language models that must interpret continuous acoustic signals. Their security is the first line of defense for any downstream language-based application.
+
+Once speech is transcribed, or when text is the native input, we enter the domain of \textbf{Traditional Natural Language Processing (NLP)}. This chapter will examine task-specific models designed for core applications like sentiment analysis and text classification. These systems, often built on architectures like Recurrent Neural Networks (RNNs) or early Transformers, represent a critical class of language models that are widely deployed for specific, well-defined problems.
+
+The final stage of our investigation addresses the current paradigm shift in the field: \textbf{Large Language Models (LLMs)}. These vast, pre-trained models have redefined the scope of what is possible, demonstrating remarkable emergent abilities in reasoning, generation, and few-shot learning. By examining LLMs, we address the security challenges at the cutting edge of AI, where the attack surface is broader and the potential consequences of failure are more complex than ever before.
+
+Despite their diverse applications and varying levels of complexity—from processing audio waves to generating coherent essays—these systems all share a profound and unsettling characteristic: a vulnerability to adversarial attacks. Whether through subtle, imperceptible noise in an audio waveform or carefully chosen word substitutions in a block of text, adversaries can manipulate the inputs to these models to cause spectacular failures. This Part, therefore, provides a holistic examination of the adversarial landscape for language-centric AI, charting the evolution of threats from the specialized models of yesterday to the general-purpose intelligent systems of today.
+
+\end{document}

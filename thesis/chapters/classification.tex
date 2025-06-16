@@ -1,0 +1,500 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+\section{Introduction}
+\label{sec:classification_intro}
+
+Image Classification is a cornerstone of computer vision, serving as the foundational task of assigning a single, predefined label to an entire image. From distinguishing between species of animals to identifying products in a warehouse, its goal is to provide a high-level understanding of an image's primary content. The methodologies developed for image classification are often the building blocks for more complex vision tasks, such as object detection and segmentation, making its study essential for understanding the broader field.
+
+While general-purpose classification is a well-studied area, the stakes are significantly elevated in safety-critical domains. One such domain is autonomous driving, where the correct identification of road signs is non-negotiable. A model's failure to distinguish a `Stop` sign from a `Speed Limit 60` sign could have catastrophic consequences. To ground our investigation in this high-stakes context, our experiments in this chapter will focus on the \textbf{German Traffic Sign Recognition Benchmark (GTSRB)} dataset. This dataset is a real-world, multi-class benchmark that presents a realistic challenge for modern classifiers and serves as an ideal testbed for evaluating security vulnerabilities.
+
+The model under adversarial investigation is \textbf{EfficientNet-B1}. Unlike traditional architectures that arbitrarily scale dimensions like network depth or width, the EfficientNet family of models employs a principled method of \textit{compound scaling}, which systematically and uniformly scales the network's depth, width, and resolution. This approach has allowed EfficientNet models to achieve state-of-the-art accuracy while being significantly more computationally efficient than their predecessors. The choice of EfficientNet-B1 is deliberate: its combination of high accuracy and efficiency makes it a practical and powerful model for real-world deployment, and therefore, a crucial target for robustness analysis. Our trained EfficientNet-B1 model achieves a baseline test accuracy of \textbf{96.7\%} on the clean GTSRB test set, establishing a high-performance benchmark from which to measure the impact of adversarial attacks. If such an advanced and efficient model can be easily fooled, it underscores the severity of the adversarial threat.
+
+In this chapter, we will therefore probe the vulnerabilities of the highly capable EfficientNet-B1 model when trained on the safety-critical GTSRB dataset. The subsequent sections will detail the specific adversarial attacks employed to generate malicious inputs and evaluate various defense strategies aimed at fortifying the model against such threats.
+\section{Attacks}
+\subsection{White Box Attacks}
+\subsubsection{Fast Gradient Sign Method (FGSM)}
+
+\paragraph{Introduction}
+The Fast Gradient Sign Method (FGSM) is one of the earliest and most influential approaches for crafting adversarial examples against deep neural networks. Introduced by Goodfellow et al.\ in 2015, FGSM demonstrated that small, carefully chosen perturbations—imperceptible to humans—can reliably force state-of-the-art classifiers into making incorrect predictions. This work highlighted a fundamental vulnerability in high-dimensional linear behavior of models and sparked a wealth of research into both stronger attacks and robust defense mechanisms \cite{goodfellow2015explaining}.  
+
+In their seminal paper, Goodfellow and colleagues showed that even a single-step perturbation computed from the model’s loss gradient suffices to degrade accuracy dramatically on datasets such as MNIST and CIFAR-10. The simplicity and effectiveness of FGSM make it a canonical benchmark for evaluating adversarial robustness and for developing more advanced multi-step attacks and defenses \cite{goodfellow2015explaining}.
+\paragraph{Methodology}
+\subparagraph{Attack Type}
+The Fast Gradient Sign Method (FGSM) is a \textbf{white-box}, \textbf{untargeted} attack. As a white-box method, it requires full access to the model’s parameters and gradients. It is untargeted in the sense that its goal is simply to cause misclassification, not to steer the model toward a specific incorrect label. The adversarial example is generated to increase the loss with respect to the true class, thereby pushing the prediction away from the correct category.
+
+\subparagraph{Parameters}
+\begin{description}
+  \item[$x$] The clean input image (e.g., a batch of images) to be perturbed.
+  \item[$y$] The true label (or labels) associated with $x$.
+  \item[$\theta$] The fixed parameters of the target neural network model.
+  \item[$\epsilon$] The maximum perturbation magnitude (controls attack strength).
+  \item[$J(\theta, x, y)$] The loss function used during model training (e.g., cross‐entropy).
+\end{description}
+
+\subparagraph{Algorithm Overview}
+FGSM generates an adversarial example by taking a single, maximally disruptive step in the direction that increases the model’s loss most rapidly. Concretely, we compute the gradient of the loss $J(\theta, x, y)$ with respect to the input $x$, extract its sign to form a unit‐step “direction,” scale that by $\epsilon$, and add it to the original image. Finally, we clip the result to the valid pixel range to ensure a legitimate image. This one‐step procedure is efficient and often sufficient to cause high‐confidence misclassifications, making it a standard baseline for evaluating robustness.
+
+\begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack}
+\begin{algorithmic}[1]
+\Require $x$, $y$, $\theta$, $\epsilon$
+\Ensure $x_{\mathrm{adv}}$
+\State Enable gradient tracking on $x$ 
+\State Compute loss: $L \gets J(\theta, x, y)$
+\State Compute gradient: $g \gets \nabla_x L$ via backpropagation
+\State Form perturbation: $\delta \gets \epsilon \cdot \mathrm{sign}(g)$
+\State Generate adversarial example: $x_{\mathrm{adv}} \gets x + \delta$
+\State Clip to valid range: $x_{\mathrm{adv}} \gets \mathrm{clip}(x_{\mathrm{adv}}, 0, 1)$
+\State \Return $x_{\mathrm{adv}}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\begin{figure}[h!] % [h!] tries to place it "here" forcefully. Use [htbp] for more flexibility.
+  \centering % Center the whole figure content
+
+  % --- First Image: Original Traffic Sign ---
+  \begin{subfigure}[b]{0.28\textwidth}
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/CV/Classification/20.jpg} % YOUR ORIGINAL IMAGE
+    \caption*{$x$\\\textit{"speed limit 20"}\\71\% confidence}
+    % \label{fig:sub-original-traffic} % Optional label for subfigure
+  \end{subfigure}
+  \hfill % Distribute horizontal space
+  % --- Plus and Multiplier Operator ---
+  \begin{subfigure}[b]{0.05\textwidth} % Width for the operator's subfigure
+    \centering
+     \vspace{0.5cm} % Removed, relying on [b] alignment for all subfigures
+    $+\,0.007\,\times$
+  \end{subfigure}
+  \hfill % Distribute horizontal space
+  % --- Second Image: Noise Pattern ---
+  \begin{subfigure}[b]{0.28\textwidth}
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/CV/Classification/noise_20.png} % YOUR NOISE IMAGE
+    % Caption adjusted as per "remove the class for gradient and confidence":
+    \caption*{$\mathrm{sign}(\nabla_x J(\theta, x, y))$\\
+    \\ \hfill
+    \\ \hfill
+    }
+    % \label{fig:sub-noise-traffic} % Optional label for subfigure
+  \end{subfigure}
+  \hfill % Distribute horizontal space
+  % --- Equals Sign Operator ---
+  \begin{subfigure}[b]{0.05\textwidth} % Width for the operator's subfigure
+    \centering
+    % \vspace{1.2cm} % Removed, relying on [b] alignment
+    $=$
+  \end{subfigure}
+  \hfill % Distribute horizontal space
+  % --- Third Image: Adversarial Traffic Sign ---
+  \begin{subfigure}[b]{0.28\textwidth}
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/CV/Classification/Adv_20_FGSM_007.png} % YOUR ADVERSARIAL IMAGE
+    \caption*{$x + \epsilon \cdot \mathrm{sign}(\nabla_x J(\theta, x, y))$\\\textit{"Slippery road"}\\77\% confidence}
+    % \label{fig:sub-adversarial-traffic} % Optional label for subfigure
+  \end{subfigure}
+
+  \caption{Visual illustration of the FGSM attack on a traffic sign. A small, imperceptible perturbation, crafted using the gradient of the loss function, causes the model to misclassify the image with high confidence.}
+  \label{fig:fgsm-visual-traffic-sign} % Use a descriptive and unique label
+\end{figure}
+
+Figure~\ref{fig:fgsm-visual-traffic-sign} provides a clear visual demonstration of the FGSM attack. The process begins with a clean input image, $x$, correctly classified by the model as a ``speed limit 20'' sign with 71\% confidence. As detailed in the algorithm, the attack computes the gradient of the loss function with respect to the input pixels and takes its sign to determine the direction of the perturbation. This direction, $\text{sign}(\nabla_x J(\theta, x, y))$, is then scaled by a small magnitude, $\epsilon$ (here, 0.007), to form the final perturbation. When this seemingly random, low-magnitude noise is added to the original image, the resulting adversarial example, $x_{\text{adv}}$, remains visually almost identical to the original. However, it successfully deceives the model, causing a high-confidence misclassification to ``slippery road'' with 77\% confidence, demonstrating the efficacy of the attack.
+
+\paragraph{Results}
+
+To evaluate the effectiveness of the FGSM attack, we used a custom-trained \textbf{EfficientNetB1} model on the \textbf{German Traffic Sign Recognition Benchmark (GTSRB)} dataset. The model achieved \textbf{96\% accuracy} on the clean test set. For adversarial evaluation, we applied FGSM with different perturbation magnitudes $\epsilon$ on a random subset of \textbf{512 test images}.
+
+Table~\ref{tab:fgsm_results_Classification} shows how model performance degrades with increasing $\epsilon$. As expected, stronger perturbations lead to more severe accuracy drops. Even at a relatively low $\epsilon=0.007$, the accuracy drops significantly to 58\%. At $\epsilon=0.1$, the model is nearly completely fooled, achieving only 6\% accuracy.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Accuracy of FGSM attacks on EfficientNetB1 evaluated on 512 GTSRB test samples. The original model accuracy without attack is \textbf{96\%}.}
+\label{tab:fgsm_results_Classification}
+\begin{tabular}{@{\hspace{0.3cm}}cS[table-format=2.2]S[table-format=2.2]@{\hspace{0.3cm}}}
+\toprule
+$\epsilon$ & {Accuracy (\%)} & {Accuracy Drop (\%)} \\
+\midrule
+0.007 & 58.00 & 38.00 \\
+0.010 & 44.00 & 52.00 \\
+0.030 & 14.00 & 82.00 \\
+0.100 & 6.00  & 90.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsubsection{Projected Gradient Descent (PGD)}
+\paragraph{Introduction}
+
+Projected Gradient Descent (PGD) is a powerful iterative attack method introduced by Madry et al.\ in their work on adversarial robustness \cite{madry2018towardspgd}. It is widely regarded as one of the most effective first-order adversarial attacks, capable of producing stronger perturbations than single-step methods like FGSM by applying multiple small gradient steps.
+
+PGD operates by iteratively perturbing the input in the direction of the gradient of the loss function and projecting the perturbed input back into an $\epsilon$-bounded $\ell_\infty$ ball around the original input. This ensures that the adversarial example remains within a specified perturbation budget. Due to its effectiveness and reliability, PGD is often considered the “universal first-order adversary” and is commonly used both as a benchmark attack and as a training strategy (i.e., adversarial training) to improve model robustness \cite{madry2018towardspgd}.
+
+\paragraph{Methodology}
+
+\subparagraph{Attack Type}
+The Projected Gradient Descent (PGD) attack is a \textbf{white-box}, \textbf{untargeted}, and \textbf{iterative} attack. As a white-box method, it requires full access to the model’s parameters and gradients. It is untargeted in that its objective is to cause misclassification of the input without steering the prediction toward any specific incorrect label. The attack refines the basic idea of FGSM by applying multiple small perturbation steps, with each step constrained within an $\ell_\infty$-norm ball of radius $\epsilon$ centered around the original input. After each step, the perturbation is projected back into this bounded space, ensuring the adversarial example stays within the allowed perturbation budget.
+
+\subparagraph{Parameters}
+\begin{description}
+  \item[$x$] The clean input image to be perturbed.
+  \item[$y$] The true label associated with $x$.
+  \item[$\theta$] The parameters of the target neural network model.
+  \item[$\epsilon$] The maximum allowable perturbation (controls the size of the $\ell_\infty$ ball).
+  \item[$\alpha$] The step size used for each gradient update.
+  \item[$n$] The number of iterations (steps) to apply the attack.
+  \item[$J(\theta, x, y)$] The loss function used during training (e.g., cross-entropy).
+\end{description}
+\subparagraph{Algorithm Overview}
+The PGD attack is an iterative extension of the Fast Gradient Sign Method (FGSM). It starts by adding a small random initialization within the $\ell_\infty$ ball of radius $\epsilon$ around the original input $x$. Then, for a fixed number of iterations $n$, the method performs gradient ascent on the loss function with respect to the input, stepping in the direction that increases the loss. After each step, the adversarial example is projected back into the valid $\ell_\infty$ ball to ensure that the perturbation does not exceed the maximum allowed distortion $\epsilon$. The adversarial example is also clipped to stay within the valid input range (e.g., pixel values between 0 and 1). This iterative process allows PGD to produce much stronger adversarial examples than single-step methods like FGSM.
+
+\begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack}
+\begin{algorithmic}[1]
+\Require $x$, $y$, $\theta$, $\epsilon$, $\alpha$, $n$
+\Ensure $x_{\mathrm{adv}}$
+\State Initialize $x_{\mathrm{adv}} \gets x + \text{Uniform}(-\epsilon, \epsilon)$
+\State Clip $x_{\mathrm{adv}} \gets \mathrm{clip}(x_{\mathrm{adv}}, 0, 1)$
+\For{$i = 1$ to $n$}
+    \State Enable gradient tracking on $x_{\mathrm{adv}}$
+    \State Compute loss: $L \gets J(\theta, x_{\mathrm{adv}}, y)$
+    \State Compute gradient: $g \gets \nabla_{x_{\mathrm{adv}}} L$
+    \State Update adversarial example: $x_{\mathrm{adv}} \gets x_{\mathrm{adv}} + \alpha \cdot \mathrm{sign}(g)$
+    \State Project: $x_{\mathrm{adv}} \gets \mathrm{clip}(x_{\mathrm{adv}}, x - \epsilon, x + \epsilon)$
+    \State Clip to valid range: $x_{\mathrm{adv}} \gets \mathrm{clip}(x_{\mathrm{adv}}, 0, 1)$
+\EndFor
+\State \Return $x_{\mathrm{adv}}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\paragraph{Results}
+
+To evaluate the effectiveness of the PGD attack, we used the same \textbf{EfficientNetB1} model trained on the \textbf{German Traffic Sign Recognition Benchmark (GTSRB)} dataset, which achieved \textbf{96\% accuracy} on the clean test set. For adversarial evaluation, we applied PGD with varying perturbation budgets $\epsilon$ and corresponding step sizes $\alpha$, using a random subset of \textbf{512 test images}.
+
+Table~\ref{tab:pgd_results} shows how model performance degrades under the PGD attack. Compared to FGSM, PGD leads to significantly lower accuracies at similar or even slightly higher $\epsilon$ values, due to its iterative nature. At $\epsilon=0.01$, accuracy already drops to 35\%. At $\epsilon=0.1$, the attack is completely successful, driving the model’s accuracy down to 0\%.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Accuracy of PGD attacks on EfficientNetB1 evaluated on 512 GTSRB test samples using \textbf{3 iterations} per attack. The original model accuracy without attack is \textbf{96\%}.}
+\label{tab:pgd_results}
+\begin{tabular}{@{\hspace{0.3cm}}lS[table-format=2.2]S[table-format=2.2]c@{\hspace{0.3cm}}}
+\toprule
+\textbf{PGD Parameters} & {Accuracy (\%)} & {Accuracy Drop (\%)} & {Iterations} \\
+\midrule
+$\epsilon=0.01$, $\alpha=0.0025$  & 35.00 & 61.00 & 3 \\
+$\epsilon=0.03$, $\alpha=0.0075$  & 7.00  & 89.00 & 3 \\
+$\epsilon=0.05$, $\alpha=0.0125$  & 3.00  & 93.00 & 3 \\
+$\epsilon=0.10$, $\alpha=0.0250$  & 0.00  & 96.00 & 3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\subsection{Black Box Attacks}
+\subsubsection{Boundary Attack}
+
+\paragraph{Introduction}
+The Boundary Attack is a decision-based adversarial attack that operates in a black-box setting, requiring access only to the model's final predicted class label. First introduced by Brendel et al.\ in 2018 \cite{brendel2018decisionbasedadversarialattacksreliable}, it is particularly powerful because it avoids reliance on gradients or confidence scores, making it suitable for attacking systems where internal model information is completely inaccessible. At its core, the attack performs an iterative random walk along the model's decision boundary to find a minimal perturbation that causes a misclassification.
+
+\paragraph{Methodology}
+
+The Boundary Attack is a \textbf{black-box} and \textbf{decision-based} method. A crucial aspect of this attack is how the initial adversarial example is chosen, as this defines the attack's goal. There are two primary strategies:
+\begin{enumerate}
+    \item \textbf{Untargeted Attack:} An initial adversarial example is created, often by refining a pre-existing attack or adding noise. The goal is simply to minimize this perturbation while ensuring the model makes \textit{any} incorrect prediction.
+    \item \textbf{Targeted Attack:} The attack is initialized with a clean image from a different, specific class (e.g., initializing with a "Speed limit 70" sign to attack a "Speed limit 30" sign). The goal is then to "morph" this starting image to be as visually similar to the original target image as possible, effectively forcing the model to misclassify the target as the starting class. This makes the second strategy a natural and effective way to perform a targeted attack.
+\end{enumerate}
+
+\subparagraph{Parameters}
+\begin{description}
+  \item[$x$] The original clean input that is correctly classified by the model.
+  \item[$x_{\mathrm{adv}}$] The starting adversarial example, which must already be misclassified.
+  \item[$\mathcal{M}$] The black-box model to be attacked (returns only predicted class labels).
+  \item[$\text{max\_iterations}$] The maximum number of attack iterations.
+  \item[$\epsilon$] The step size controlling the exploration during the random walk.
+\end{description}
+
+
+
+
+\begin{breakablealgorithm}{Boundary Attack}
+\label{alg:boundary_attack_core}
+\begin{algorithmic}[1]
+\Require $x$, $x_{\mathrm{adv}}^{(0)}$, $\mathcal{M}$, $\epsilon$, $\delta$
+\Ensure $x_{\mathrm{adv}}$
+\State $i \gets 0$
+\While{$\|x_{\mathrm{adv}}^{(i)} - x\| > \delta$ and $i < \text{max\_iterations}$}
+    \State Sample a perturbation direction $r$ from a normal distribution
+    \State Normalize and scale: $r \gets \epsilon \cdot \frac{r}{\|r\|}$
+    \State Propose a candidate: $x_{\mathrm{cand}} \gets x_{\mathrm{adv}}^{(i)} + r$
+    \State Project toward original input: $x_{\mathrm{cand}} \gets x + (x_{\mathrm{cand}} - x) \cdot \min\left(1, \frac{\|x_{\mathrm{adv}}^{(i)} - x\|}{\|x_{\mathrm{cand}} - x\|} \right)$
+    \If{$\mathcal{M}(x_{\mathrm{cand}}) \ne \mathcal{M}(x)$}
+        \State Accept: $x_{\mathrm{adv}}^{(i+1)} \gets x_{\mathrm{cand}}$
+    \Else
+        \State Reject: $x_{\mathrm{adv}}^{(i+1)} \gets x_{\mathrm{adv}}^{(i)}$
+    \EndIf
+    \State $i \gets i + 1$
+\EndWhile
+\State \Return $x_{\mathrm{adv}}^{(i)}$
+\end{algorithmic}
+\end{breakablealgorithm}
+\paragraph{Experimental Results}
+To evaluate the Boundary Attack on our trained model, we conducted experiments demonstrating both initialization strategies.
+
+\subparagraph{Strategy 1: Refining an Existing Adversarial Example}
+First, we demonstrate the attack's ability to minimize an existing perturbation. We began with a pre-crafted adversarial example—a noisy "Speed limit 20" sign that our model misclassifies as "Slippery road" with 100\% confidence. As shown in Figure~\ref{fig:boundary_attack}, the Boundary Attack uses this image as its starting point. It then iteratively refines the image, significantly reducing the visual distortion while keeping it on the adversarial side of the decision boundary. The final boundary example is much cleaner, yet it remains misclassified, with the model's confidence dropping to 49.97\%. This shows the attack's effectiveness in taking a powerful but obvious attack and transforming it into a much stealthier one.
+
+
+\begin{figure}[h!]
+    \centering
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/CV/Classification/existing_adv.png}
+        \caption{Initial adversarial example. (Conf: 100\%)}
+        \label{fig:initial_adv}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/CV/Classification/boundary_adv_20.png}
+        \caption{Final boundary example. (Conf: 49.97\%)}
+        \label{fig:boundary_adv}
+    \end{subfigure}
+    \caption{Refinement of an adversarial example using the Boundary Attack. The attack starts with the noisy image (a) and minimizes the perturbation to produce the much cleaner, yet still misclassified, boundary image (b). The true label for both is ``Speed limit 20''.}
+    \label{fig:boundary_attack}
+\end{figure}
+
+\subparagraph{Strategy 2: Morphing from a Different Class}
+The second, more semantically interesting approach is to start from a legitimate image of another class. We tasked the attack with morphing a "Speed limit 70" sign into a "Speed limit 30" sign. Figure~\ref{fig:boundary_progression} documents the visual evolution of this process, showing the state of the image at every 10 iterations. The progression clearly illustrates the "morphing" effect as the features of the "70" are gradually replaced by those of the "30".
+
+The culmination of this process is presented in Figure~\ref{fig:boundary_comparison}. The final adversarial image after 70 iterations is visually very similar to the true "Speed limit 30" target. Despite this, the model continues to misclassify it as "Speed limit 70" with 61.38\% confidence. This result is particularly compelling as it demonstrates a semantic failure of the model, creating an adversarial example that is deceptive in a human-interpretable way.
+% First figure - Progression steps
+\begin{figure}[H]
+    \centering
+    
+    \begin{subfigure}[b]{0.13\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/CV/Classification/boundary_steps/boundary_attack_iter_0.png}
+        \caption*{\small (Source)}
+        \label{fig:boundary_iter0}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.13\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/CV/Classification/boundary_steps/boundary_attack_iter_10.png}
+        \caption*{\small 10 iterations}
+        \label{fig:boundary_iter10}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.13\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/CV/Classification/boundary_steps/boundary_attack_iter_20.png}
+        \caption*{\small 20 iterations}
+        \label{fig:boundary_iter20}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.13\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/CV/Classification/boundary_steps/boundary_attack_iter_30.png}
+        \caption*{\small 30 iterations}
+        \label{fig:boundary_iter30}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.13\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/CV/Classification/boundary_steps/boundary_attack_iter_40.png}
+        \caption*{\small 40 iterations}
+        \label{fig:boundary_iter40}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.13\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/CV/Classification/boundary_steps/boundary_attack_iter_50.png}
+        \caption*{\small 50 iterations}
+        \label{fig:boundary_iter50}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.13\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/CV/Classification/boundary_steps/boundary_attack_iter_60.png}
+        \caption*{\small 60 iterations}
+        \label{fig:boundary_iter60}
+    \end{subfigure}
+
+    \caption{Visual progression of the Boundary Attack showing the iterative morphing process.}
+    \label{fig:boundary_progression}
+\end{figure}
+
+% Second figure - Final results
+\begin{figure}[H]
+    \centering
+    
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/CV/Classification/boundary_steps/boundary_attack_iter_70.png}
+        \caption{Final Adversarial \\ (Pred: Speed limit 70 \\ Conf: 61.38\%)}
+        \label{fig:boundary_final}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/CV/Classification/boundary_steps/4.jpg}
+        \caption{Original Target \\ (pred: Speed limit 30) \\ Conf: 100\%} 
+        \label{fig:boundary_target}
+    \end{subfigure}
+
+    \caption{Comparison between the final adversarial image and the original target image.}
+    \label{fig:boundary_comparison}
+\end{figure}
+\clearpage 
+\subsubsection{HopSkipJumpAttack}
+
+\paragraph{Introduction}
+
+The HopSkipJumpAttack, introduced by Chen et al.\ in 2019 \cite{chen2020hopskipjumpattackqueryefficientdecisionbasedattack}, represents a significant advancement in the field of decision-based black-box attacks. It is specifically designed to be highly \textbf{query-efficient}, meaning it requires far fewer interactions with the target model to find an adversarial example compared to its predecessors, such as the standard Boundary Attack. This efficiency is a critical feature for evaluating real-world systems, which may be protected by query limits or other defenses that detect an unusually high volume of requests.
+
+The core innovation of HopSkipJumpAttack is its novel method for estimating the model's gradient direction using only the binary decision outputs (i.e., "is this image class A or not?"). While the standard Boundary Attack relies on a less-directed random walk to explore the decision boundary, HopSkipJumpAttack uses its gradient estimate to guide the search much more effectively. This allows the attack to find high-quality adversarial examples with minimal, often imperceptible, perturbations in a fraction of the time and with significantly fewer model queries.
+\paragraph{Methodology}
+
+\subparagraph{Attack Type}
+The HopSkipJumpAttack is a \textbf{black-box}, \textbf{decision-based} adversarial attack. This means it treats the target model as an opaque oracle, interacting with it solely by providing input images and observing the final predicted label. It does not require access to model gradients, architecture, or confidence scores (logits). The attack can be used for both \textbf{untargeted} objectives (causing any misclassification) and \textbf{targeted} objectives (causing a specific misclassification). Its primary strength lies in its query efficiency compared to other decision-based methods.
+
+\subparagraph{Parameters}
+The algorithm's execution is governed by several key parameters:
+\begin{description}
+  \item[$x_{orig}$] The original, clean input image that is correctly classified by the model.
+  \item[$\mathcal{M}$] The black-box target model, which returns only a final class label for a given input.
+  \item[$max\_iterations$] The total number of iterations for the main attack loop.
+  \item[$max\_queries$] A hard limit on the total number of times the model can be queried to ensure efficiency.
+  \item[$\delta$] The perturbation size used for the Monte Carlo gradient estimation.
+  \item[$B$] The batch size, or number of random directions sampled, for estimating the gradient.
+\end{description}
+
+% --- PHASE 1 ---
+\subparagraph{Phase 1: Adversarial Initialization}
+The first step of any decision-based attack is to find a starting point that is already in the adversarial region. Since the attack starts with only the original clean image, this is typically achieved by adding progressively larger amounts of random noise to the original image until the target model misclassifies it. Algorithm~\ref{alg:hsja_init} outlines this process.
+
+\begin{breakablealgorithm}{Adversarial Initialization}
+\label{alg:hsja_init}
+\begin{algorithmic}[1]
+\Require Original image $x_{orig}$, Target model $\mathcal{M}$
+\Ensure An initial adversarial example $x_{adv}$
+\State $y_{orig} \gets \mathcal{M}(x_{orig})$
+\State $\alpha \gets \text{initial\_noise\_factor}$
+\For{$i \gets 1$ \textbf{to} max\_attempts}
+    \State $\text{noise} \gets \text{Uniform}(-\alpha, \alpha)$
+    \State $x_{cand} \gets \text{clip}(x_{orig} + \text{noise})$
+    \If{$\mathcal{M}(x_{cand}) \neq y_{orig}$}
+        \State \Return $x_{cand}$
+    \EndIf
+    \State $\alpha \gets \alpha \times \text{growth\_factor}$
+\EndFor
+\State \Return \textbf{null}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+% --- PHASE 2 ---
+\subparagraph{Phase 2: Iterative Refinement}
+Once an initial adversarial point is found, the main iterative refinement loop begins. The overall structure of this loop is shown in Algorithm~\ref{alg:hsja_main}. It orchestrates the three core components of the attack—the "Hop," "Skip," and "Jump"—to progressively move the adversarial example closer to the original image. Each of these components is detailed in the subsequent algorithms.
+
+\begin{breakablealgorithm}{HopSkipJumpAttack (Main Loop)}
+\label{alg:hsja_main}
+\begin{algorithmic}[1]
+\Require Original image $x_{orig}$, Target model $\mathcal{M}$
+\Ensure A final, refined adversarial example $x_{final}$
+\State $x_{adv} \gets \text{Adversarial-Initialization}(x_{orig}, \mathcal{M})$ \Comment{See Algorithm~\ref{alg:hsja_init}}
+\If{$x_{adv}$ is \textbf{null}} \Return $x_{orig}$ \EndIf
+\State $x_{best} \gets x_{adv}$
+\For{$t \gets 1$ \textbf{to} max\_iterations}
+    \If{query budget exceeded} \textbf{break} \EndIf
+    \State $\text{grad\_est} \gets \text{Estimate-Gradient-Hop}(x_{adv}, \mathcal{M}, ...)$ \Comment{See Algorithm~\ref{alg:hsja_hop}}
+    \State $x_{cand} \gets \text{Geometric-Step-Search-Skip}(x_{adv}, \text{grad\_est}, ...)$ \Comment{See Algorithm~\ref{alg:hsja_skip}}
+    \State $x_{adv} \gets \text{Binary-Search-Projection-Jump}(x_{cand}, x_{orig}, \mathcal{M})$ \Comment{See Algorithm~\ref{alg:hsja_jump}}
+    \If{$\|x_{adv} - x_{orig}\| < \|x_{best} - x_{orig}\|$}
+        \State $x_{best} \gets x_{adv}$
+    \EndIf
+\EndFor
+\State \Return $x_{best}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+% --- COMPONENT DETAILS ---
+\subparagraph{Component 1: The "Hop" (Gradient Estimation)}
+The first step within the main loop is to estimate the gradient direction at the current boundary point. As shown in Algorithm~\ref{alg:hsja_hop}, this is done via a Monte Carlo method. Many random vectors are sampled, and for each, the model is queried to see if adding that small perturbation causes the image to cross the decision boundary. The average of these directional outcomes provides a robust estimate of the true gradient.
+
+\begin{breakablealgorithm}{Gradient Estimation ("Hop")}
+\label{alg:hsja_hop}
+\begin{algorithmic}[1]
+\Require Current adversarial point $x_{adv}$, Model $\mathcal{M}$, Perturbation size $\delta$, Batch size $B$
+\Ensure Estimated gradient direction $\text{grad\_est}$
+\State $y_{orig} \gets \mathcal{M}(x_{orig})$
+\State $\text{grad\_est} \gets \text{zero\_vector}$
+\For{$b \gets 1$ \textbf{to} $B$}
+    \State Sample a random direction vector $u_b$ and normalize it: $u_b \gets u_b / \|u_b\|$
+    \State $x_{cand} \gets x_{adv} + \delta \cdot u_b$
+    \If{$\mathcal{M}(x_{cand}) \neq y_{orig}$}
+        \State $\text{grad\_est} \gets \text{grad\_est} + u_b$
+    \Else
+        \State $\text{grad\_est} \gets \text{grad\_est} - u_b$
+    \EndIf
+\EndFor
+\State \Return $\text{grad\_est} / \|\text{grad\_est}\|$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subparagraph{Component 2: The "Skip" (Geometric Step Search)}
+After estimating the gradient, the algorithm must take a step away from the boundary to allow room for the next "Jump." As detailed in Algorithm~\ref{alg:hsja_skip}, it performs a search with geometrically increasing step sizes along the gradient direction until it finds a point that is safely inside the adversarial region.
+
+\begin{breakablealgorithm}{Geometric Step Search ("Skip")}
+\label{alg:hsja_skip}
+\begin{algorithmic}[1]
+\Require Current point $x_{adv}$, Gradient estimate $\text{grad\_est}$, Model $\mathcal{M}$
+\Ensure A new adversarial point $x'_{adv}$ further from the boundary
+\State $y_{orig} \gets \mathcal{M}(x_{orig})$
+\State $\epsilon \gets \text{initial\_step\_size}$
+\Loop
+    \State $x'_{adv} \gets x_{adv} + \epsilon \cdot \text{grad\_est}$
+    \If{$\mathcal{M}(x'_{adv}) \neq y_{orig}$}
+        \State \Return $x'_{adv}$ \Comment{Found a valid adversarial point}
+    \EndIf
+    \State $\epsilon \gets \epsilon \times 2$ \Comment{Increase step size and try again}
+\EndLoop
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subparagraph{Component 3: The "Jump" (Binary Search Projection)}
+Finally, the algorithm projects the new point back onto the decision boundary. Algorithm~\ref{alg:hsja_jump} shows how this is done with a highly efficient binary search. It interpolates between the new adversarial point and the original clean image, rapidly converging on a point that lies almost exactly on the boundary, ready for the next iteration.
+
+\begin{breakablealgorithm}{Binary Search Projection ("Jump")}
+\label{alg:hsja_jump}
+\begin{algorithmic}[1]
+\Require Adversarial point $x_{adv}$, Original point $x_{orig}$, Model $\mathcal{M}$
+\Ensure A new adversarial point $x''_{adv}$ on the boundary
+\State $y_{orig} \gets \mathcal{M}(x_{orig})$
+\State $low \gets 0.0$, $high \gets 1.0$, $x''_{adv} \gets x_{adv}$
+\For{$i \gets 1$ \textbf{to} max\_trials}
+    \State $mid \gets (low + high) / 2$
+    \State $x_{cand} \gets (1 - mid) \cdot x_{orig} + mid \cdot x_{adv}$
+    \If{$\mathcal{M}(x_{cand}) \neq y_{orig}$}
+        \State $high \gets mid$; \quad $x''_{adv} \gets x_{cand}$
+    \Else
+        \State $low \gets mid$
+    \EndIf
+    \If{$high - low < \text{threshold}$} \textbf{break} \EndIf
+\EndFor
+\State \Return $x''_{adv}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+    In concert, these algorithms form a complete framework for executing the HopSkipJumpAttack. The initialization phase (Algorithm~\ref{alg:hsja_init}) secures a valid starting point, after which the main loop (Algorithm~\ref{alg:hsja_main}) uses the 'Hop', 'Skip', and 'Jump' sub-routines to iteratively refine the adversarial example. The primary advantage of this multi-stage methodology is its ability to find minimally perturbed solutions with high query efficiency. Having detailed the algorithmic underpinnings of the attack, we now proceed to evaluate its practical performance against our trained model.
+
+\paragraph{Results}
+\textbf{This is a draft to be continued.}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{images/CV/Classification/hopskipjump_result.png}
+    \caption{The Result of hopskip jump attack on a 20 speed limit sign }
+    \label{fig:enter-label}
+\end{figure}
+\section{Defenses}
+
+\end{document}

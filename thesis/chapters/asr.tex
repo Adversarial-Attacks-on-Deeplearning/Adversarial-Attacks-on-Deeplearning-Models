@@ -11,12 +11,35 @@ To conduct a rigorous and reproducible security evaluation, our experiments are 
 
 In this chapter, we will therefore probe the vulnerabilities of the pre-trained Wav2Vec 2.0 model against this well-defined testbed. On the 100 clean samples, our model establishes a strong performance baseline, achieving a \textbf{Character Error Rate (CER) of 0.9\%} and a \textbf{Word Error Rate (WER) of 2.84\%}. These low error rates confirm the model's high competence before the introduction of any malicious noise. The subsequent sections will detail the attack methodologies used to generate adversarial audio and explore potential defenses aimed at fortifying these advanced speech recognition systems.
 \section{Attacks}
+
+\subsection{Trusted SNR Thresholds for 100\% Human Speech Intelligibility}
+\label{Trusted_SNR}
+
+To evaluate whether adversarially perturbed audio remains fully intelligible to human listeners, we reference robust, peer-reviewed studies quantifying the signal-to-noise ratio (SNR) required for perfect speech understanding. Experimental evidence from auditory science establishes clear SNR thresholds for 100\% intelligibility in normal-hearing adults. In steady-state or speech-shaped noise, listeners achieve near-perfect (99--100\%) intelligibility at SNRs of $+5~\mathrm{dB}$ or higher~\cite{MaLoizou2011}. In complex, fluctuating noise environments, such as multi-talker babble or cafeteria noise, the required SNR increases to $+7~\mathrm{dB}$ to $+9~\mathrm{dB}$~\cite{MaLoizou2011}. These thresholds are validated through controlled listening tests using IEEE sentence materials and diverse real-world noise maskers~\cite{MaLoizou2011}.
+
+\begin{table}[ht]
+\centering
+\footnotesize
+\caption{SNR Thresholds for 100\% Speech Intelligibility}
+\label{tab:snr_thresholds}
+\begin{tabular}{@{\hspace{0.3cm}}lS[table-format=+2.0]@{\hspace{0.3cm}}}
+\toprule
+\textbf{Noise Type} & {\textbf{SNR (dB)}} \\
+\midrule
+Steady-state / Speech-shaped noise & +5 \\
+Multi-talker babble / Cafeteria noise & {+7 to +9} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+To ensure adversarially perturbed audio is fully intelligible, the SNR should be at least $+7~\mathrm{dB}$ in complex, speech-like noise backgrounds. This threshold, supported by large-scale listening studies~\cite{MaLoizou2011}, is widely cited in speech processing literature and informs the evaluation of adversarial attacks on ASR systems.
 \subsection{White Box Attacks}
 \subsubsection{FGSM Attack}
-\paragraph{Introduction}
+\label{subsec:fgsm_asr}
+\paragraph{Introduction}\leavevmode\\
 The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack technique designed to generate adversarial examples by introducing imperceptible perturbations to input data, thereby misleading machine learning models \cite{goodfellow2015explaining}. In the context of automatic speech recognition (ASR), this attack crafts adversarial audio samples that force the model to produce a specified target transcription\cite{zelasko2021adversarial}.
 
-\paragraph{Methodology}
+\paragraph{Methodology}\leavevmode\\
 \begin{breakablealgorithm}{Fast Gradient Sign Method (FGSM) Attack on wav2vec2 ASR}
 \begin{algorithmic}[1]
 \Require $x \in \mathbb{R}^T$: input audio waveform, $model$: wav2vec2 ASR model, $y_t$: target transcription, $\epsilon > 0$: perturbation magnitude
@@ -34,8 +57,8 @@ The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack
 \end{breakablealgorithm}
 
 
-\paragraph{Results}
-
+\paragraph{Results}\leavevmode\\
+\label{fgsm_asr_results}
 The effectiveness of the FGSM attack was evaluated across a range of epsilon values on 100 samples from the LibriSpeech test-clean dataset. The quantitative results, detailed in Table~\ref{fgsm_wav2vec2}.
 
 Original CER: 0.9\% - Original WER: 2.84\%.
@@ -44,7 +67,6 @@ Original CER: 0.9\% - Original WER: 2.84\%.
 \label{fgsm_wav2vec2}
 \centering
 \footnotesize
-\label{tab:fgsm_results}
 \begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
 \toprule
 $\epsilon$   & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER}  \\
@@ -58,7 +80,12 @@ $\epsilon$   & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Del
 \end{tabular}
 \end{table}
 
-The following figures provide a visual analysis of this trend by showing the spectrogram of a single representative audio sample after being subjected to the attack at each epsilon level.
+
+All SNR values in table ~\ref{fgsm_wav2vec2} are higher than the Thresholds for 100\% Human Speech Intelligibility~\ref{Trusted_SNR} with degradation in model performance.
+
+Compared to the undefended DeepSpeech 2 and Espresso Transformer models in~\cite{zelasko2021adversarial}, the FGSM attack results on wav2vec2 demonstrate significantly greater robustness. At all tested $\epsilon$ values ($0.01$, $0.1$, $0.2$), wav2vec2 maintains much lower WER ($5.89\%$ to $15.16\%$) than DeepSpeech 2 ($77.9\%$ to $100\%$) and Espresso Transformer ($65.3\%$ to $108\%$). Even at $\epsilon = 0.2$, wav2vec2's WER of $15.16\%$ indicates it can still produce meaningful transcriptions. The superior performance of wav2vec2 is likely due to its self-supervised pre-training and Transformer-based architecture, which enhance robustness to adversarial perturbations.
+
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_01.png} % Replace with the actual path to your image file
@@ -104,11 +131,11 @@ Finally, at the highest tested $\epsilon = 0.2$ in Figure~\ref{fig:fgsm2_example
 
 
 \subsubsection{PGD Attack}
-\paragraph{Introduction}
+\paragraph{Introduction}\leavevmode\\
 The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial attack method that builds upon the principles of the Fast Gradient Sign Method (FGSM) by applying multiple small perturbations to optimize the adversarial example within an $\ell_\infty$ norm constraint \cite{madry2018towardspgd}. In automatic speech recognition (ASR) systems, PGD generates adversarial audio samples by iteratively adjusting the input waveform to maximize the loss function, aiming to force the model to produce a specified target transcription \cite{zelasko2021adversarial}.
 
 
-\paragraph{Methodology}
+\paragraph{Methodology}\leavevmode\\
 \begin{breakablealgorithm}{Projected Gradient Descent (PGD) Attack on wav2vec2 ASR}
 \begin{algorithmic}[1]
 \Require $x \in \mathbb{R}^T$: input audio waveform, $model$: wav2vec2 ASR model, $y_t$: target transcription, $\epsilon > 0$: perturbation bound, $\alpha > 0$: step size, $N > 0$: maximum iterations, $\delta > 0$: convergence threshold
@@ -136,14 +163,15 @@ The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial 
 \end{breakablealgorithm}
 
 
-\paragraph{Results}
-the evaluation happened over 100 samples from librespeech test dataset.The results are in Table~\ref{pgd_attack_results}
+\paragraph{Results}\leavevmode\\
+the evaluation happened over 100 samples from librespeech test dataset.The results are in Table~\ref{pgd_wav2vec2}
+
 
 Original CER: 0.9\% - Original WER: 2.84\%
 \begin{table}[H]
 \caption{Attack Effectiveness of PGD}
 \centering
-\label{pgd_attack_results}
+\label{pgd_wav2vec2}
 \begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
 \toprule
 $\epsilon$ & $\alpha$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER}  \\
@@ -157,11 +185,57 @@ $\epsilon$ & $\alpha$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER}
 \end{tabular}
 \end{table}
 
+
+Compared to \cite{zelasko2021adversarial}, where DeepSpeech (clean WER=\SI{10.9}{\%}) reaches \SI{97.5}{\%} WER at $\epsilon=\SI{0.01}{}$ and Espresso (clean WER=\SI{4.4}{\%}) hits \SI{139.3}{\%} at $\epsilon=\SI{0.2}{}$, wav2vec 2.0 exhibits milder degradation at low $\epsilon$ (\SI{14.70}{\%} WER at $\epsilon=\SI{0.01}{}$), Due to its transformer based architecture. But in higher $\epsilon$ like $\epsilon=\SI{0.2}{}$ it hits (\SI{81.44 }{\%}) WER with 11.54 SNR which is a super significant degradation with noise above Thresholds for 100\% Human Speech Intelligibility~\ref{Trusted_SNR}.
+
+
+The following figures provide a visual analysis of this trend by showing the spectrogram of a single representative audio sample after being subjected to the attack at each epsilon level.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/pgd_01.png} % Replace with the actual path to your image file
+    \caption{PGD $\epsilon = 0.01$ Example showing the original, adversarial, and difference images.}
+    \label{fig:pgd_01_example_wav}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/pgd_02.png} % Replace with the actual path to your image file
+    \caption{PGD $\epsilon = 0.02$ Example showing the original, adversarial, and difference images.}
+    \label{fig:pgd02_example_wav}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/pgd_05.png} % Replace with the actual path to your image file
+    \caption{PGD $\epsilon = 0.05$ Example showing the original, adversarial, and difference images.}
+    \label{fig:pgd05_example_wav}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/pgd_1.png} % Replace with the actual path to your image file
+    \caption{PGD $\epsilon = 0.1$ Example showing the original, adversarial, and difference images.}
+    \label{fig:pgd1_example_wav}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/pgd_2.png} % Replace with the actual path to your image file
+    \caption{PGD $\epsilon = 0.2$ Example showing the original, adversarial, and difference images.}
+    \label{fig:pgd2_example_wav}
+\end{figure}
+
+Figures~\ref{fig:pgd_01_example_wav},~\ref{fig:pgd02_example_wav},~\ref{fig:pgd05_example_wav},~\ref{fig:pgd1_example_wav}and ~\ref{fig:pgd2_example_wav} and table~\ref{pgd_wav2vec2}. exhibit a trend similar to that observed in FGSM results~\ref{fgsm_asr_results}.
+Lower $\epsilon$ values causes impredictable distortion and the original and adversarial spectrograms are almost identical, and as the $\epsilon$ increases the distortion increases but the attack performs better. 
+
+
 \subsubsection{Cramér-IPM Attack}
-\paragraph{Introduction}
+\paragraph{Introduction}\leavevmode\\
 The Cramér Integral Probability Metric (IPM) attack is an advanced adversarial method designed to generate robust adversarial audio signals for automatic speech recognition (ASR) systems,\cite{esmaeilpour2021towards}. By leveraging the Cramér-IPM, this attack minimizes the discrepancy between the distributions of original and adversarial audio samples, ensuring the adversarial signals remain close to the legitimate speech manifold. Unlike traditional attacks like FGSM or PGD, the Cramér-IPM approach combines the Connectionist Temporal Classification (CTC) loss with a statistical distance metric, enhancing robustness against over-the-air playback without relying on costly Expectation Over Transformation (EOT) operations \cite{esmaeilpour2021towards}. This method optimizes perturbations to maximize transcription errors while maintaining perceptual similarity, making it effective for both targeted and non-targeted attacks.
 
-\paragraph{Methodology}
+\paragraph{Methodology}\leavevmode\\
 The Cramer-IPM Attack algorithm works with the following components:
 
 \begin{enumerate}
@@ -248,8 +322,9 @@ The Cramer-IPM Attack algorithm works with the following components:
 \end{enumerate}
 
 
-\paragraph{Results}
-The evaluation was conducted over 100 samples from the LibriSpeech test dataset. The results are in Table~\ref{cramer_ipm_results}
+\paragraph{Results}\leavevmode\\
+The evaluation was conducted over 100 samples from the LibriSpeech test dataset. The results are in Table~\ref{cramer_ipm_results}. In this attack, the tested epsilon values in the previous attacks had a little lower SNR than usual so we decided to test smaller epsilon values as well.
+
 
 Original CER: 0.9\%  - Original WER: 2.84\%
 \begin{table}[H]
@@ -272,6 +347,7 @@ $\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta
 \end{table}
 
 \subsection{Black Box Attacks}
+\subsubsection{Black Box Transfer Attacks Between same model Variants}
 
 \section{Defenses}
 \subsection{Randomized Smoothing}
@@ -696,4 +772,10 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 \end{tabular}
 \end{table}
 
+
+
+\ifSubfilesClassLoaded{
+  \bibliographystyle{unsrt}
+  \bibliography{references}
+}{}
 \end{document}

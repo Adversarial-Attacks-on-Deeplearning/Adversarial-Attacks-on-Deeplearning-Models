@@ -12,6 +12,7 @@ This directory contains the code for various computer vision-based adversarial a
 6. **DeepFool** - DeepFool Attack
 7. **SparseFool** - SparseFool Attack
 8. **HopSkip** - HopSkipJump Attack
+9. **Simba**-Simble BlackBox Attack
 ---
 
 ## **FGSM - Fast Gradient Sign Method**

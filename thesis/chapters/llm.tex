@@ -34,8 +34,28 @@ Shen et al., 2024. \cite{shen2024rapidoptimizationjailbreakingllms} introduces R
 Sadasivan et al., 2024. \cite{sadasivan2024fastadversarialattackslanguage}introduces a novel class of fast, beam search-based and gradient-free targeted adversarial attack (BEAST) for Language Models (LMs). BEAST employs interpretable parameters, enabling attackers to balance between attack speed, success rate, and the readability of adversarial prompts. The computational efficiency of BEAST facilitates investigating its applications on LMs for jailbreaking, eliciting hallucinations, and privacy attacks. 
 
 Wang et al., 2024. \cite{wang2024asetfnovelmethodjailbreak}proposes an Adversarial Suffixes Embedding Translation Framework (ASETF) that is able to translate the unreadable adversarial suffixes into coherent, readable text, which makes it easier to understand and analyze the reasons behind harmful content generation by large language models.
-%( ; Huang et al., 2023) 
-%% Black Box PI cite: 2023arXiv230605499L
+
+Huang et al., 2023. \cite{huang2023catastrophicjailbreakopensourcellms} exploit the fact that safety alignment in LLMs is often tested only under default generation settings (e.g., fixed temperature, top-pp sampling). By tweaking these configurations—such as removing system prompts or varying decoding hyperparameters—the attack induces misaligned (harmful) outputs without crafting adversarial prompts.
+
+\subsection{Prompt Injection attacks}
+
+Unlike traditional ML attacks requiring complex optimization, \emph{Promp Injection (PI)} exploits the natural-language interface of LLMs. Even in black-box settings with safety mitigations, attackers can bypass content restrictions or expose hidden system prompts. A more insidious variant, \emph{indirect prompt injection}, occurs when adversarial prompts are embedded into external data (e.g., retrieved documents or web pages). When ingested during inference, these prompts hijack the model’s behavior, enabling remote control, data theft, or disinformation campaigns. \cite{greshake2023youvesignedforcompromising} 
+
+Kai Greshake., 2023. \cite{greshake2023youvesignedforcompromising} introduce \emph{Indirect Prompt Injection (IPI)}, a novel attack vector targeting LLM-integrated applications where adversaries inject malicious prompts into retrieved data (e.g., websites, emails), bypassing direct user interaction. This work is pivotal in exposing how the conflation of \emph{data} and \emph{instructions} in retrieval-augmented LLMs creates exploitable security boundaries.
+
+The authors systematically classify IPI threats into six categories:
+\begin{itemize}
+    \item \textbf{Information Gathering} (e.g., exfiltrating user data via persuasive chat interactions)
+    \item \textbf{Fraud} (e.g., generating phishing links with markdown obfuscation).
+    \item \textbf{Intrusion} (e.g., persistent backdoors via memory poisoning)
+    \item \textbf{Malware} (e.g., self-replicating "AI worms" in email assistants).
+    \item \textbf{Manipulated Content} (e.g., politically biased summaries or fabricated citations).
+    \item \textbf{Availability Attacks} (e.g., disrupting search functionality via homoglyph injections).
+\end{itemize}
+
+This work aligns with broader concerns in LLM security and tool-augmented risks, but uniquely addresses the \emph{remote} and \emph{autonomous} nature of IPI. It underscores the urgency of rethinking LLM-integrated system design, particularly as applications increasingly interact with untrusted data sources.
+
+Fábio Perez, Ian Ribeiro., 2022. \cite{perez2022ignorepreviouspromptattack} investigate two types of attacks: \emph{Goal hijacking}---the subversion of a model's original instruction to produce attacker-specified output---and \emph{prompt leaking}---the redirection of model behavior to disclose its original system prompt, either partially or in full---represent two fundamental classes of prompt injection attacks.
 
 \section{Attacks}
 \subsection{White Box Attacks}

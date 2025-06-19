@@ -89,7 +89,7 @@ Compared to the undefended DeepSpeech 2 and Espresso Transformer models in~\cite
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_01.png} % Replace with the actual path to your image file
-    \caption{FGSM $\epsilon = 0.01$ Example showing the original, adversarial, and difference images.}
+    \caption{FGSM $\epsilon = 0.01$ Example showing the original, adversarial, and difference spectrograms.}
     \label{fig:fgsm01_example_wav}
 \end{figure}
 
@@ -99,7 +99,7 @@ At $\epsilon = 0.01$ Figure~\ref{fig:fgsm01_example_wav}, the adversarial spectr
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_02.png} % Replace with the actual path to your image file
-    \caption{FGSM $\epsilon = 0.02$ Example showing the original, adversarial, and difference images.}
+    \caption{FGSM $\epsilon = 0.02$ Example showing the original, adversarial, and difference spectrograms.}
     \label{fig:fgsm02_example_wav}
 \end{figure}
 Increasing the epsilon to $\epsilon = 0.02$ in Figure~\ref{fig:fgsm02_example_wav}, the adversarial audio remains perceptually identical to the original. The noise spectrogram shows a slight increase in energy but retains its targeted structure, concentrating on the same time-frequency regions as the original speech.
@@ -107,7 +107,7 @@ Increasing the epsilon to $\epsilon = 0.02$ in Figure~\ref{fig:fgsm02_example_wa
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_05.png} % Replace with the actual path to your image file
-    \caption{FGSM $\epsilon = 0.05$ Example showing the original, adversarial, and difference images.}
+    \caption{FGSM $\epsilon = 0.05$ Example showing the original, adversarial, and difference spectrograms.}
     \label{fig:fgsm05_example_wav}
 \end{figure}
 At $\epsilon = 0.05$ in Figure~\ref{fig:fgsm05_example_wav}, the noise energy becomes more prominent in the difference spectrogram. While the main formants of the speech are still perfectly clear in the adversarial example, the perturbation is now strong enough to significantly mislead the model, nearly doubling the WER compared to the original.
@@ -115,7 +115,7 @@ At $\epsilon = 0.05$ in Figure~\ref{fig:fgsm05_example_wav}, the noise energy be
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_1.png} % Replace with the actual path to your image file
-    \caption{FGSM $\epsilon = 0.1$ Example showing the original, adversarial, and difference images.}
+    \caption{FGSM $\epsilon = 0.1$ Example showing the original, adversarial, and difference spectrograms.}
     \label{fig:fgsm1_example_wav}
 \end{figure}
 With $\epsilon = 0.1$ in Figure~\ref{fig:fgsm1_example_wav}, the adversarial noise is more visible and structured. The attack now introduces enough distortion to degrade the SNR to 17.56 dB, causing a substantial increase in transcription errors, as reflected by the A-WER of 9.68%.
@@ -123,7 +123,7 @@ With $\epsilon = 0.1$ in Figure~\ref{fig:fgsm1_example_wav}, the adversarial noi
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/fgsm_2.png} % Replace with the actual path to your image file
-    \caption{FGSM $\epsilon = 0.2$ Example showing the original, adversarial, and difference images.}
+    \caption{FGSM $\epsilon = 0.2$ Example showing the original, adversarial, and difference spectrograms.}
     \label{fig:fgsm2_example_wav}
 \end{figure}
 
@@ -193,7 +193,7 @@ The following figures provide a visual analysis of this trend by showing the spe
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/pgd_01.png} % Replace with the actual path to your image file
-    \caption{PGD $\epsilon = 0.01$ Example showing the original, adversarial, and difference images.}
+    \caption{PGD $\epsilon = 0.01$ Example showing the original, adversarial, and difference spectrograms.}
     \label{fig:pgd_01_example_wav}
 \end{figure}
 
@@ -201,7 +201,7 @@ The following figures provide a visual analysis of this trend by showing the spe
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/pgd_02.png} % Replace with the actual path to your image file
-    \caption{PGD $\epsilon = 0.02$ Example showing the original, adversarial, and difference images.}
+    \caption{PGD $\epsilon = 0.02$ Example showing the original, adversarial, and difference spectrograms.}
     \label{fig:pgd02_example_wav}
 \end{figure}
 
@@ -209,25 +209,25 @@ The following figures provide a visual analysis of this trend by showing the spe
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/pgd_05.png} % Replace with the actual path to your image file
-    \caption{PGD $\epsilon = 0.05$ Example showing the original, adversarial, and difference images.}
+    \caption{PGD $\epsilon = 0.05$ Example showing the original, adversarial, and difference spectrograms.}
     \label{fig:pgd05_example_wav}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/pgd_1.png} % Replace with the actual path to your image file
-    \caption{PGD $\epsilon = 0.1$ Example showing the original, adversarial, and difference images.}
+    \caption{PGD $\epsilon = 0.1$ Example showing the original, adversarial, and difference spectrograms.}
     \label{fig:pgd1_example_wav}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/LM/ASR/pgd_2.png} % Replace with the actual path to your image file
-    \caption{PGD $\epsilon = 0.2$ Example showing the original, adversarial, and difference images.}
+    \caption{PGD $\epsilon = 0.2$ Example showing the original, adversarial, and difference spectrograms.}
     \label{fig:pgd2_example_wav}
 \end{figure}
 
-Figures~\ref{fig:pgd_01_example_wav},~\ref{fig:pgd02_example_wav},~\ref{fig:pgd05_example_wav},~\ref{fig:pgd1_example_wav}and ~\ref{fig:pgd2_example_wav} and table~\ref{pgd_wav2vec2}. exhibit a trend similar to that observed in FGSM results~\ref{fgsm_asr_results}.
+Figures~\ref{fig:pgd_01_example_wav}--~\ref{fig:pgd2_example_wav} and table~\ref{pgd_wav2vec2}. exhibit a trend similar to that observed in FGSM results~\ref{fgsm_asr_results}.
 Lower $\epsilon$ values causes impredictable distortion and the original and adversarial spectrograms are almost identical, and as the $\epsilon$ increases the distortion increases but the attack performs better. 
 
 
@@ -325,29 +325,294 @@ The Cramer-IPM Attack algorithm works with the following components:
 \paragraph{Results}\leavevmode\\
 The evaluation was conducted over 100 samples from the LibriSpeech test dataset. The results are in Table~\ref{cramer_ipm_results}. In this attack, the tested epsilon values in the previous attacks had a little lower SNR than usual so we decided to test smaller epsilon values as well.
 
+% Original CER and WER
+Original CER: \SI{0.9}{\percent} -- Original WER: \SI{2.84}{\percent}
 
-Original CER: 0.9\%  - Original WER: 2.84\%
+% Table with corrected Delta CER and Delta WER
 \begin{table}[H]
-\caption{Attack Effectiveness of Cramer-IPM}
+\caption{Attack Effectiveness of Cramér-IPM}
 \centering
 \label{cramer_ipm_results}
-\begin{tabular}{@{\hspace{0.3cm}}cS[table-format=1.3]S[table-format=1.3]S[table-format=2.2]S[table-format=1.2]S[table-format=1.2]@{\hspace{0.3cm}}}
+\begin{tabular}{@{\hspace{0.3cm}}cS[table-format=2.1]S[table-format=2.1]S[table-format=2.2]S[table-format=2.1]S[table-format=2.2]@{\hspace{0.3cm}}}
 \toprule
-$\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER} \\
+$\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER (\%)} & {$\Delta$WER (\%)} \\
 \midrule
-0.001 & 20.5 & 26.1 & 18.39 & -0.72 & -2.50 \\
-0.005 & 18.8 & 32.1 & 16.17 & -0.51 & -2.26 \\
-0.010 & 40.8 & 59.6 & 14.27 & -0.30 & -2.01 \\
-0.020 & 61.8 & 81.1 & 12.08 & -0.17 & -1.92 \\
-0.050 & 93.4 & 99.0 & 9.42 & -0.04 & -1.85 \\
-0.100 & 95.5 & 98.9 & 8.19 & 0.04 & -1.84 \\
-0.200 & 92.9 & 98.4 & 8.05 & 0.06 & -1.82 \\
+0.001 & 20.5 & 26.1 & 18.39 & 19.6 & 23.26 \\
+0.005 & 18.8 & 32.1 & 16.17 & 17.9 & 29.26 \\
+0.010 & 40.8 & 59.6 & 14.27 & 39.9 & 56.76 \\
+0.020 & 61.8 & 81.1 & 12.08 & 60.9 & 78.26 \\
+0.050 & 93.4 & 99.0 & 9.42 & 92.5 & 96.16 \\
+0.100 & 95.5 & 98.9 & 8.19 & 94.6 & 96.06 \\
+0.200 & 92.9 & 98.4 & 8.05 & 92.0 & 95.56 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
+
+The results~\ref{cramer_ipm_results}, obtained using the Transformer-based Wav2Vec2 model, demonstrate that the Cram\'er-IPM attack is highly effective across a range of $\epsilon$ values, achieving up to \SI{99}{\percent} word error rate (WER) and \SI{93.4}{\percent} character error rate (CER) at higher perturbations, and also delivering strong performance at lower $\epsilon$ values with significant error rate increases. These results surpass those reported in~\cite{esmaeilpour2021towards}, which targeted the DeepSpeech model and achieved an average WER of \SI{88.19}{\percent} under similar attack conditions. However, this enhanced attack effectiveness in our experiments comes at the cost of reduced audio quality at higher $\epsilon$, as indicated by lower signal-to-noise ratios (SNR). In contrast, the paper maintained a higher segmental SNR (\SI{18.88}{\decibel}) while achieving robust attack performance, suggesting a better balance between attack success and signal quality. Additionally, the original paper assessed robustness to over-the-air playback, demonstrating resilience through multiple consecutive playbacks, a factor not evaluated in our current digital-domain experiments. Overall, while our results highlight the vulnerability of the Wav2Vec2 model to Cram\'er-IPM attacks across both low and high perturbation levels, the DeepSpeech model in the paper achieved a more favorable trade-off between attack effectiveness and audio quality.
+
+
+The following figures provide a visual analysis of this trend by showing the spectrogram of a single representative audio sample after being subjected to the attack at each epsilon level.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/C1.png} % Replace with the actual path to your image file
+    \caption{Cram\'er-IPM $\epsilon = 0.001$ Example showing the original, adversarial, and difference spectrograms.}
+    \label{fig:c_001_example_wav}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/C2.png} % Replace with the actual path to your image file
+    \caption{Cram\'er-IPM $\epsilon = 0.005$ Example showing the original, adversarial, and difference spectrograms.}
+    \label{fig:c_005_example_wav}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/C3.png} % Replace with the actual path to your image file
+    \caption{Cram\'er-IPM $\epsilon = 0.01$ Example showing the original, adversarial, and difference spectrograms.}
+    \label{fig:c_01_example_wav}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/C4.png} % Replace with the actual path to your image file
+    \caption{Cram\'er-IPM $\epsilon = 0.02$ Example showing the original, adversarial, and difference spectrograms.}
+    \label{fig:c02_example_wav}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/C5.png} % Replace with the actual path to your image file
+    \caption{Cram\'er-IPM $\epsilon = 0.05$ Example showing the original, adversarial, and difference spectrograms.}
+    \label{fig:c05_example_wav}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/C6.png} % Replace with the actual path to your image file
+    \caption{Cram\'er-IPM $\epsilon = 0.1$ Example showing the original, adversarial, and difference spectrograms.}
+    \label{fig:c1_example_wav}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/LM/ASR/C7.png} % Replace with the actual path to your image file
+    \caption{Cram\'er-IPM $\epsilon = 0.2$ Example showing the original, adversarial, and difference spectrograms.}
+    \label{fig:c2_example_wav}
+\end{figure}
+
+
+Figures~\ref{fig:c_001_example_wav}--\ref{fig:c2_example_wav} presents that at lower $\epsilon$ (e.g., $\epsilon=0.001$ and $0.005$), the difference spectrograms reveal that the adversarial noise is highly concentrated in specific time-frequency regions, particularly where the original signal exhibits higher energy. This concentration suggests that the attack applies correctly  acoustic masking, embedding perturbations where they are less perceptible. As $\epsilon$ increases (e.g., $\epsilon=0.01$ and $0.02$), the perturbations become more distributed across the spectrogram, covering a broader range of both time and frequency. This reflects the attack's shift from prioritizing imperceptibility at low $\epsilon$ to maximizing effectiveness at higher $\epsilon$, albeit with a greater risk of perceptibility. In particular, in all settings, the original and adversarial spectrograms remain visually similar, indicating that the attack maintains a high degree of stealth, especially at moderate $\epsilon$ values. These visual trends align with the theoretical expectations of the Cramér-IPM attack\cite{esmaeilpour2021towards}, which aims to minimize perceptual differences while still achieving high attack success rates. And also Algins with the trends in Figures ~\ref{fig:pgd_01_example_wav}--~\ref{fig:pgd2_example_wav} and ~\ref{fig:fgsm01_example_wav}--~\ref{fig:fgsm2_example_wav}
+
+
+\subsubsection{Imperceptible, Robust, and Targeted Attack}
+\paragraph{Introduction}\leavevmode\\
+
+
+\paragraph{Methodology}
+The Imperceptible, Robust, and Targeted Attack algorithm works with the following components:
+\begin{enumerate}
+    \item \textbf{Compute Masking Threshold:} This algorithm calculates the masking threshold for the original audio, which is used in Stage 2 to ensure the perturbation remains imperceptible.
+    \begin{breakablealgorithm}{Compute Masking Threshold}
+\begin{algorithmic}[1]
+\Require
+    \State $x \in \mathbb{R}^{T}$: audio signal
+    \State $fs$: sampling rate
+    \State $N$: FFT size
+    \State $hop$: hop length
+\Ensure $\theta_x \in \mathbb{R}^{\text{num\_frames} \times \text{num\_bins}}$: masking threshold
+\State Compute STFT: $\text{stft} \gets \text{librosa.stft}(x, n_{\text{fft}}=N, \text{hop\_length}=hop)$
+\State Compute magnitude squared: $\text{mag\_sq} \gets |\text{stft}|^2 / N$
+\State Compute PSD: $p_x \gets 10 \log_{10}(\text{mag\_sq} + 10^{-10})$
+\State Get frequencies: $\text{freqs} \gets \text{np.fft.rfftfreq}(N, d=1/fs)$
+\State Compute Bark scale: $\text{bark} \gets \text{freq\_to\_bark}(\text{freqs})$
+\State Compute threshold in quiet: $\text{TIQ} \gets \text{threshold\_in\_quiet}(\text{freqs})$
+\State Initialize $\theta_x \gets 0 \in \mathbb{R}^{\text{num\_frames} \times \text{num\_bins}}$
+\For{each frame $t$ in 1 to num\_frames}
+    \State Get PSD for frame: $p \gets p_x[:, t]$
+    \State Find peaks: $\text{peaks} \gets \text{find\_peaks}(p)$
+    \State Identify maskers: $\text{maskers} \gets \{k \in \text{peaks} \mid p[k] > \text{TIQ}[k] \text{ and } p[k] = \max(p[\text{neighborhood}])\}$
+    \For{each frequency bin $k$ in 1 to num\_bins}
+        \State Initialize $\text{sum\_mask} \gets 0$
+        \For{each masker $k_m$ in maskers}
+            \State Compute $\Delta \text{bark} \gets |\text{bark}[k] - \text{bark}[k_m]|$
+            \If{$\text{bark}[k] < \text{bark}[k_m]$}
+                \State Set $s \gets 27$
+            \Else
+                \State Set $s \gets 24 - 0.2 \cdot p[k_m]$
+            \EndIf
+            \State Compute masking: $M_{m,k} \gets p[k_m] - s \cdot \Delta \text{bark}$
+            \State Update $\text{sum\_mask} \gets \text{sum\_mask} + 10^{M_{m,k} / 10}$
+        \EndFor
+        \State Set $\theta_x[t, k] \gets 10 \log_{10}(10^{\text{TIQ}[k] / 10} + \text{sum\_mask})$
+    \EndFor
+\EndFor
+\State \Return $\theta_x$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\item \textbf{Stage 1 - Initial Adversarial Attack:} This algorithm generates an initial perturbation to force the ASR model to transcribe the target text, using CTC loss optimization with an adaptive epsilon constraint.
+
+\begin{breakablealgorithm}{Stage 1: Initial Adversarial Attack}
+\begin{algorithmic}[1]
+\Require
+    \State $x \in \mathbb{R}^{T}$: original audio waveform
+    \State $y_t$: target transcription
+    \State $model$: Wav2Vec2 ASR model
+    \State $processor$: Wav2Vec2 processor
+    \State $\epsilon_{Max} > 0$: maximum perturbation magnitude
+    \State $\epsilon_{Min} > 0$: minimum perturbation magnitude
+    \State $\eta > 0$: initial learning rate
+    \State $n > 0$: maximum number of iterations
+    \State $earlyStop$: flag for early stopping
+\Ensure $\delta \in \mathbb{R}^{T}$: initial adversarial perturbation
+\State Initialize perturbation: $\delta \gets 0$
+\State Encode target: $y_t \gets \text{processor.textToTokens}(y_t)$
+\State Initialize $\epsilon \gets \epsilon_{Max}$
+\State Initialize bestLoss $\gets \infty$, bestDelta $\gets \text{None}$, successIter $\gets -1$
+\For{$i \gets 1$ to $n$}
+    \State Compute adversarial input: $xAdv \gets x + \delta$
+    \State Get logits: $\text{logits} \gets \text{model}(xAdv)$
+    \State Compute log probabilities: $\text{logProbs} \gets \text{logSoftmax}(\text{logits}, \text{dim}=-1)$
+    \State Set input lengths: $\text{inputLengths} \gets [\text{logProbs.size}(1)]$
+    \State Compute CTC loss: $l \gets \text{criterion}(\text{logProbs}^T, y_t, \text{inputLengths}, [|y_t|])$
+    \State Record loss history
+    \State Backpropagate: $\text{opt.zeroGrad}()$; $l.\text{backward}()$
+    \State Update $\delta$: $\text{opt.step}()$
+    \State Project $\delta$: $\delta \gets \text{clip}(\delta, -\epsilon, \epsilon)$
+    \State Decode output: $\text{transcription} \gets \text{ctcDecode}(\text{logits}, \text{processor})$
+    \If{$\text{transcription.lower().strip()} = y_t.\text{lower().strip()}$}
+        \If{$l < \text{bestLoss}$}
+            \State Update bestLoss and bestDelta
+        \EndIf
+        \If{successIter = -1}
+            \State Set successIter $\gets i$
+        \EndIf
+        \If{$earlyStop$ and $i > \text{successIter} + 50$}
+            \State Break
+        \EndIf
+    \ElsIf{$i > 200$ and $l > \text{average of last 20 losses}$}
+        \State Increase $\epsilon$: $\epsilon \gets \min(\epsilon \cdot 1.05, \epsilon_{Max})$
+    \EndIf
+    \State Update learning rate: $\text{lrScheduler.step}()$
+    \State Decrease $\epsilon$: $\epsilon \gets \max(\epsilon \cdot 0.98, \epsilon_{min})$
+\EndFor
+\If{bestDelta is not None}
+    \State Set $\delta \gets \text{bestDelta}$
+\EndIf
+\State \Return $\delta$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\item \textbf{Stage 2 - Imperceptible Refinement:} This algorithm refines the initial perturbation from Stage 1 to ensure it stays below the masking threshold, balancing CTC loss and psychoacoustic loss.
+
+\begin{breakablealgorithm}{Stage 2: Imperceptible Refinement}
+\begin{algorithmic}[1]
+\Require
+    \State $x \in \mathbb{R}^{T}$: preprocessed original audio
+    \State $\delta_{init} \in \mathbb{R}^{T}$: initial perturbation from Stage 1
+    \State $y_t$: target transcription tokens
+    \State $model$: Wav2Vec2 ASR model
+    \State $processor$: Wav2Vec2 processor
+    \State $\alpha > 0$: initial weight for psychoacoustic loss
+    \State $\eta > 0$: learning rate
+    \State $n > 0$: maximum number of iterations
+    \State $nFft$, $hopLength$, $fs$: parameters for STFT
+\Ensure $\delta \in \mathbb{R}^{T}$: refined imperceptible perturbation
+\State Compute masking threshold: $\theta_x \gets \text{computeMaskingThreshold}(x, fs, nFft, hopLength)$
+\State Initialize perturbation: $\delta \gets \delta_{init}$
+\State Set CTC loss: $\text{criterion} \gets \text{ctcLoss}(\text{blank}=\text{padToken})$
+\State Set optimizer: $\text{opt} \gets \text{adam}(\{\delta\}, \eta)$
+\State Initialize successCount $\gets 0$
+\For{$i \gets 1$ to $n$}
+    \State Compute adversarial input: $xAdv \gets x + \delta$
+    \State Get logits: $\text{logits} \gets \text{model}(xAdv)$
+    \State Compute log probabilities: $\text{logProbs} \gets \text{logSoftmax}(\text{logits}, \text{dim}=-1)$
+    \State Set input lengths: $\text{inputLengths} \gets [\text{logProbs.size}(1)]$
+    \State Compute CTC loss: $lNet \gets \text{criterion}(\text{logProbs}^T, y_t, \text{inputLengths}, [|y_t|])$
+    \State Compute STFT of perturbation: $\text{deltaStft} \gets \text{stft}(\delta, nFft, hopLength)$
+    \State Compute PSD: $pDelta \gets 10 \log_{10}(|\text{deltaStft}|^2 / nFft + 10^{-10})$
+    \State Compute STFT of original: $\text{xStft} \gets \text{stft}(x, nFft, hopLength)$
+    \State Compute PSD: $p_x \gets 10 \log_{10}(|\text{xStft}|^2 / nFft + 10^{-10})$
+    \State Normalize $pDelta$: $pDeltaNorm \gets 96 - \max(p_x) + pDelta$
+    \State Compute psychoacoustic loss: $lPsd \gets \text{mean}(\max(pDeltaNorm - \theta_x^T, 0))$
+    \State Compute total loss: $l \gets lNet + \alpha \cdot lPsd$
+    \State Backpropagate: $\text{opt.zeroGrad}()$; $l.\text{backward}()$
+    \State Update $\delta$: $\text{opt.step}()$
+    \State Decode output: $\text{transcription} \gets \text{processor.batchDecode}(\text{argmax}(\text{logits}))[0]$
+    \If{$\text{transcription.lower().strip()} = \text{targetText.lower().strip()}$}
+        \State Increment successCount
+        \If{$i \mod 20 = 0$ and successCount > 5}
+            \State Increase $\alpha$: $\alpha \gets \alpha \cdot 1.1$
+        \EndIf
+    \Else
+        \If{$i \mod 50 = 0$ and $i > 0$}
+            \State Decrease $\alpha$: $\alpha \gets \alpha / 1.1$
+        \EndIf
+    \EndIf
+\EndFor
+\State \Return $\delta$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\end{enumerate}
+
+\paragraph{Results}\leavevmode\\
+The Table~\ref{Im_table} summarizes the performance metrics of my Imperceptible, Robust, and Targeted Attack implementation in Stage 1 and Stage 2.
+
+\begin{table}[h]
+\centering
+\caption{Performance Metrics of My Adversarial Attack Implementation}
+\label{Im_table}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Stage} & \textbf{WER (\%)} & \textbf{CER (\%)} & \textbf{SNR (dB)} \\
+\midrule
+Stage 1 & \SI{75.88}{\percent} & \SI{200.61}{\percent} & \SI{40.48}{\decibel} \\
+Stage 2 & \SI{1.00}{\percent} & \SI{1.00}{\percent} & \SI{30.39}{\decibel} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+In Stage 1, my method achieved a word error rate (WER) of \SI{75.88}{\percent}, a character error rate (CER) of \SI{200.61}{\percent}, and a signal-to-noise ratio (SNR) of \SI{40.48}{\decibel}. In contrast, The results reported by Qin et al. (2019)~\cite{qin2019imperceptible} is \SI{100}{\percent} attack success rate in this stage, with SNR values in a similar range. This discrepancy indicates that while my implementation produces low-magnitude perturbations (as reflected in the high SNR), it is less effective in forcing the automatic speech recognition (ASR) system to output the exact target transcription due to differences in model architecture as the model used in\cite{qin2019imperceptible} is Lingvo while it is LTSM-based model. In Stage 2, after applying psychoacoustic masking constraints, my attack achieved a WER of \SI{1.00}{\percent}, CER of \SI{1.00}{\percent}, and SNR of \SI{30.39}{\decibel}. These results closely approach those of the original paper, which also reports a \SI{100}{\percent} success rate and SNR values around \SIrange{29}{34}{\decibel} for imperceptible adversarial examples.
+
+The following figures provide a visual analysis of stage 1 and stage 2.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{images/LM/ASR/im_s1.png} % Replace with the actual path to your image file
+    \caption{Imperceptible, Robust, and Targeted Attack Stage 1 Example showing the original, adversarial, and difference spectrograms.}
+    \label{fig:im_s1_example_wav}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{images/LM/ASR/im_s2.png} % Replace with the actual path to your image file
+    \caption{Imperceptible, Robust, and Targeted Attack Stage 2 Example showing the original, adversarial, and difference spectrograms.}
+    \label{fig:im_s2_example_wav}
+\end{figure}
+
+The spectrograms in Figures~\ref{fig:im_s1_example_wav} and~\ref{fig:im_s2_example_wav} visually demonstrate the transformation achieved through psychoacoustic masking between Stage 1 and Stage 2 of the adversarial attack. In Stage 1, the noise spectrogram exhibits broad-spectrum perturbations distributed uniformly across the entire frequency range (\SIrange{0}{8000}{\hertz}), reflecting an unconstrained approach that prioritizes attack effectiveness over perceptual considerations, resulting in a high WER of \SI{75.88}{\percent} and SNR of \SI{40.48}{\decibel}. Stage 2 demonstrates frequency-selective and temporally-localized perturbations concentrated in spectral regions where they can be masked by the original audio content. This strategic redistribution of perturbation energy from perceptually salient regions to psychoacoustically masked spectral areas validates the effectiveness of the masking threshold implementation, achieving near-perfect attack success (\SI{1.00}{\percent} WER) while reducing perceptible noise. The visual evidence confirms that concentrated, psychoacoustically-informed perturbations are significantly more effective than broad-spectrum noise, demonstrating successful exploitation of human auditory masking principles to achieve both improved attack effectiveness and enhanced imperceptibility simultaneously.
+
+
+
 \subsection{Black Box Attacks}
-\subsubsection{Black Box Transfer Attacks Between same model Variants}
+\subsubsection{Black Box Transfer Attacks}
+\label{subsec:transfer_attacks}
+
+\paragraph{Introduction}\leavevmode\
+Black-box scenarios—where attackers lack direct access to the target model—pose a more realistic threat. Transfer attacks circumvent this limitation by crafting adversarial examples on a surrogate model and exploiting cross-model perturbation transferability\cite{gao2024transferable,olivier2023transferable}. In this study, the target model is consistently defined as \texttt{"facebook/wav2vec2-base-960h"}.
+
+We evaluate transferability across three model configurations:
+\begin{itemize}
+\item \textbf{Significantly smaller models} than the target architecture
+\item \textbf{Self-supervised pretrained variants} without fine-tuning
+\item \textbf{Architecturally distinct models} (e.g., HuBERT)
+\end{itemize}
+
+\paragraph{Significantly Smaller Surrogate Model}\leavevmode\\
+The surrogate model used for generating transferable adversarial examples is a distilled version of wav2vec2, specifically \texttt{distil-wav2vec2}. This model is significantly smaller than the target \texttt{wav2vec2-base-960h}, with fewer parameters and reduced computational complexity, making it an efficient choice for crafting adversarial perturbations in resource-constrained settings. Trained and evaluated on the LibriSpeech dataset, \texttt{distil-wav2vec2} retains robust speech recognition capabilities while offering a lightweight alternative for black-box attack generation. By leveraging this compact surrogate model, the transfer attacks aim to produce perturbations that generalize to the larger target model, testing the hypothesis that adversarial examples crafted on a smaller model can effectively compromise the robustness of a more complex ASR system.
 
 \section{Defenses}
 \subsection{Randomized Smoothing}

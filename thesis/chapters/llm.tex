@@ -128,7 +128,7 @@ To mitigate jailbreak attacks, researchers have proposed a variety of defense st
 \end{enumerate}
  For LLM defenses against Jailbreak Attacks , Here are the Defense evaluation metrics used:                         
 \begin{center}
-\begin{tabular}{|l|p{8cm}|}
+\begin{tabular}{l p{8cm}}
 \hline
 \textbf{Metric} & \textbf{Definition} \\
 \hline
@@ -220,8 +220,7 @@ After training, the model achieved 99.95\% accuracy on the training set and 98.5
 \paragraph{Multi-Stage APS Defense Pipeline}
 The final input filter system, illustrated in Figure~1, is described in Algorithm~\ref{alg:pipeline}.
 
-\begin{breakablealgorithm}
-\caption{Multi-Stage APS Defense Pipeline}
+\begin{breakablealgorithm}{Multi-Stage APS Defense Pipeline}
 \label{alg:pipeline}
 \begin{algorithmic}[1]
 \Require $x$: input prompt, $M_d$: Detoxify model, $M_c$: fine-tuned DistilBERT classifier, $M_t$: TinyLlama-1.1B model, $\lambda_t=0.6$: toxicity threshold, $\lambda_j=0.6$: jailbreak threshold, $\tau=512$: max tokens, $L=200$: max response length
@@ -277,7 +276,7 @@ These datasets provide a comprehensive benchmark to assess how well the input fi
 \setlength{\tabcolsep}{4pt} % Further reduce horizontal padding
 \renewcommand{\arraystretch}{0.8} % Tighten row spacing
 \caption{Jailbreak Attack Success Rate (ASR) and Detection Metrics Before and After Defense}
-\begin{tabular}{|p{2.5cm}|c|c|c|c|c|c|}
+\begin{tabular}{p{2.5cm} c c c c c c}
 \hline
 \textbf{Dataset} & \textbf{ASR Before (\%)} & \textbf{ASR After (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score} & \textbf{Improvement (\%)} \\
 \hline
@@ -295,7 +294,7 @@ As shown in Table 4.1; The defense pipeline demonstrates substantial effectivene
 \begin{table}[H]
 \centering
 \caption{Evaluation Results on Jailbreak Datasets before and after Defense}
-\begin{tabular}{|l|c|c|}
+\begin{tabular}{l c c}
 \hline
 \textbf{Dataset} & \textbf{ASR (\%)} & \textbf{Blocked (\%)} \\
 \hline
@@ -376,7 +375,7 @@ The LLM Self Defense system is a post-hoc output filtering mechanism designed to
 % Insert the image here to support the algorithm
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/LM/LLM/LLM_SELFDEFENSE.PNG} % Adjust file name and extension as needed
+    \includegraphics[width=0.8\textwidth]{images/LM/LLM/LLM Self defense Pipeline.PNG} % Adjust file name and extension as needed
    
     \caption{Workflow of the Self-Reflection LLM Self Defense mechanism for Aligned LLMs}
     \label{fig:llm_self_defense}
@@ -529,4 +528,9 @@ Weighted Avg & 0.96 & 0.96 & 0.96\\
     \item \textbf{TPR (Recall for Harmful)}: 0.98
     \item \textbf{FPR (False Positive Rate)}: 0.06
 \end{itemize}
+
+\ifSubfilesClassLoaded{
+  \bibliographystyle{unsrt}
+  \bibliography{references}
+}{}
 \end{document}

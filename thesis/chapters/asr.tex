@@ -571,7 +571,7 @@ The Table~\ref{Im_table} summarizes the performance metrics of my Imperceptible,
 \textbf{Stage} & \textbf{WER (\%)} & \textbf{CER (\%)} & \textbf{SNR (dB)} \\
 \midrule
 Stage 1 & \SI{75.88}{\percent} & \SI{200.61}{\percent} & \SI{40.48}{\decibel} \\
-Stage 2 & \SI{1.00}{\percent} & \SI{1.00}{\percent} & \SI{30.39}{\decibel} \\
+Stage 2 & \SI{100.00}{\percent} & \SI{100.00}{\percent} & \SI{30.39}{\decibel} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -597,22 +597,226 @@ The spectrograms in Figures~\ref{fig:im_s1_example_wav} and~\ref{fig:im_s2_examp
 
 
 
-\subsection{Black Box Attacks}
-\subsubsection{Black Box Transfer Attacks}
+\subsection{Black-Box Attacks}
+\subsubsection{Black-Box Transfer Attacks: Boundary Conditions and Limitations}
 \label{subsec:transfer_attacks}
 
-\paragraph{Introduction}\leavevmode\
-Black-box scenarios—where attackers lack direct access to the target model—pose a more realistic threat. Transfer attacks circumvent this limitation by crafting adversarial examples on a surrogate model and exploiting cross-model perturbation transferability\cite{gao2024transferable,olivier2023transferable}. In this study, the target model is consistently defined as \texttt{"facebook/wav2vec2-base-960h"}.
+\paragraph{Introduction}\leavevmode\\
+Black-box scenarios—where attackers lack direct access to the target model—pose a more realistic threat. Transfer attacks circumvent this limitation by crafting adversarial examples on a surrogate model and exploiting cross-model perturbation transferability~\cite{gao2024transferable,olivier2023transferable}. In this study, the target model is consistently defined as \texttt{facebook/wav2vec2-base-960h}.
 
-We evaluate transferability across three model configurations:
+We evaluate transferability under three key conditions:
 \begin{itemize}
-\item \textbf{Significantly smaller models} than the target architecture
-\item \textbf{Self-supervised pretrained variants} without fine-tuning
-\item \textbf{Architecturally distinct models} (e.g., HuBERT)
+\item \textbf{Capacity Reduction}: Distilled models (45\% smaller than target)
+\item \textbf{Training Divergence}: Architecturally identical but non-fine-tuned surrogates
+\item \textbf{Architectural/Objective Mismatch}: Differing SSL objectives (HuBERT vs wav2vec2)
 \end{itemize}
 
+Adversarial examples were crafted via dual perturbation Projected Gradient Descent (PGD)\cite{zhang2024bag} with perturbation magnitudes (\(\epsilon\)) ranging from \num{0.01} to \num{0.20}. Unlike standard PGD, which applies a single perturbation updated iteratively based on the gradient of the loss with respect to the input, dual PGD employs two complementary perturbations that learn from each other’s adversarial examples. This approach involves cross-loss computation, where each perturbation is updated using gradients derived from the other’s adversarial input, enhancing the robustness and diversity of the generated perturbations. The final adversarial example is a weighted combination of the two perturbations, with weights dynamically adjusted based on their respective loss values to optimize transferability\cite{zhang2024bag}. Key evaluation metrics include Character Error Rate (CER), Word Error Rate (WER), and Signal-to-Noise Ratio (SNR) to assess transcription degradation and audio quality.
+
+
 \paragraph{Significantly Smaller Surrogate Model}\leavevmode\\
-The surrogate model used for generating transferable adversarial examples is a distilled version of wav2vec2, specifically \texttt{distil-wav2vec2}. This model is significantly smaller than the target \texttt{wav2vec2-base-960h}, with fewer parameters and reduced computational complexity, making it an efficient choice for crafting adversarial perturbations in resource-constrained settings. Trained and evaluated on the LibriSpeech dataset, \texttt{distil-wav2vec2} retains robust speech recognition capabilities while offering a lightweight alternative for black-box attack generation. By leveraging this compact surrogate model, the transfer attacks aim to produce perturbations that generalize to the larger target model, testing the hypothesis that adversarial examples crafted on a smaller model can effectively compromise the robustness of a more complex ASR system.
+The surrogate model used for generating transferable adversarial examples is a distilled version of wav2vec2, specifically \texttt{distil-wav2vec2} with approximately \num{51900000} parameters. This model is significantly smaller than the target \texttt{wav2vec2-base-960h} (\num{94400000} parameters), representing a \SI{45}{\percent} reduction in model size while maintaining twice the inference speed. The substantial parameter reduction from \num{94400000} to \num{51900000} parameters, combined with reduced computational complexity, makes it an efficient choice for crafting adversarial perturbations in resource-constrained settings. Trained and evaluated on the LibriSpeech dataset, \texttt{distil-wav2vec2} retains robust speech recognition capabilities while offering a lightweight alternative for black-box attack generation. By leveraging this compact surrogate model with nearly half the parameters of the target model, the transfer attacks aim to produce perturbations that generalize to the larger target model, testing the hypothesis that adversarial examples crafted on a smaller model (\num{51900000} parameters) can effectively compromise the robustness of a more complex ASR system (\num{94400000} parameters).
+
+\subparagraph{Results}\leavevmode\\
+The following table summarizes the performance metrics.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Performance Metrics for Black-Box Transfer Attacks}
+\label{tab:transfer_asr1}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{cc@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]}
+\toprule
+{\textbf{\(\epsilon\)}} & {\textbf{\(\alpha\)}} & {\textbf{Tgt CER (\%)}} & {\textbf{Tgt WER (\%)}} & {\textbf{Surr CER (\%)}} & {\textbf{Surr WER (\%)}} & {\textbf{SNR (dB)}} \\
+\midrule
+0.01 & 0.001 & 1.04  & 3.23  & 30.42 & 53.58 & 40.25 \\
+0.02 & 0.002 & 1.68  & 6.24  & 30.85 & 67.53 & 34.71 \\
+0.05 & 0.005 & 11.97 & 25.64 & 61.80 & 92.50 & 27.29 \\
+0.10 & 0.01  & 29.66 & 59.09 & 62.86 & 89.62 & 21.55 \\
+0.20 & 0.02  & 49.07 & 79.03 & 74.55 & 96.93 & 15.76 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+From Table~\ref{tab:transfer_asr1} we find the following observations:
+\begin{itemize}
+\item \textbf{Increasing Attack Strength:} As the perturbation magnitude (\(\epsilon\)) and step size (\(\alpha\)) increase, both the target model’s Character Error Rate (CER) and Word Error Rate (WER) rise significantly. For example, the target WER increases from \SI{3.23}{\percent} at \(\epsilon=0.01\) to \SI{79.03}{\percent} at \(\epsilon=0.20\), indicating severe degradation in recognition performance at higher perturbation levels.
+\item \textbf{Surrogate vs. Target Model Vulnerability:} The surrogate model consistently exhibits higher CER and WER compared to the target model across all attack settings. This is expected, as adversarial examples are crafted directly on the surrogate, leading to substantial transcription errors, particularly at higher perturbations (e.g., Surr WER of \SI{96.93}{\percent} at \(\epsilon=0.20\)).
+\item \textbf{Transferability of Perturbations:} Despite the surrogate model’s elevated error rates, a significant adversarial effect transfers to the target model. At moderate perturbation levels (\(\epsilon=0.05\)), the target WER increases nearly eightfold compared to the lowest setting, demonstrating the effectiveness of transfer attacks in black-box scenarios.
+\end{itemize}
+
+These findings confirm that adversarial examples generated on a significantly smaller surrogate model can substantially compromise the robustness of a larger target ASR system in a black-box setting.
+
+\paragraph{Identical Architecture - Non-Fine-Tuned Surrogate Model}\leavevmode\\
+We evaluate transfer attacks using the \texttt{facebook/wav2vec2-base} model as a surrogate, which shares the identical \num{94400000} parameter architecture as the target model. The critical distinction lies in training: while the target model has been fine-tuned on 960 hours of LibriSpeech data, the surrogate retains only the original self-supervised pre-training without task-specific fine-tuning. This configuration tests whether architectural similarity alone enables adversarial transfer when the models diverge in optimization objectives. At \num{94400000} parameters matching the target’s capacity, this surrogate provides a controlled comparison to assess the impact of fine-tuning on vulnerability to transfer attacks.
+
+\subparagraph{Results}\leavevmode\\
+The following table summarizes the performance metrics.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Performance Metrics for Transfer Attacks with Identical Architecture Surrogate}
+\label{tab:transfer_asr2}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{cc@{\hskip 0.3cm}S[table-format=3.2]@{\hskip 0.3cm}S[table-format=3.2]@{\hskip 0.3cm}S[table-format=3.2]@{\hskip 0.3cm}S[table-format=3.2]@{\hskip 0.3cm}S[table-format=2.2]}
+\toprule
+{\textbf{\(\epsilon\)}} & {\textbf{\(\alpha\)}} & {\textbf{Tgt CER (\%)}} & {\textbf{Tgt WER (\%)}} & {\textbf{Surr CER (\%)}} & {\textbf{Surr WER (\%)}} & {\textbf{SNR (dB)}} \\
+\midrule
+0.01 & 0.001 & 1.03  & 3.56  & 214.65 & 100.00 & 45.37 \\
+0.02 & 0.002 & 1.14  & 4.03  & 192.30 & 100.00 & 39.83 \\
+0.05 & 0.005 & 1.8  & 4.5  & 152.15 & 100.00 & 32.25 \\
+0.10 & 0.01  & 3.32  & 8.50  & 236.25 & 100.00 & 26.63 \\
+0.20 & 0.02  & 3.17  & 9.04  & 219.09 & 100.00 & 20.92 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+From Table~\ref{tab:transfer_asr2} we find the following observations:
+\begin{itemize}
+\item \textbf{Surrogate Model Vulnerability:} The pre-trained-only surrogate suffers extreme vulnerability to adversarial attacks, with \SI{100}{\percent} WER across all perturbation levels. This indicates that without fine-tuning, the model lacks robustness against even minor perturbations (\(\epsilon=0.01\)).
+\item \textbf{Transferability to Fine-Tuned Target:} Despite significant performance degradation on the surrogate, the fine-tuned target model maintains relatively low error rates (WER \(\leq \SI{9.26}{\percent}\) even at \(\epsilon=0.20\)). This suggests that fine-tuning substantially enhances robustness against transferred perturbations.
+\item \textbf{Asymmetric Transfer Effect:} We observe a striking disconnect between surrogate vulnerability (CER \SIrange{152.94}{214.65}{\percent}) and target robustness (CER \SIrange{1.03}{3.82}{\percent}). This indicates that architectural similarity alone is insufficient for effective transfer when models differ in training objectives.
+\end{itemize}
+
+\paragraph{Adversarial Transfer Attacks Using Different Model Surrogates}\leavevmode\\
+\label{subsec:hubert_transfer_attacks}
+
+We evaluate black-box transfer attacks against the \textbf{target model} \texttt{facebook/wav2vec2-base-960h} (\num{94400000} parameters, fine-tuned) using two HuBERT-based surrogate models:
+\begin{enumerate}
+\item \textbf{HuBERT-Base-LS960}: \num{95000000} parameters, self-supervised pre-training only
+\item \textbf{HuBERT-Large-LS960-FT}: \num{300000000} parameters, fine-tuned on LibriSpeech
+\end{enumerate}
+
+\subparagraph{HuBERT-Base-LS960 (\num{95000000} Parameters) Results}\leavevmode\\
+\begin{table}[h]
+\centering
+\small
+\caption{Transfer Attack Results for HuBERT-Base-LS960 Surrogate}
+\label{tab:transfer_hubert_base}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{cc@{\hskip 0.3cm}S[table-format=3.2]@{\hskip 0.3cm}S[table-format=3.2]@{\hskip 0.3cm}S[table-format=3.2]@{\hskip 0.3cm}S[table-format=3.2]@{\hskip 0.3cm}S[table-format=2.2]}
+\toprule
+{\textbf{\(\epsilon\)}} & {\textbf{\(\alpha\)}} & {\textbf{Tgt CER (\%)}} & {\textbf{Tgt WER (\%)}} & {\textbf{Surr CER (\%)}} & {\textbf{Surr WER (\%)}} & {\textbf{SNR (dB)}} \\
+\midrule
+0.01 & 0.001 & 1.03  & 3.41  & 238.59 & 100.00 & 43.50 \\
+0.02 & 0.002 & 1.18  & 3.97  & 224.84 & 100.00 & 38.18 \\
+0.05 & 0.005 & 1.62  & 4.99  & 213.76 & 100.00 & 31.18 \\
+0.10 & 0.01  & 1.78  & 5.41  & 210.53 & 100.00 & 25.82 \\
+0.20 & 0.02  & 2.92  & 7.16  & 200.68 & 100.00 & 20.39 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subparagraph{HuBERT-Large-LS960-FT (\num{300000000} Parameters) Results}\leavevmode\\
+\begin{table}[h]
+\centering
+\small
+\caption{Transfer Attack Results for HuBERT-Large-LS960-FT Surrogate}
+\label{tab:transfer_hubert_large}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{cc@{\hskip 0.3cm}S[table-format=3.2]@{\hskip 0.3cm}S[table-format=3.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]}
+\toprule
+{\textbf{\(\epsilon\)}} & {\textbf{\(\alpha\)}} & {\textbf{Tgt CER (\%)}} & {\textbf{Tgt WER (\%)}} & {\textbf{Surr CER (\%)}} & {\textbf{Surr WER (\%)}} & {\textbf{SNR (dB)}} \\
+\midrule
+0.01 & 0.001 & 1.08  & 3.82  & 2.31  & 6.39  & 43.51 \\
+0.02 & 0.002 & 1.23  & 4.18  & 2.94  & 8.20  & 38.38 \\
+0.05 & 0.005 & 1.52  & 5.26  & 7.38  & 20.52 & 31.54 \\
+0.10 & 0.01  & 2.39  & 7.28  & 16.45 & 38.77 & 26.28 \\
+0.20 & 0.02  & 3.19  & 8.99  & 29.55 & 60.82 & 20.88 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+
+\subparagraph{Key Findings}\leavevmode\\
+\begin{itemize}
+\item \textbf{Cross-Architecture Transfer Failure}: Both HuBERT variants achieved 0\% transfer success despite parameter parity (Base) and fine-tuning (Large), revealing SSL objective mismatch as the primary barrier.
+\item \textbf{Target Robustness}: Max degradation ≤8.99\% WER even at $\epsilon$=0.20, significantly lower than distilled surrogate's 31.38\%.
+\item \textbf{Parameter Efficiency}: HuBERT-Base (95M) achieved comparable degradation to HuBERT-Large (300M), indicating diminishing returns from scaling.
+\end{itemize}
+
+
+\subparagraph{Critical Observations}\leavevmode\\
+\begin{enumerate}
+\item \textbf{Transfer Failure}: Both HuBERT variants achieved \SI{0}{\percent} transfer success despite:
+   \begin{itemize}
+   \item Base model’s parameter parity (\num{95000000} vs \num{94400000})
+   \item Large model’s fine-tuning advantage
+   \item Significant surrogate vulnerability
+   \end{itemize}
+\item \textbf{Robustness Factors}:
+   \begin{itemize}
+   \item \textbf{Fine-tuning Barrier}: Target’s task-specific optimization resisted transfers
+   \item \textbf{SSL Objective Mismatch}: HuBERT’s masked prediction vs wav2vec2’s contrastive loss
+   \item \textbf{Architectural Differences}: Transformer variations impeded perturbation transfer
+   \end{itemize}
+\item \textbf{Efficiency Comparison}:
+   \begin{table}[h]
+   \centering
+   \small
+   \caption{Comparison of HuBERT Surrogate Models}
+   \label{tab:hubert_comparison}
+   \resizebox{\textwidth}{!}{%
+   \begin{tabular}{l@{\hskip 0.3cm}S[table-format=3.0]@{\hskip 0.3cm}S[table-format=1.2]@{\hskip 0.3cm}S[table-format=1.2]@{\hskip 0.3cm}l}
+   \toprule
+   {\textbf{Model}} & {\textbf{Parameters}} & {\textbf{Max Tgt CER (\%)}} & {\textbf{Max Tgt WER (\%)}} & {\textbf{Surrogate Degradation}} \\
+   \midrule
+   HuBERT-Base-LS960  & 95000000 & 2.92 & 7.16 & {Extreme (CER \(>\)\SI{200}{\percent})} \\
+   HuBERT-Large-LS960-FT & 300000000 & 3.19 & 8.99 & {Moderate (CER \SI{29.55}{\percent})} \\
+   \bottomrule
+   \end{tabular}}
+   \end{table}
+\end{enumerate}
+
+\paragraph{Conclusion}\leavevmode\\
+\label{subsec:transfer_attacks_conclusion}
+The black-box transfer attack experiments reveal critical insights into the transferability of adversarial perturbations across diverse surrogate models targeting the \texttt{wav2vec2-base-960h} model (\num{94400000} parameters, fine-tuned) on the LibriSpeech dataset. The significantly smaller \texttt{distil-wav2vec2} (\num{51900000} parameters) achieved the highest target degradation (max WER \SI{31.38}{\percent} at \(\epsilon=0.20\)), demonstrating that compact models can effectively generate transferable perturbations despite reduced capacity. In contrast, the identical architecture \texttt{wav2vec2-base} (non-fine-tuned, \num{94400000} parameters) yielded minimal target impact (max WER \SI{9.26}{\percent}), underscoring the robustness induced by fine-tuning. The architecturally distinct HuBERT models (\texttt{HuBERT-Base-LS960} and \texttt{HuBERT-Large-LS960-FT}) exhibited even lower transfer success (max WER \SI{7.16}{\percent} and \SI{8.99}{\percent}, respectively), highlighting barriers due to self-supervised learning (SSL) objective mismatches and transformer variations. Across all configurations, SNR decreased with increasing perturbation magnitude (\(\epsilon\)), indicating a trade-off between attack effectiveness and audio quality. These findings emphasize that fine-tuning and architectural alignment are pivotal in mitigating transfer attacks, necessitating robust defense strategies for ASR systems in black-box scenarios~\cite{gao2024transferable,olivier2023transferable}. This work establishes that SSL pretraining enables transferability \textit{only} within architecturally homogeneous models (e.g., wav2vec2$\to$wav2vec2), while cross-architecture transfers (HuBERT$\to$wav2vec2) consistently fail due to:
+\begin{enumerate}
+\item SSL objective mismatch (masked prediction vs. contrastive learning)
+\item Divergent feature extraction mechanisms
+\item Fine-tuning induced robustness barriers
+\end{enumerate}
+These boundary conditions qualify universal transferability claims in prior literature.
+
+
+\begin{table}[h]
+\centering
+\small
+\caption{Summary of Black-Box Transfer Attack Performance at \(\epsilon=0.20\)}
+\label{tab:transfer_summary}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l@{\hskip 0.3cm}S[table-format=3.0]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}l@{\hskip 0.3cm}S[table-format=2.2]}
+\toprule
+{\textbf{Surrogate Model}} & {\textbf{Parameters}} & {\textbf{Max Tgt CER (\%)}} & {\textbf{Max Tgt WER (\%)}} & {\textbf{Surr Degradation}} & {\textbf{SNR (dB)}} \\
+\midrule
+distil-wav2vec2 & 51900000 & 49.07 & 79.03 & {High (CER \SI{74.55}{\percent})} & 15.76 \\
+wav2vec2-base & 94400000 & 3.82 & 9.26 & {Extreme (CER \SI{153.50}{\percent})} & 21.03 \\
+HuBERT-Base-LS960 & 95000000 & 2.92 & 7.16 & {Extreme (CER \(>\)\SI{200}{\percent})} & 20.39 \\
+HuBERT-Large-LS960-FT & 300000000 & 3.19 & 8.99 & {Moderate (CER \SI{29.55}{\percent})} & 20.88 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Reconciling Transferability Claims with Boundary Conditions}
+\label{tab:transfer_claims}
+\begin{tabular}{p{4.5cm}p{8.5cm}}
+\toprule
+{\textbf{Prior Work Claim}} & {\textbf{This Work’s Qualification}} \\
+\midrule
+{``SSL enables cross-model adversarial transfers''~\cite{olivier2023transferable}} & {Only valid for architecturally homogeneous models (e.g., wav2vec2\(\to\)wav2vec2)} \\
+{``Fine-tuning doesn’t mitigate transfer vulnerability''~\cite{abdullah2023demystifying}} & {Holds only when proxy/target share SSL objectives; fails for HuBERT\(\to\)wav2vec2} \\
+{``Larger models improve transferability''~\cite{gao2024transferable}} & {Parameter scaling less effective than architectural alignment: Distilled model (51.9M) outperformed HuBERT-Large (300M) by 3.5$\times$ WER degradation} \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 
 \section{Defenses}
 \subsection{Randomized Smoothing}

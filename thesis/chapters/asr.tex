@@ -1241,7 +1241,46 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 \end{tabular}
 \end{table}
 
+\subsection{Comprehensive Pipeline Evaluation}\noindent
+\label{subsec:pipeline_evaluation}
 
+Table~\ref{tab:pipeline_summary} summarizes the performance of various pipeline configurations for defending against PGD adversarial attack with $\epsilon = 0.1$ on the target model, evaluated using Character Error Rate (CER), Word Error Rate (WER), change in CER relative to the baseline (\(\Delta\)CER), and average processing time per sample.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Comprehensive Pipeline Evaluation Summary}
+\label{tab:pipeline_summary}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=1.4]}
+\toprule
+{\textbf{Pipeline Configuration}} & {\textbf{CER (\%)}} & {\textbf{WER (\%)}} & {\textbf{\(\Delta\)CER (\%)}} & {\textbf{\(\Delta\)WER (\%)}} & {\textbf{Avg Time (s)}} \\
+\midrule
+Baseline (No Defense) & 37.90 & 61.98 & 0.00 & 0.00 & 0.0663 \\
+SG & 2.84 & 7.01 & 35.06 & 54.97 & 0.2268 \\
+MP3 & 7.08 & 14.94 & 30.82 & 47.04 & 0.4710 \\
+Q & 14.70 & 29.96 & 23.20 & 32.02 & 0.0547 \\
+RS & 11.46 & 22.95 & 26.44 & 39.03 & 1.1155 \\
+SG \(\to\) MP3 & 2.79 & 6.95 & 35.11 & 55.03 & 0.5753 \\
+SG \(\to\) Q & 3.35 & 8.50 & 34.55 & 53.48 & 0.1425 \\
+MP3 \(\to\) Q & 7.53 & 17.43 & 30.37 & 44.55 & 0.4888 \\
+SG \(\to\) MP3 \(\to\) Q & 3.52 & 8.66 & 34.38 & 53.32 & 0.5816 \\
+SG \(\to\) RS & 16.87 & 27.27 & 21.03 & 34.71 & 1.1237 \\
+MP3 \(\to\) RS & 5.28 & 11.12 & 32.62 & 50.86 & 1.4871 \\
+Q \(\to\) RS & 6.56 & 14.22 & 31.34 & 47.76 & 1.0738 \\
+SG \(\to\) MP3 \(\to\) RS & 20.20 & 30.59 & 17.70 & 31.39 & 1.5576 \\
+SG \(\to\) Q \(\to\) RS & 17.25 & 27.22 & 20.65 & 34.76 & 1.1653 \\
+MP3 \(\to\) Q \(\to\) RS & 5.11 & 11.12 & 32.79 & 50.86 & 1.4704 \\
+SG \(\to\) MP3 \(\to\) Q \(\to\) RS & 19.76 & 30.11 & 18.14 & 31.87 & 1.5762 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+
+The results in Table~\ref{tab:pipeline_summary} provide a comprehensive comparison of various defense pipelines against PGD adversarial attacks on the target ASR model at \(\epsilon = 0.1\). Spectral Gating (SG) stands out as the most effective single-stage defense, reducing CER from \SI{37.90}{\percent} (no defense) to \SI{2.84}{\percent} with minimal latency. Combining SG with MP3 compression yields the lowest error rates overall (CER \SI{2.79}{\percent}, WER \SI{6.95}{\percent}), though at higher computational cost. Quantization (Q) offers the fastest processing, but with less protection. Pipelines involving randomized smoothing (RS) generally increase latency without a proportional gain in robustness. Overall, the table highlights that simple defenses like SG (alone or in combination with MP3 or Q) provide the best trade-off between attack mitigation and processing efficiency.
+
+
+Based on comprehensive pipeline evaluation~\ref{tab:pipeline_summary}, Spectral Gating (SG) and SG\(\to\)MP3 were selected as optimal defenses against adversarial attacks. SG alone demonstrated exceptional efficiency, reducing adversarial CER from \SI{37.90}{\percent} to \SI{2.84}{\percent} with minimal latency (\num{0.2268}\,s), making it ideal for real-time applications. The SG\(\to\)MP3 pipeline achieved marginally superior robustness (CER \SI{2.79}{\percent}, WER \SI{6.95}{\percent}) by combining SG's spectral noise removal with MP3's lossy compression, which actively degrades adversarial perturbations through psychoacoustic masking. This two-stage approach is reserved for high-security scenarios where maximum protection justifies the \num{2.5}\(\times\) latency increase (\num{0.5753}\,s). Together, these defenses represent complementary points on the robustness-efficiency frontier: SG prioritizes operational practicality, while SG\(\to\)MP3 delivers maximum security for critical systems.
 
 \ifSubfilesClassLoaded{
   \bibliographystyle{unsrt}

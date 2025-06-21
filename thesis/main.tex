@@ -12,7 +12,10 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{tcolorbox} % For breakable algorithm and table
+\usepackage{multirow}
 \usepackage{subfiles}
+\usepackage[backend=biber]{biblatex}
+\addbibresource{references.bib}
 \setcounter{secnumdepth}{3}
 \tcbuselibrary{breakable} % Enable breakable tcolorbox
 \newtcolorbox{breakablealgorithm}[2][]{
@@ -59,7 +62,6 @@
 \chapter{Automatic Speech Recognition}
 \subfile{chapters/asr}
 
+\printbibliography
 
-\bibliographystyle{unsrt}
-\bibliography{references}
 \end{document}

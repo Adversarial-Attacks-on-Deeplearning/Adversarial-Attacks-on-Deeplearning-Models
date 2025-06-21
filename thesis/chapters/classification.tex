@@ -74,7 +74,7 @@ FGSM generates an adversarial example by taking a single, maximally disruptive s
     \caption*{$\mathrm{sign}(\nabla_x J(\theta, x, y))$\\
     \\ \hfill
     \\ \hfill
-    }
+}
     % \label{fig:sub-noise-traffic} % Optional label for subfigure
   \end{subfigure}
   \hfill % Distribute horizontal space
@@ -94,36 +94,53 @@ FGSM generates an adversarial example by taking a single, maximally disruptive s
   \end{subfigure}
 
   \caption{Visual illustration of the FGSM attack on a traffic sign. A small, imperceptible perturbation, crafted using the gradient of the loss function, causes the model to misclassify the image with high confidence.}
-  \label{fig:fgsm-visual-traffic-sign} % Use a descriptive and unique label
+\label{fig:fgsm-visual-traffic-sign} % Use a descriptive and unique label
 \end{figure}
 
 Figure~\ref{fig:fgsm-visual-traffic-sign} provides a clear visual demonstration of the FGSM attack. The process begins with a clean input image, $x$, correctly classified by the model as a ``speed limit 20'' sign with 71\% confidence. As detailed in the algorithm, the attack computes the gradient of the loss function with respect to the input pixels and takes its sign to determine the direction of the perturbation. This direction, $\text{sign}(\nabla_x J(\theta, x, y))$, is then scaled by a small magnitude, $\epsilon$ (here, 0.007), to form the final perturbation. When this seemingly random, low-magnitude noise is added to the original image, the resulting adversarial example, $x_{\text{adv}}$, remains visually almost identical to the original. However, it successfully deceives the model, causing a high-confidence misclassification to ``slippery road'' with 77\% confidence, demonstrating the efficacy of the attack.
 
 \paragraph{Results}
+The model's robustness was evaluated against the FGSM attack on a random subset of 512 test images. While the model achieved a baseline accuracy of 96\% on unperturbed data, its performance degraded significantly as the adversarial perturbation magnitude ($\epsilon$) increased.
 
-To evaluate the effectiveness of the FGSM attack, we used a custom-trained \textbf{EfficientNetB1} model on the \textbf{German Traffic Sign Recognition Benchmark (GTSRB)} dataset. The model achieved \textbf{96\% accuracy} on the clean test set. For adversarial evaluation, we applied FGSM with different perturbation magnitudes $\epsilon$ on a random subset of \textbf{512 test images}.
+The quantitative impact of the attack is detailed in Table~\ref{tab:fgsm_results_Classification}. Even a minimal perturbation of $\epsilon=0.007$ was sufficient to cause a 51\% drop in accuracy. At the highest tested magnitude of $\epsilon=0.1$, the model's accuracy collapsed to just 9.3\%, rendering it almost entirely ineffective.
 
-Table~\ref{tab:fgsm_results_Classification} shows how model performance degrades with increasing $\epsilon$. As expected, stronger perturbations lead to more severe accuracy drops. Even at a relatively low $\epsilon=0.007$, the accuracy drops significantly to 58\%. At $\epsilon=0.1$, the model is nearly completely fooled, achieving only 6\% accuracy.
+Figure~\ref{fig:fgsm_examples} provides a qualitative illustration of this vulnerability. With a small $\epsilon$ of 0.01, the perturbations are nearly imperceptible to the human eye, yet they are potent enough to cause misclassifications (e.g., changing 'No passing' to 'Vehicles over 3.5 tons prohibited'). When $\epsilon$ is increased to 0.1, the adversarial noise becomes visually apparent, and the attack consistently forces the model to make high-confidence errors on all examples shown.
+
+\begin{figure}[H] % Using [H] to place it here, as in the original
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/CV/Classification/FGSM_0_01.png} 
+        % No label needed for subfigure if not referenced individually
+    \end{subfigure}
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/CV/Classification/FGSM_0_1.png} 
+        % No label needed for subfigure if not referenced individually
+    \end{subfigure}
+    \caption{Visual examples of FGSM attacks. Left: A small perturbation ($\epsilon=0.01$) results in subtle image changes but can still cause misclassifications. Right: A larger perturbation ($\epsilon=0.1$) introduces visible noise and consistently deceives the model.}
+    \label{fig:fgsm_examples}
+\end{figure}
 
 \begin{table}[H]
-\centering
-\footnotesize
-\caption{Accuracy of FGSM attacks on EfficientNetB1 evaluated on 512 GTSRB test samples. The original model accuracy without attack is \textbf{96\%}.}
-\label{tab:fgsm_results_Classification}
-\begin{tabular}{@{\hspace{0.3cm}}cS[table-format=2.2]S[table-format=2.2]@{\hspace{0.3cm}}}
-\toprule
-$\epsilon$ & {Accuracy (\%)} & {Accuracy Drop (\%)} \\
-\midrule
-0.007 & 58.00 & 38.00 \\
-0.010 & 44.00 & 52.00 \\
-0.030 & 14.00 & 82.00 \\
-0.100 & 6.00  & 90.00 \\
-\bottomrule
-\end{tabular}
+    \centering
+    \footnotesize
+    \caption{Model accuracy under FGSM attack with varying perturbation magnitudes ($\epsilon$). Results are evaluated on 512 test samples, with a baseline accuracy of 96\% on clean data.}
+    \label{tab:fgsm_results_Classification}
+    \begin{tabular}{@{\hspace{0.3cm}}cS[table-format=1.3]S[table-format=2.2]S[table-format=2.2]@{\hspace{0.3cm}}}
+    \toprule
+    {$\epsilon$} & {Accuracy (\%)} & {Accuracy Drop (\%)} \\
+    \midrule
+    0.007 & 44.96 & 51.04 \\
+    0.010 & 34.30 & 61.70 \\
+    0.030 & 12.79 & 83.21 \\
+    0.100 &  9.30 & 86.70 \\
+    \bottomrule
+    \end{tabular}
 \end{table}
 
-\clearpage
 \subsubsection{Projected Gradient Descent (PGD)}
+
 \paragraph{Introduction}
 
 Projected Gradient Descent (PGD) is a powerful iterative attack method introduced by Madry et al.\ in their work on adversarial robustness \cite{madry2018towardspgd}. It is widely regarded as one of the most effective first-order adversarial attacks, capable of producing stronger perturbations than single-step methods like FGSM by applying multiple small gradient steps.
@@ -175,21 +192,206 @@ Table~\ref{tab:pgd_results} shows how model performance degrades under the PGD a
 \begin{table}[H]
 \centering
 \footnotesize
-\caption{Accuracy of PGD attacks on EfficientNetB1 evaluated on 512 GTSRB test samples using \textbf{3 iterations} per attack. The original model accuracy without attack is \textbf{96\%}.}
+\caption{Accuracy of PGD attacks on EfficientNetB1 evaluated on 512 GTSRB test samples using \textbf{4 iterations} per attack. The original model accuracy without attack is \textbf{96\%}.}
 \label{tab:pgd_results}
 \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=2.2]S[table-format=2.2]c@{\hspace{0.3cm}}}
 \toprule
 \textbf{PGD Parameters} & {Accuracy (\%)} & {Accuracy Drop (\%)} & {Iterations} \\
 \midrule
-$\epsilon=0.01$, $\alpha=0.0025$  & 35.00 & 61.00 & 3 \\
-$\epsilon=0.03$, $\alpha=0.0075$  & 7.00  & 89.00 & 3 \\
-$\epsilon=0.05$, $\alpha=0.0125$  & 3.00  & 93.00 & 3 \\
-$\epsilon=0.10$, $\alpha=0.0250$  & 0.00  & 96.00 & 3 \\
+$\epsilon=0.007$, $\alpha=0.00175$  & 36.43 & 59.57 & 4 \\
+$\epsilon=0.01$, $\alpha=0.0025$  & 21.71 & 74.29 & 4 \\
+$\epsilon=0.03$, $\alpha=0.0075$  & 2.71  & 93.29 & 4 \\
+$\epsilon=0.10$, $\alpha=0.0250$  & 0.00  & 96.00 & 4 \\
 \bottomrule
 \end{tabular}
 \end{table}
+\subsubsection{Universal Adversarial Perturbations (UAP)}
 
+\paragraph{Introduction}
+While most adversarial attacks craft a unique, image-specific perturbation for each input, the concept of a Universal Adversarial Perturbation (UAP) represents a more general and potent class of threat. First discovered by Moosavi-Dezfooli et al. \cite{moosavidezfooli2017universaladversarialperturbations}, a UAP is a single, fixed, image-agnostic perturbation vector that, when added to a large number of different images from a dataset, can cause a model to misclassify them with high probability. The existence of such universal vectors is a remarkable finding, revealing systemic vulnerabilities and shared geometric correlations in the high-dimensional decision boundaries of deep neural networks. Instead of exploiting a weakness specific to one input, a UAP targets a common "blind spot" in the model's learned feature space. This property makes UAPs particularly menacing from a security standpoint; an attacker can pre-compute a single perturbation and deploy it to disrupt a wide range of inputs without needing to perform on-the-fly calculations. Furthermore, UAPs have demonstrated significant cross-model transferability, posing a severe threat even in black-box scenarios.
+
+      
+
+\paragraph{Methodology}
+
+\subparagraph{Attack Type}
+The generation of a Universal Adversarial Perturbation (UAP) is a \textbf{white-box}, \textbf{untargeted}, and \textbf{iterative} process. It is considered white-box because it requires access to the model's architecture and gradients over a dataset of images to compute the universal vector. The goal is untargeted: to cause misclassification to \textit{any} incorrect class. Once computed, the UAP itself can be deployed in a black-box manner, as it is a fixed vector that can be added to any new image.
+
+\subparagraph{Parameters}
+\begin{description}
+  \item[$X$] A dataset of clean training images $\{x_1, x_2, ..., x_N\}$ used to generate the UAP.
+  \item[$\theta$] The parameters of the target neural network model.
+  \item[$v$] The universal perturbation vector, treated as a trainable variable.
+  \item[$\epsilon$] The maximum perturbation magnitude for each pixel, enforcing an $\ell_\infty$ norm constraint.
+  \item[\texttt{num\_epochs}] The number of training epochs to refine the perturbation vector.
+  \item[$J(\theta, x, y)$] The loss function (e.g., cross-entropy).
+\end{description}
+
+\subparagraph{Algorithm Overview}
+Instead of finding minimal updates one image at a time, this method formulates the UAP generation as a single optimization problem. The universal perturbation vector, $v$, is initialized as a zero tensor and is treated as the sole trainable parameter. The algorithm's objective is to find a single vector $v$ that, when added to any image from the dataset, maximizes the model's loss, thereby inducing misclassification.
+
+To achieve this, the algorithm iterates through the dataset for a fixed number of epochs. In each training step, a batch of images is perturbed by adding the current universal vector $v$. The model's loss is then calculated on these perturbed images. Crucially, to maximize the loss using standard optimizers (which are designed for minimization), we optimize the \textit{negative} of the loss function. The gradient of this negative loss is computed with respect to the perturbation vector $v$, and an optimizer, such as Adam, updates $v$ in the direction of steepest ascent. After each update, the values in $v$ are clipped to the range $[-\epsilon, \epsilon]$, enforcing the $\ell_\infty$ norm constraint. This process iteratively refines a single perturbation that exploits common vulnerabilities across the entire dataset.
+
+\begin{breakablealgorithm}{Universal Adversarial Perturbation (UAP) Generation}
+\begin{algorithmic}[1]
+\Require Data $X$, Target model $\mathcal{M}$, Perturbation budget $\epsilon$, Number of epochs
+\Ensure Universal perturbation $v$
+\State Initialize $v \gets 0$ as a trainable variable
+\State Initialize an optimizer (e.g., Adam) for $v$
+\For{$epoch = 1$ \textbf{to} \texttt{num\_epochs}}
+    \For{each batch $(x_{\mathrm{batch}}, y_{\mathrm{batch}})$ in $X$}
+        \State Compute loss gradient with respect to $v$:
+        \State \quad $x_{\mathrm{adv}} \gets \text{clip}(x_{\mathrm{batch}} + v, 0, 1)$
+        \State \quad $L \gets -J(\mathcal{M}(x_{\mathrm{adv}}), y_{\mathrm{batch}})$ \Comment{Negative loss for maximization}
+        \State \quad $g \gets \nabla_v L$
+        \State Update perturbation using the optimizer: $v \gets \text{OptimizerStep}(v, g)$
+        \State Project $v$ into $\ell_\infty$ ball: $v \gets \text{clip}(v, -\epsilon, \epsilon)$
+    \EndFor
+\EndFor
+\State \Return $v$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\paragraph{Results}
+To evaluate the threat of universal, image-agnostic perturbations, we generated a UAP against our EfficientNet-B1 model using the GTSRB test set. Following the methodology of the original UAP paper by Moosavi-Dezfooli et al. \cite{moosavidezfooli2017universaladversarialperturbations}, we conducted experiments across a range of $\ell_\infty$-norm constraints ($\epsilon$), operating entirely on the [0, 255] pixel scale.
+
+The results, summarized in Table~\ref{tab:uap_multi_epsilon_results}, demonstrate a clear and direct relationship between the perturbation budget and the attack's success. As the maximum allowed per-pixel change ($\epsilon$) was increased from 5.0 to 15.0, the Fooling Rate rose significantly from 35.07\% to 77.15\%. This validates the core principle that a larger perturbation budget allows the optimizer to find a more potent universal weakness in the model.
+
+At an $\epsilon$ of 10.0, a key benchmark used in the original paper, our attack achieved a Fooling Rate of 59.92\%. This result is highly plausible, confirming the vulnerability of our modern EfficientNetB1 architecture, while the slight difference from the ~75-85\% rates reported on older models like VGG and GoogLeNet may suggest an increased inherent robustness in EfficientNet. The high L2 norms further indicate that the attack consistently converged to a high-energy, dense noise pattern as the most effective strategy for this model. This experiment successfully confirms that our model is highly vulnerable to UAPs and that the attack's potency scales directly with the allowed perturbation magnitude.
+
+\begin{table}[H]
+    \centering
+    \caption{UAP Performance Across Varying Epsilon Constraints (on 0-255 scale).}
+    \label{tab:uap_multi_epsilon_results}
+    \begin{tabular}{@{\hspace{0.3cm}}ccc@{\hspace{0.3cm}}}
+    \toprule
+    \textbf{Epsilon ($\ell_\infty$ Constraint)} & \textbf{Fooling Rate (\%)} & \textbf{L2 Norm} \\
+    \midrule
+     5.0 & 35.07 & 2020.35 \\
+    10.0 & 59.92 & 3991.16 \\
+    15.0 & 77.15 & 5919.11 \\
+    \bottomrule
+    \end{tabular}
+\end{table}
 \clearpage
+
+\subsubsection{Carlini \& Wagner (C\&W) Attack}
+
+\paragraph{Introduction}
+The Carlini \& Wagner (C\&W) attack, introduced by Carlini and Wagner in their seminal 2017 paper `Towards Evaluating the Robustness of Neural Networks` \cite{carlini2017evaluatingrobustnessneuralnetworks}, represents a landmark advancement in adversarial example generation. It moved beyond the heuristic, single-step approaches like FGSM by framing the creation of an adversarial example as a formal, constrained optimization problem. The attack's primary objective is to find a perturbation with the minimum possible magnitude—measured by a chosen distance metric (typically L2)—that is still sufficient to cause a high-confidence misclassification. This is achieved by using a novel loss function that operates directly on the model's logits, encouraging the logit of the target class to surpass all others by a specified margin. Due to its remarkable effectiveness in producing visually imperceptible yet potent adversarial examples, the C\&W attack is widely considered a benchmark for evaluating the true robustness of a model and its defenses, making it an essential tool for any serious security analysis.
+
+\paragraph{Methodology}
+
+\subparagraph{Attack Type}
+The Carlini \& Wagner (C\&W) attack is a \textbf{white-box}, \textbf{iterative}, and \textbf{optimization-based} attack. As a quintessential white-box method, it requires full knowledge of the model, including its architecture, parameters, and logits (pre-softmax outputs). Its primary strength lies in its optimization framework, which allows it to find a near-optimal trade-off between perturbation size and attack success. The attack can be performed in both \textbf{untargeted} and \textbf{targeted} modes.
+
+\subparagraph{Parameters}
+\begin{description}
+  \item[$x$] The original clean input image.
+  \item[$y$] The true label for an untargeted attack, or the target label for a targeted attack.
+  \item[$\theta$] The parameters of the target neural network model.
+  \item[$c$] A constant that balances the two components of the loss function. A smaller $c$ prioritizes low distortion, while a larger $c$ prioritizes attack success.
+  \item[$\kappa$] A confidence parameter. The attack aims to make the logit of the target class at least $\kappa$ greater than the next highest logit, ensuring a high-confidence misclassification.
+  \item[\texttt{max\_iterations}] The number of optimization steps to perform.
+  \item[\texttt{learning\_rate}] The learning rate for the Adam optimizer.
+\end{description}
+
+\subparagraph{Algorithm Overview}
+The C\&W attack finds an adversarial example by solving an optimization problem designed to minimize the L2 distortion while forcing a misclassification. A key challenge in generating adversarial images is ensuring that pixel values remain within a valid range (e.g., [0, 1]). Instead of clipping values after each step, which can hinder optimization, this implementation employs a "change of variables" trick. The optimization is performed on an unconstrained variable $w$, which is then mapped to the valid image space using the transformation $x' = \frac{1}{2}(\tanh(w) + 1)$. This ensures that the generated image $x'$ is always valid by construction.
+
+The attack minimizes a composite loss function: $L = \|\frac{1}{2}(\tanh(w) + 1) - x\|_2^2 + c \cdot f(\frac{1}{2}(\tanh(w) + 1))$. The first term is the squared L2 distance, which encourages perceptual similarity to the original image $x$. The second term, $f(x')$, is the classification loss, defined on the model's logits $Z(x')$ as:
+$f(x') = \max(\max_{i \ne t}\{Z(x')_i\} - Z(x')_t, -\kappa)$.
+This loss becomes negative only when the logit for the target class $t$, $Z(x')_t$, surpasses the highest non-target logit by a margin of at least $\kappa$. The constant $c$ balances these two objectives. An Adam optimizer is used to iteratively update the variable $w$ to minimize the total loss $L$, effectively crafting an adversarial example with minimal distortion.
+
+\begin{breakablealgorithm}{Carlini \& Wagner L2 Attack}
+\begin{algorithmic}[1]
+\Require Clean image $x$, Label $y$, Target model $\mathcal{M}$, Parameters $c, \kappa, \text{lr}, \text{max\_iter}$
+\State Initialize $w \gets 0$ as a trainable variable
+\State Initialize an Adam optimizer with learning rate $\text{lr}$
+\Function{LossFunc}{$x', y$}
+    \State $Z \gets \mathcal{M}(x')$ \Comment{Get logits from the model}
+    \State $Z_y \gets \text{logit of class } y$
+    \State $Z_{\text{other}} \gets \max_{i \ne y}\{Z_i\}$
+    \If{targeted attack}
+        \State \Return $\max(Z_{\text{other}} - Z_y, -\kappa)$
+    \Else
+        \State \Return $\max(Z_y - Z_{\text{other}}, -\kappa)$
+    \EndIf
+\EndFunction
+\For{$i = 1$ to \texttt{max\_iterations}}
+    \State $x' \gets \frac{1}{2}(\tanh(w) + 1)$ \Comment{Change of variables}
+    \State $\text{loss}_{\text{dist}} \gets \|x' - x\|_2^2$
+    \State $\text{loss}_{\text{class}} \gets \text{LossFunc}(x', y)$
+    \State $L \gets \text{loss}_{\text{dist}} + c \cdot \text{loss}_{\text{class}}$
+    \State Compute gradient: $g \gets \nabla_w L$
+    \State Update $w$ using the optimizer: $w \gets \text{AdamUpdate}(w, g)$
+\EndFor
+\State $x_{\text{adv}} \gets \frac{1}{2}(\tanh(w) + 1)$
+\State \Return $x_{\text{adv}}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subsubsection{DeepFool}
+
+\paragraph{Introduction}
+The DeepFool attack, introduced by Moosavi-Dezfooli et al. in their 2016 paper \cite{moosavidezfooli2016deepfoolsimpleaccuratemethod}, presents an elegant, geometric approach to finding minimal adversarial perturbations. Unlike optimization-based methods like C\&W that solve a complex loss minimization problem, or single-step methods like FGSM that provide a coarse approximation, DeepFool operates on a simpler, iterative principle. It conceptualizes the classifier's decision boundaries as a set of separating hyperplanes. In each iteration, the algorithm linearizes the model at the current input's location and calculates the smallest step required to project the input directly onto the nearest decision boundary. This process is repeated until the image's classification changes. The result is a highly efficient algorithm that finds adversarial perturbations with significantly smaller norms than FGSM, often rivaling the quality of the much more computationally expensive C\&W attack. By providing an accurate yet efficient way to measure the minimal distance to a decision boundary, DeepFool serves as a crucial tool for reliably quantifying and comparing the adversarial robustness of different neural network architectures.
+
+\paragraph{Methodology}
+
+\subparagraph{Attack Type}
+The DeepFool attack is a \textbf{white-box}, \textbf{untargeted}, and \textbf{iterative} attack. It is considered white-box as it requires access to the model's gradients and logits (pre-softmax outputs) to perform its calculations. The goal is untargeted: to find the minimal perturbation that pushes an image just across the nearest decision boundary, thus changing its classification to any other class. It is iterative because it refines the perturbation by taking small, calculated steps until a misclassification is achieved.
+
+\subparagraph{Parameters}
+\begin{description}
+  \item[$x$] The clean input image to be perturbed.
+  \item[$\theta$] The parameters of the target neural network model.
+  \item[\texttt{max\_iter}] The maximum number of iterations for the attack loop.
+  \item[\texttt{overshoot}] A small multiplicative factor applied to the final perturbation to ensure the adversarial example robustly crosses the decision boundary, rather than landing exactly on it.
+\end{description}
+
+\subparagraph{Algorithm Overview}
+DeepFool operates on a geometric principle: it assumes the classifier partitions the input space with decision boundaries, and it seeks the shortest path to cross one of these boundaries. It is an iterative algorithm that, at each step, approximates the complex, non-linear classifier with a simple linear one around the current image location.
+
+The algorithm begins with the original image $x_0$. In each iteration $i$, it performs the following steps:
+\begin{enumerate}
+    \item It computes the model's output logits and gradients for the current image, $x_i$.
+    \item For every incorrect class $k$, it linearizes the decision boundary between the original class and class $k$. It then calculates the minimal perturbation, $\mathbf{r}_k$, needed to push $x_i$ onto this linearized boundary.
+    \item It selects the overall minimal perturbation from all candidate classes—that is, the step that reaches the closest of all linearized boundaries.
+    \item This minimal perturbation is added to the total accumulated perturbation.
+\end{enumerate}
+This loop continues until the image's predicted class changes or the maximum number of iterations is reached. Finally, a small `overshoot` factor is applied to the total perturbation to push the image firmly into the adversarial region. The result is a highly efficient method for finding small, L2-norm-minimal adversarial perturbations.
+
+\begin{breakablealgorithm}{DeepFool Attack}
+\begin{algorithmic}[1]
+\Require Clean image $x_0$, Target model $\mathcal{M}$, Parameters \texttt{max\_iter}, \texttt{overshoot}
+\Ensure Adversarial image $x_{\text{adv}}$
+\State $x_i \gets x_0$
+\State $y_{\text{orig}} \gets \text{argmax}(\mathcal{M}(x_0))$
+\State $r_{\text{total}} \gets 0$
+\For{$i = 1$ to \texttt{max\_iter}}
+    \State $Z \gets \mathcal{M}(x_i)$ \Comment{Get logits}
+    \If{$\text{argmax}(Z) \ne y_{\text{orig}}$}
+        \State \textbf{break} \Comment{Attack successful}
+    \EndIf
+    \State Compute gradients of all logits w.r.t. $x_i$: $\nabla_{x_i} Z$
+    \State $r_i \gets \infty$
+    \For{each class $k \ne y_{\text{orig}}$}
+        \State $w_k' \gets \nabla_{x_i} Z_k - \nabla_{x_i} Z_{y_{\text{orig}}}$ \Comment{Difference of gradients}
+        \State $f_k' \gets Z_k - Z_{y_{\text{orig}}}$ \Comment{Difference of logits}
+        \State Perturbation for class $k$: $r_k' \gets \frac{|f_k'|}{\|w_k'\|_2^2} w_k'$
+        \If{$\|r_k'\|_2 < \|r_i\|_2$}
+            \State $r_i \gets r_k'$ \Comment{Find the closest boundary}
+        \EndIf
+    \EndFor
+    \State $r_{\text{total}} \gets r_{\text{total}} + r_i$
+    \State $x_i \gets x_0 + r_{\text{total}}$ \Comment{Update image based on total perturbation from start}
+\EndFor
+\State $x_{\text{adv}} \gets \text{clip}(x_0 + (1 + \text{overshoot}) \cdot r_{\text{total}})$
+\State \Return $x_{\text{adv}}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
 \subsubsection{Momentum Iterative Fast Gradient Sign Method(MI-FGSM)}
 \paragraph{Introduction}
 
@@ -411,6 +613,7 @@ The results of the test set evaluation are as follows:
 \clearpage
 \subsection{Black Box Attacks}
 \subsubsection{Boundary Attack}
+
 \paragraph{Introduction}
 The Boundary Attack is a decision-based adversarial attack that operates in a black-box setting, requiring access only to the model's final predicted class label. First introduced by Brendel et al.\ in 2018 \cite{brendel2018decisionbasedadversarialattacksreliable}, it is particularly powerful because it avoids reliance on gradients or confidence scores, making it suitable for attacking systems where internal model information is completely inaccessible. At its core, the attack performs an iterative random walk along the model's decision boundary to find a minimal perturbation that causes a misclassification.
 
@@ -564,7 +767,7 @@ The culmination of this process is presented in Figure~\ref{fig:boundary_compari
     \label{fig:boundary_comparison}
 \end{figure}
 \clearpage 
-\subsubsection{HopSkipJumpAttack}
+\subsubsection{HopSkipJump Attack}
 
 \paragraph{Introduction}
 
@@ -706,13 +909,142 @@ Finally, the algorithm projects the new point back onto the decision boundary. A
     In concert, these algorithms form a complete framework for executing the HopSkipJumpAttack. The initialization phase (Algorithm~\ref{alg:hsja_init}) secures a valid starting point, after which the main loop (Algorithm~\ref{alg:hsja_main}) uses the 'Hop', 'Skip', and 'Jump' sub-routines to iteratively refine the adversarial example. The primary advantage of this multi-stage methodology is its ability to find minimally perturbed solutions with high query efficiency. Having detailed the algorithmic underpinnings of the attack, we now proceed to evaluate its practical performance against our trained model.
 
 \paragraph{Results}
-\textbf{This is a draft to be continued.}
+To evaluate the practical effectiveness of the HopSkipJumpAttack, we conducted an experiment on a random subset of 100 images from the GTSRB test set against our trained EfficientNetB1 model. The attack was configured with a maximum of 20 refinement iterations and a budget of 5,000 model queries per image. The entire evaluation completed in 325.09 minutes, averaging approximately 3.25 minutes per image. The attack was highly successful, achieving a 97\% Attack Success Rate (ASR) by fooling 97 of the 100 initially correct images.
+
+To contextualize these findings, we compare them against the benchmark results reported for ImageNet in the original paper by Chen et al. \cite{chen2020hopskipjumpattackqueryefficientdecisionbasedattack}, as its image resolution is most similar to ours. Table~\ref{tab:hsja_comparison_median} presents a side-by-side view using our new median-based metrics for a more direct and robust comparison.
+
+\begin{table}[H]
+    \centering
+    \caption{Comparison of HopSkipJump Attack Performance}
+    \label{tab:hsja_comparison_median}
+    \begin{tabular}{@{\hspace{0.3cm}}lcc@{\hspace{0.3cm}}}
+    \toprule
+    \textbf{Metric} & \textbf{Original Paper (ImageNet)} & \textbf{Our Results (GTSRB)} \\
+    \midrule
+    Model & Inception-v3 & EfficientNetB1 \\
+    Query Budget & 10,000 - 20,000 & \textbf{5,000} \\
+    Attack Success Rate (ASR) & $\approx$94\% & \textbf{97\%} \\
+    Median L2 Norm (0-1) & $\approx$2-3 & \textbf{6.1014} \\
+    Median SSIM & Not Reported & \textbf{0.8755} \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+Our observed 97\% ASR is consistent with the high efficacy reported in the original study. Furthermore, the median L0 norm of 172,800 indicates the attack generates a dense perturbation, modifying nearly every pixel, which is characteristic of this method. The high median SSIM of 0.8755 strongly confirms that, for a typical successful attack, the resulting adversarial image maintains excellent perceptual similarity to the original.
+
+The median L2 norm of 6.10, while a more accurate comparison point than our previous average, remains higher than the ~2-3 reported in the paper. This difference is primarily attributable to the experimental **query budget**. The HopSkipJump algorithm is iterative; our budget of 5,000 queries is significantly lower than the 10,000-20,000 queries often used in the original benchmarks. A lower budget halts the optimization process earlier. While this is sufficient to find a successful misclassification, it is often insufficient to refine the perturbation to its minimal possible L2 norm, resulting in a successful but suboptimal example with a larger magnitude. The different model architectures (EfficientNetB1 vs. Inception-v3) and dataset complexities (GTSRB vs. ImageNet) are also likely contributing factors to this difference in final perturbation size.
+
+In summary, our results validate the effectiveness of HopSkipJump on a modern architecture in a safety-critical domain. The performance metrics are consistent with the literature once key experimental parameters, most notably the query budget, are taken into account.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\linewidth]{images/CV/Classification/hopskipjump_result.png}
-    \caption{The Result of hopskip jump attack on a 20 speed limit sign }
-    \label{fig:enter-label}
+    \includegraphics[width=0.9\linewidth]{images/CV/Classification/hopskipjump_result.png}
+    \caption{Visual result of the HopSkipJump attack. The original image (left) is correctly classified as a 'Speed limit 20' sign. After the attack, the adversarial image (right) is misclassified as a 'Slippery road' sign, despite being visually similar.}
+    \label{fig:hopskipjump_visual_result}
 \end{figure}
+\subsubsection{One-Pixel Attack}
+
+\paragraph{Introduction}
+The One-Pixel Attack, introduced by Su et al.~\cite{Su_2019}, represents an extreme and compelling form of black-box adversarial attack. It challenges the conventional understanding of adversarial perturbations by demonstrating that a highly effective attack can be launched by modifying just a single pixel in an input image. Unlike methods that distribute a small amount of noise across many pixels, this attack concentrates the entire perturbation into one location. Its success highlights a critical vulnerability in modern deep neural networks, showing that their decision boundaries can be surprisingly fragile. The attack relies on an evolutionary search algorithm, specifically Differential Evolution (DE), to efficiently search the vast space of possible single-pixel modifications to find one that causes a misclassification.
+
+\paragraph{Methodology}
+
+\paragraph{Attack Type} 
+
+The One-Pixel Attack is a \textbf{black-box} attack, requiring no information about the model's architecture, parameters, or gradients. It only needs access to the model's output probabilities (logits or confidence scores), making it applicable to a wide range of non-differentiable or otherwise protected systems. It can be executed in both \textbf{untargeted} (cause any misclassification) and \textbf{targeted} (cause a specific misclassification) modes.
+
+\paragraph{Parameters}
+\begin{description}
+    \item[$x$] The clean input image to be perturbed.
+    \item[$y_{\mathrm{true}}$] The true label of the clean image (used for untargeted attacks).
+    \item[$M$] The black-box target model, which returns class probabilities for a given input.
+    \item[\texttt{target\_class} (optional)] The desired incorrect label for a targeted attack. If not provided, the attack runs in untargeted mode.
+    \item[\texttt{population\_size}] The number of candidate modifications (the population) in each generation of the search.
+    \item[\texttt{max\_generations}] The maximum number of iterations for the evolutionary algorithm to run.
+\end{description}
+
+\paragraph{Algorithm Overview}
+The One-Pixel Attack formulates the search for an adversarial pixel as an optimization problem. To solve this, it employs a powerful black-box optimization method called \textbf{Differential Evolution (DE)}~\cite{Storn1997}. DE is an evolutionary algorithm that is particularly effective at finding a global optimum in a complex search space without needing gradient information.
+
+At its core, DE works by maintaining a "population" of candidate solutions—in this case, different single-pixel modifications $(x, y, R, G, B)$. In each generation, it creates new "trial" solutions by combining existing ones. The key idea is its mutation strategy: a new solution is generated by taking one candidate and adding a scaled version of the \textit{difference} between two other candidates. This allows the search to be guided by the diversity of the current population. Each new trial solution is then compared to its "parent," and the one that is "fitter" (i.e., brings the model's output closer to the desired outcome) survives into the next generation.
+
+The fitness function is defined based on the attack goal. For a targeted attack, fitness is the probability of the `target\_class`. For an untargeted attack, fitness is defined as the negative probability of the true class, encouraging the model to predict anything else. This evolutionary process continues until a successful attack is found or the generation limit is reached, as detailed in Algorithm~\ref{alg:one_pixel_attack_general}.
+
+\begin{breakablealgorithm}{One-Pixel Attack}
+\label{alg:one_pixel_attack_general}
+\begin{algorithmic}[1]
+\Require Clean image $x$, True label $y_{\mathrm{true}}$, Target model $M$, \texttt{population\_size}, \texttt{max\_generations}, \texttt{target\_class} (optional)
+
+\Function{ComputeFitness}{$c$, $x$, $M$, $y_{\mathrm{true}}$, \texttt{target\_class}}
+    \State $x_{\mathrm{cand}} \gets \text{ApplyPixel}(x, c)$
+    \State $P_{\mathrm{cand}} \gets M(x_{\mathrm{cand}})$ \Comment{Get prediction probabilities}
+    \If{\texttt{target\_class} is set}
+        \State \Return $P_{\mathrm{cand}}[\texttt{target\_class}]$ \Comment{Targeted: Maximize target probability}
+    \Else
+        \State \Return $1.0 - P_{\mathrm{cand}}[y_{\mathrm{true}}]$ \Comment{Untargeted: Minimize true class probability}
+    \EndIf
+\EndFunction
+
+\State Initialize Population $P$ with \texttt{population\_size} random modifications $c = (x, y, r, g, b)$.
+\For{$g = 1$ \textbf{to} \texttt{max\_generations}}
+    \For{each candidate $c_{\mathrm{parent}}$ in $P$}
+        \State Generate $c_{\mathrm{child}}$ using DE mutation/crossover on $P$.
+        \State $\mathrm{fitness}_{\mathrm{child}} \gets \text{ComputeFitness}(c_{\mathrm{child}}, x, M, y_{\mathrm{true}}, \texttt{target\_class})$
+        \State $\mathrm{fitness}_{\mathrm{parent}} \gets \text{ComputeFitness}(c_{\mathrm{parent}}, x, M, y_{\mathrm{true}}, \texttt{target\_class})$
+        \If{$\mathrm{fitness}_{\mathrm{child}} > \mathrm{fitness}_{\mathrm{parent}}$}
+            \State Replace $c_{\mathrm{parent}}$ with $c_{\mathrm{child}}$ in $P$.
+        \EndIf
+    \EndFor
+    
+    \State Find $c_{\mathrm{best}}$, the candidate with highest fitness in the current population $P$.
+    \State $x_{\mathrm{best}} \gets \text{ApplyPixel}(x, c_{\mathrm{best}})$
+    \State $y_{\mathrm{pred}} \gets \text{argmax}(M(x_{\mathrm{best}}))$ \Comment{Get predicted class}
+    
+    \If{(\texttt{target\_class} is set \textbf{and} $y_{\mathrm{pred}} == \texttt{target\_class}$) \textbf{or} (\texttt{target\_class} is not set \textbf{and} $y_{\mathrm{pred}} \ne y_{\mathrm{true}}$)}
+        \State \Return $x_{\mathrm{best}}$ \Comment{Attack successful}
+    \EndIf
+\EndFor
+\State \Return $x_{\mathrm{best}}$ \Comment{Return the best image found, even if unsuccessful}
+\end{algorithmic}
+\end{breakablealgorithm}
+\paragraph{Results}
+To evaluate the practical impact of the One-Pixel Attack, we applied it to our EfficientNet-B1 model. The attack was configured with a population size of 25 and a maximum of 3 generations per image, prioritizing a swift yet effective search for vulnerabilities. The results demonstrate that even this extremely constrained and inconspicuous attack can successfully deceive a high-performance classifier.
+
+A compelling case study is presented in Figure~\ref{fig:one_pixel_attack_example}. The original image, shown in Figure~\ref{fig:one_pixel_original_30}, was correctly identified by the model as a 'Speed limit 30' sign with 99.99\% confidence. After the attack, a single pixel was altered—a change imperceptible to a human observer, This minute modification was sufficient to cause a catastrophic misclassification. The model's prediction was flipped to 'Speed limit 80' with an equally high confidence of 99.17\%. This example starkly illustrates the model's brittleness, where a minimal, localized perturbation leads to a high-confidence, critical error.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.48\textwidth} % Changed [b] to [t] for top alignment
+        \centering
+        \includegraphics[width=0.8\textwidth]{images/CV/Classification/30.jpeg} % Replace with your image path
+        \caption{Original image, correctly classified as 'Speed limit 30' with 99.99\% confidence.}
+        \label{fig:one_pixel_original_30}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth} % Changed [b] to [t] for top alignment
+        \centering
+        \includegraphics[width=0.8\textwidth]{images/CV/Classification/30_one_pixel.jpeg} % Replace with your image path
+        \caption{Adversarial image with one modified pixel (highlighted), misclassified as 'Speed limit 80' with 99.17\% confidence.}
+        \label{fig:one_pixel_attacked_30}
+    \end{subfigure}
+    \caption{A successful One-Pixel Attack. A single-pixel change, invisible under normal viewing, causes the model to misclassify a '30' sign as an '80' sign with high confidence.}
+    \label{fig:one_pixel_attack_example}
+\end{figure}
+
+The vulnerability is not an isolated phenomenon but a systemic weakness. When evaluated across the test dataset, the attack systematically degraded the model's overall performance. As summarized in Table~\ref{tab:one_pixel_accuracy}, the model's baseline accuracy of 96\% on clean data dropped to 79\%. This 17-point reduction, achieved with an attack that modifies only 0.001\% of the pixels in a 32x32 image, underscores the profound security challenge posed by such sparse adversarial perturbations. The results confirm that even state-of-the-art models can possess decision boundaries that are highly sensitive to minuscule, targeted changes.
+
+\begin{table}[H]
+    \centering
+    \caption{Model accuracy before and after the One-Pixel Attack.}
+    \label{tab:one_pixel_accuracy}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Attack Method} & \textbf{Baseline Accuracy (\%)} & \textbf{Accuracy after Attack (\%)} \\
+        \midrule
+        One-Pixel & 96.0 & 79.0 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
 \subsubsection{Simba}
 \paragraph{Introduction}
 \paragraph{Methodology}
@@ -720,4 +1052,56 @@ Finally, the algorithm projects the new point back onto the decision boundary. A
 \section{Defenses}
 \subsection{Adverserial Training}
 \subsection{Noise Fusion}
+
+\subsection{JPEG Compression Defense}
+\label{sec:jpeg_defense}
+
+\paragraph{Introduction}
+JPEG compression is a widely used lossy image compression standard that can also serve as a simple yet effective preprocessing defense against adversarial attacks \cite{das2017keepingbadguysout}. The core idea is that adversarial perturbations, especially those generated by gradient-based methods like FGSM and PGD, are often composed of high-frequency noise finely tuned to the model's sensitivities. The quantization step in the JPEG compression algorithm is particularly effective at discarding these high-frequency components. By compressing and then decompressing an adversarial image, the carefully crafted perturbation can be disrupted or "smoothed" out, potentially restoring the image's original classification. This makes JPEG compression a practical, model-agnostic defense strategy that can be applied as a preprocessing step before inference.
+
+\paragraph{Results and Analysis}
+To quantify the efficacy of this defense, we evaluated its impact on adversarial examples generated by both FGSM and PGD attacks across a range of epsilons. We applied four standard JPEG quality levels: 25 (high compression, low quality), 50, 75, and 95 (low compression, high quality). The comprehensive results are presented in Table~\ref{tab:jpeg_defense_merged}.
+
+The data reveals two clear trends across both attack types. First, there is a strong inverse correlation between JPEG quality and defensive strength. The most aggressive compression setting (Q=25) consistently provided the greatest improvement in accuracy**. For instance, against a PGD attack with $\epsilon=0.01$, JPEG compression at Q=25 restored accuracy from 21.71\% to 68.80\% (a +47.09\% improvement), whereas the mildest compression at Q=95 only restored it to 48.84\%. This indicates that the higher distortion introduced by low-quality compression is more effective at destroying the adversarial noise.
+
+Second, the defense's utility diminishes as the attack strength ($\epsilon$) increases. While the defense provides substantial gains for small epsilons, its effectiveness wanes against the very strong perturbations of $\epsilon=0.1$. Against the PGD attack at this level, accuracy was restored from 0\% to only 8.91\% at Q=25, and a mere 0.78\% at Q=95. This suggests that when the adversarial perturbation is large and coarse, it is robust enough to survive the compression process.
+
+The results also allow for a direct comparison between FGSM and PGD. While PGD is a stronger attack that reduces the initial adversarial accuracy to lower levels, the JPEG defense restores accuracy to a comparable level for both attacks at a given $\epsilon$. For example, at $\epsilon=0.03$ and Q=25, the defended accuracy is 38.18\% for FGSM and 38.37\% for PGD, demonstrating the defense's consistent performance against both single-step and iterative gradient-based attacks.
+
+\begin{table}[H]
+    \centering
+    \caption{Model Accuracy Against FGSM and PGD Attacks with JPEG Compression Defense.}
+    \label{tab:jpeg_defense_merged}
+    \begin{tabular}{cc|cc|cc|cc}
+    \toprule
+    \multirow{2}{*}{\textbf{$\epsilon$}} & \multirow{2}{*}{\textbf{Quality}} & \multicolumn{2}{c|}{\textbf{Adversarial Acc.}} & \multicolumn{2}{c|}{\textbf{Defended Acc.}} & \multicolumn{2}{c}{\textbf{Improvement}} \\
+    \cmidrule{3-8}
+    & & \textbf{FGSM} & \textbf{PGD} & \textbf{FGSM} & \textbf{PGD} & \textbf{FGSM} & \textbf{PGD} \\
+    \midrule
+    \multirow{4}{*}{0.007} & 25 & 44.96 & 36.43 & 81.40 & 79.26 & +36.43 & +42.83 \\
+    & 50 & 44.96 & 36.43 & 80.04 & 75.58 & +35.08 & +39.15 \\
+    & 75 & 44.96 & 36.43 & 78.88 & 73.26 & +33.91 & +36.82 \\
+    & 95 & 44.96 & 36.43 & 71.90 & 63.18 & +26.94 & +26.74 \\
+    \midrule
+    \multirow{4}{*}{0.010} & 25 & 34.30 & 21.71 & 72.87 & 68.80 & +38.57 & +47.09 \\
+    & 50 & 34.30 & 21.71 & 69.96 & 64.53 & +35.66 & +42.83 \\
+    & 75 & 34.30 & 21.71 & 68.80 & 62.21 & +34.50 & +40.50 \\
+    & 95 & 34.30 & 21.71 & 56.40 & 48.84 & +22.09 & +27.13 \\
+    \midrule
+    \multirow{4}{*}{0.030} & 25 & 12.79 & 2.71 & 38.18 & 38.37 & +25.39 & +35.66 \\
+    & 50 & 12.79 & 2.71 & 35.08 & 31.98 & +22.29 & +29.26 \\
+    & 75 & 12.79 & 2.71 & 29.84 & 25.39 & +17.05 & +22.67 \\
+    & 95 & 12.79 & 2.71 & 21.12 & 10.47 & +8.33 & +7.75 \\
+    \midrule
+    \multirow{4}{*}{0.100} & 25 & 9.30 & 0.00 & 12.02 & 8.91 & +2.71 & +8.91 \\
+    & 50 & 9.30 & 0.00 & 10.66 & 6.40 & +1.36 & +6.40 \\
+    & 75 & 9.30 & 0.00 & 10.27 & 3.49 & +0.97 & +3.49 \\
+    & 95 & 9.30 & 0.00 & 10.08 & 0.78 & +0.78 & +0.78 \\
+    \bottomrule
+    \end{tabular}
+    
+\end{table}
+
+
+
 \end{document}

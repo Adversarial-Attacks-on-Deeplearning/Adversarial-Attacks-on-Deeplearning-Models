@@ -122,7 +122,7 @@ $\epsilon$ & {Accuracy (\%)} & {Accuracy Drop (\%)} \\
 \end{tabular}
 \end{table}
 
-
+\clearpage
 \subsubsection{Projected Gradient Descent (PGD)}
 \paragraph{Introduction}
 
@@ -190,9 +190,227 @@ $\epsilon=0.10$, $\alpha=0.0250$  & 0.00  & 96.00 & 3 \\
 \end{table}
 
 \clearpage
+\subsubsection{Momentum Iterative Fast Gradient Sign Method(MI-FGSM)}
+\paragraph{Introduction}
+
+The Momentum Iterative Fast Gradient Sign Method (MI-FGSM) evolved to address the limitations of earlier gradient-based attack methods in crafting effective adversarial examples, particularly to improve their robustness and transferability across different model scenarios. The progression began with a single-step method that used gradient perturbations to mislead models, which, while simple and efficient, was constrained by its reliance on a linear decision boundary assumption, limiting its effectiveness for larger perturbations. This led to the development of an iterative approach that applied multiple small perturbations, enhancing white-box attack success by thoroughly exploring the loss landscape. However, this method often overfit to the target model, reducing its ability to transfer to other models, a critical drawback for black-box attacks. To overcome this, MI-FGSM was introduced, incorporating the momentum concept from optimization techniques. Momentum stabilizes update directions by accumulating gradient velocities across iterations, preventing the attack from getting trapped in local maxima and improving transferability, thus balancing attack potency across both white-box and black-box scenarios.
+\cite{dong2018momentum}
+\paragraph{Methodology}
+
+\subparagraph{Attack Type}
+The Momentum Iterative Fast Gradient Sign Method (MI-FGSM) is a white-box adversarial attack, requiring full access to the target model's parameters and gradients for precise perturbation crafting. It is an iterative method, applying multiple small perturbation steps to refine the adversarial example, which enhances its ability to explore the loss landscape effectively. MI-FGSM operates as an untargeted attack, aiming to maximize the loss function to induce any misclassification. During its iterations, MI-FGSM updates the input by adding perturbations proportional to the sign of an accumulated momentum term, which integrates past gradients to stabilize the direction and prevent entrapment in local maxima, thereby improving attack success and transferability across models.
+
+\subparagraph{Parameters}
+\begin{itemize}
+    \item $x$ The clean input image to be perturbed.
+    \item $y$ The true label associated with $x$.
+    \item $f$ The parameters of the target neural network model.
+    \item $\epsilon$ The maximum allowable perturbation (controls the size of the $L_\infty$ ball).
+    \item $T$ The number of iterations (steps) to apply the attack.
+    \item $\alpha$ The step size used for each gradient update.
+    \item $\mu$ The decay factor controlling the influence of past gradients (e.g., typically set to 1.0).
+    \item $J(f, x, y)$ The loss function used during training (e.g., cross-entropy).
+\end{itemize}
+\subparagraph{Algorithm Overview}
+
+The Momentum Iterative Fast Gradient Sign Method (MI-FGSM) is an advanced algorithm designed to generate adversarial examples by iteratively perturbing input data to maximize the loss function of a deep neural network, thereby inducing misclassification. Building on the iterative gradient-based approach, MI-FGSM enhances attack effectiveness by incorporating a momentum term that accumulates gradient information across iterations. This momentum stabilizes the perturbation direction, preventing the algorithm from being trapped in poor local maxima and improving the transferability of adversarial examples to other models. The process involves initializing the perturbation, computing gradients at each step, updating the momentum, and adjusting the input with a controlled step size, all while adhering to a predefined perturbation bound. The following pseudocode outlines the implementation.
+\begin{breakablealgorithm}{Momentum Iterative Fast Gradient Sign Method (MI-FGSM)}
+
+\begin{algorithmic}[1]
+\Require $\mathbf{x}$, $y$, $f$, $\epsilon$, $\alpha$, $T$, $\mu$
+\Ensure $\mathbf{x}^*$
+\State Initialize $\mathbf{g}_0 \gets 0$, $\mathbf{x}_0^* \gets \mathbf{x}$
+\State Set $\alpha \gets \epsilon / T$
+\For{$t = 0$ to $T-1$}
+    \State Compute gradient: $\nabla_{\mathbf{x}} J(\mathbf{x}_t^*, y) \gets \nabla_{\mathbf{x}} J(f(\mathbf{x}_t^*), y)$
+    \State Update momentum: $\mathbf{g}_{t+1} \gets \mu \cdot \mathbf{g}_t + \frac{\nabla_{\mathbf{x}} J(\mathbf{x}_t^*, y)}{||\nabla_{\mathbf{x}} J(\mathbf{x}_t^*, y)||_1}$
+    \State Update adversarial example: $\mathbf{x}_{t+1}^* \gets \mathbf{x}_t^* + \alpha \cdot \text{sign}(\mathbf{g}_{t+1})$
+\EndFor
+\State \Return $\mathbf{x}^* \gets \mathbf{x}_T^*$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
+
+\paragraph{Results}
+
+The model test accuracy before the attack is 96.31\%.
+
+\begin{table}[h]
+\centering
+\caption{MI-FGSM Parameters}
+\begin{tabular}{cccc}
+\toprule
+\textbf{MI-FGSM Parameters} & \textbf{Accuracy (\%)} & \textbf{Accuracy Drop (\%)} & \textbf{Iterations} \\
+\midrule
+$\epsilon = 0.03$, $\mu = 0.5$ & 2.52 & 93.79 & 10 \\
+$\epsilon = 0.03$, $\mu = 1.0$ & 2.71 & 93.60 & 10 \\
+$\epsilon = 0.01$, $\mu = 0.5$ & 20.54 & 75.77 & 10 \\
+$\epsilon = 0.01$, $\mu = 1.0$ & 24.03 & 72.28 & 10 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The results reveal that test accuracy is highly sensitive to the perturbation size $\epsilon$. A larger $\epsilon = 0.03$ leads to a severe accuracy drop (2.52\%–2.71\%), indicating greater attack efficacy, with a marginal increase in accuracy (0.19\%) when $\mu$ rises from 0.5 to 1.0, suggesting a stabilizing effect of momentum. Conversely, a smaller $\epsilon = 0.01$ yields higher accuracies (20.54\%–24.03\%), with an increase of 3.49\% as $\mu$ increases from 0.5 to 1.0, highlighting improved model resilience and momentum’s role in enhancing transferability. The fixed iteration count (10) ensures consistent attack strength across configurations.
+\clearpage
+\subsubsection{JSMA}
+\paragraph{Introduction} 
+The Jacobian-based Saliency Map Attack (JSMA) is a targeted adversarial attack method that exposes the vulnerability of neural networks to subtle, intentional perturbations. It operates by analyzing how changes in individual input features influence the model's output, using a construct known as the forward derivative or Jacobian. This derivative captures the sensitivity of each output class to changes in input features.
+
+JSMA generates adversarial saliency maps that identify which features, when modified, are most likely to increase the model's confidence in a specific target class while reducing confidence in all other classes. The attack modifies only a small subset of input features, typically through a greedy search strategy guided by the saliency map, making the changes both minimal and highly effective.
+
+Unlike traditional gradient-based attacks that perturb inputs based on the overall loss function, JSMA provides fine-grained control over feature selection by focusing on the direct relationship between inputs and outputs. In practice, it has been shown to produce highly successful targeted attacks while maintaining a high level of visual similarity to the original input, as demonstrated on image classification tasks such as handwritten digit recognition.
+
+JSMA's strength lies in its interpretability and precision, making it a powerful tool for probing model weaknesses and for understanding how specific inputs drive model decisions. It also serves as a foundation for evaluating and improving the robustness of neural network architectures in adversarial settings \cite{papernot2016limitations}.
+
+
+\paragraph{Methodology}
+\subparagraph{Attack Type}
+
+
+
+The Jacobian-based Saliency Map Attack (JSMA) is a targeted, white-box adversarial attack designed to manipulate the output of deep neural networks (DNNs) by crafting adversarial samples that induce specific misclassifications. Unlike untargeted attacks that aim to cause any misclassification, JSMA focuses on forcing a DNN to classify an input into a predefined target class chosen by the adversary. This targeted approach makes JSMA particularly effective in scenarios where specific misclassification outcomes are desired, such as bypassing security systems or altering the behavior of autonomous systems. JSMA operates in a white-box setting, requiring full knowledge of the DNN’s architecture, including its layers, activation functions, and trained parameters. By leveraging the Jacobian matrix of the DNN, JSMA constructs adversarial saliency maps that identify the input features most likely to influence the network’s output when perturbed. These maps guide the selective modification of input features, ensuring minimal changes to the original input while achieving the desired misclassification. This precision distinguishes JSMA from other adversarial attacks, such as gradient-based methods that apply broader perturbations, making it a powerful tool for exploiting DNN vulnerabilities with subtle alterations.
+
+
+\subparagraph{Parameters}
+
+\begin{itemize}
+    \item $X$ The clean input sample to be perturbed.
+    \item $Y^*$ The target adversarial output class chosen by the adversary.
+    \item $F$ The function learned by the target neural network during training.
+    \item $\gamma$ The maximum allowable distortion (controls the fraction of features perturbed, e.g., 10\% of input features).
+    \item $T$ The maximum number of iterations for the perturbation process.
+    \item $\theta$ The feature variation parameter (step size for perturbing selected input features).
+    \item $S(X, Y^*)$ The adversarial saliency map computed using the forward derivative $J_F(X)$.
+    \item $J_F(X)$ The Jacobian matrix of the function $F$ with respect to input $X$ (forward derivative).
+    \item $N$ Number of Pixels to perturb at each iteration
+\end{itemize}
+
+
+These parameters enable JSMA to balance effectiveness and stealth, with $\theta$ and $\gamma$ ensuring minimal perturbations and $t$ directing the attack’s outcome. Proper tuning, as demonstrated in the paper’s experiments, allows JSMA to craft adversarial samples that are both highly successful and difficult to detect.
+
+
+\subparagraph{Algorithm Overview}
+\begin{breakablealgorithm}{Jacobian-based Saliency Map Attack (JSMA)}
+\begin{algorithmic}[1]
+\Require $\mathbf{X}$, $\mathbf{Y}^*$, $\mathbf{F}$, $\gamma$, $\theta$
+\Ensure $\mathbf{X}^*$
+\State Initialize $\mathbf{X}^* \gets \mathbf{X}$, $\delta_{\mathbf{X}} \gets \mathbf{0}$, $\mathbf{I} \gets \{1, \ldots, |\mathbf{X}|\}$
+\While{$\mathbf{F}(\mathbf{X}^*) \neq \mathbf{Y}^*$ and $||\delta_{\mathbf{X}}||_0 < \gamma \cdot |\mathbf{X}|$}
+    \State Compute forward derivative: $J_{\mathbf{F}}(\mathbf{X}^*) \gets \frac{\partial \mathbf{F}(\mathbf{X}^*)}{\partial \mathbf{X}^*}$
+    \State Compute saliency map: $S(\mathbf{X}, \mathbf{Y}^*) \gets \text{saliency\_map}(J_{\mathbf{F}}(\mathbf{X}^*), \mathbf{I}, \mathbf{Y}^*)$
+    \State Select feature: $i_{\max} \gets \arg \max_i S(\mathbf{X}, \mathbf{Y}^*)[i]$
+    \State Update feature: $\mathbf{X}^*_{i_{\max}} \gets \mathbf{X}^*_{i_{\max}} + \theta$
+    \State Update perturbation: $\delta_{\mathbf{X}} \gets \mathbf{X}^* - \mathbf{X}$
+\EndWhile
+\State \Return $\mathbf{X}^*$
+\end{algorithmic}
+
+\end{breakablealgorithm}
+\paragraph{Results}
+\subparagraph{Stop Sign Sample}
+The following parameters were used for the attack on the Stop Sign sample:
+\begin{itemize}
+    \item $T$: Maximum number of iterations = 15
+    \item $Y^*$: Target adversarial output class = Class 17 ``No Entry''
+    \item $\theta$: Feature variation parameter = 255 (unnormalized images were used)
+    \item $\gamma$: Maximum allowable distortion = 20\%
+    \item $N$: Number of pixels to perturb at each iteration = 50
+\end{itemize}
+
+Before the attack, the clean Stop Sign image was classified as ``Stop'' with a confidence of 92.36\%. After the attack, the adversarial Stop Sign image, generated using JSMA with minimal perturbation, was misclassified as ``No Entry'' with a confidence of 70.18\%.
+
+\begin{figure}[ht!]
+    \centering
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/clean_stopimage_jsma_1.png}
+        \caption{Clean Stop Sign image}
+        \label{fig:clean_stopimage}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/adv_stopimage_jsma_1.png}
+        \caption{Adversarial Stop Sign image generated using JSMA}
+        \label{fig:adv_stopimage}
+    \end{subfigure}
+    \caption{Comparison of clean and adversarial Stop Sign images generated using the Jacobian-based Saliency Map Attack (JSMA)}
+    \label{fig:stopimage_comparison}
+\end{figure}
+
+\subparagraph{Speed Limit 80 Sign Sample}
+The following parameters were used for the attack on the Speed Limit 80 Sign sample (ground truth label: Class 5):
+\begin{itemize}
+    \item $T$: Maximum number of iterations = 15
+    \item $Y^*$: Target adversarial output class = Class 2 ``Speed Limit 50''
+    \item $\theta$: Feature variation parameter = 255 (unnormalized images were used)
+    \item $\gamma$: Maximum allowable distortion = 10\%
+    \item $N$: Number of pixels to perturb at each iteration = 100
+\end{itemize}
+
+Before the attack, the clean Speed Limit 80 Sign image was classified as ``Speed Limit 80'' with a confidence of 95.54\%. After the attack, the adversarial Speed Limit 80 Sign image, generated using JSMA with minimal perturbation, was misclassified as ``Speed Limit 50'' with a confidence of 84.07\%.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/clean_speed80_jsma_2.png}
+        \caption{Clean Speed Limit 80 Sign image}
+        \label{fig:clean_speed80}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/adv_speed80_jsma_2.png}
+        \caption{Adversarial Speed Limit 80 Sign image generated using JSMA}
+        \label{fig:adv_speed80}
+    \end{subfigure}
+    \caption{Comparison of clean and adversarial Speed Limit 80 Sign images generated using the Jacobian-based Saliency Map Attack (JSMA)}
+    \label{fig:speed80_comparison}
+\end{figure}
+\clearpage
+\subparagraph{Vechiles over 3.5 tons prohibited}
+The following parameters were used for the attack on the Speed Limit 80 Sign sample (ground truth label: Class 5):
+\begin{itemize}
+    \item $T$: Maximum number of iterations = 15
+    \item $Y^*$: Target adversarial output class = Class 10 ``No passing for vehicles over 3.5 tons''
+    \item $\theta$: Feature variation parameter = 255 (unnormalized images were used)
+    \item $\gamma$: Maximum allowable distortion = 10\%
+    \item $N$: Number of pixels to perturb at each iteration = 100
+\end{itemize}
+
+Before the attack, Clean  image classified as "Vehicles over 3.5 tons prohibited" with confidence 89.57\%. After the attack, Adversarial image generated using JSMA with minimal perturbation, misclassified as "No passing for vehicles over 3.5 tons" with confidence 87.21\%
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/clean_vehicleover3.5tons_jsma_3.png}
+        \caption{Clean  image classified as "Vehicles over 3.5 tons prohibited" }
+        \label{fig:adv_stopimage_2}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/adv_vehicleover3.5tons_jsma_3.png}
+        \caption{Adversarial image generated using JSMA }
+        \label{fig:adv_stopimage_1}
+    \end{subfigure}
+    \caption{Comparison of clean and adversarial Class of Vechiles over 3.5 Tons images generated using the Jacobian-based Saliency Map Attack (JSMA) }
+    \label{fig:stopimage_comparison}
+\end{figure}
+
+\subparagraph{JSMA computed for whole Dataset}  
+
+Since JSMA is a targeted attack, a worst-case analysis was used for test set evaluation. In this evaluation, the goal is to assess the model’s vulnerability when an adversary attempts to misclassify all inputs into a single, fixed target class, regardless of their true labels. This scenario simulates a strong, highly constrained attack strategy and is commonly used to benchmark the effectiveness of targeted adversarial attacks.
+
+The attack was applied to a subset of samples, ensuring an equal number of samples per class. The most frequent class after the attack was Class 0 ``Speed Limit 20''.
+
+The results of the test set evaluation are as follows:
+\begin{description}
+    \item[Attack Success Rate (ASR)] 52.38\%
+    \item[Average Distortion] 0.0011
+\end{description}
+
+
+\clearpage
+\clearpage
 \subsection{Black Box Attacks}
 \subsubsection{Boundary Attack}
-
 \paragraph{Introduction}
 The Boundary Attack is a decision-based adversarial attack that operates in a black-box setting, requiring access only to the model's final predicted class label. First introduced by Brendel et al.\ in 2018 \cite{brendel2018decisionbasedadversarialattacksreliable}, it is particularly powerful because it avoids reliance on gradients or confidence scores, making it suitable for attacking systems where internal model information is completely inaccessible. At its core, the attack performs an iterative random walk along the model's decision boundary to find a minimal perturbation that causes a misclassification.
 
@@ -495,6 +713,11 @@ Finally, the algorithm projects the new point back onto the decision boundary. A
     \caption{The Result of hopskip jump attack on a 20 speed limit sign }
     \label{fig:enter-label}
 \end{figure}
+\subsubsection{Simba}
+\paragraph{Introduction}
+\paragraph{Methodology}
+\paragraph{Resu}
 \section{Defenses}
-
+\subsection{Adverserial Training}
+\subsection{Noise Fusion}
 \end{document}

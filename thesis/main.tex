@@ -15,23 +15,166 @@
 \usepackage{multirow}
 \usepackage{subfiles}
 \usepackage[backend=biber]{biblatex}
+\usepackage{xcolor}
+\usepackage{titling}
+\usepackage{setspace}
+\usepackage{array}
+
 \addbibresource{references.bib}
 \setcounter{secnumdepth}{3}
 \tcbuselibrary{breakable} % Enable breakable tcolorbox
+
 \newtcolorbox{breakablealgorithm}[2][]{
   breakable,
   colback=white,
-  colframe=black, % No border
+  colframe=black,
   coltitle=white,
   fonttitle=\bfseries,
   title=#2,
   #1
 }
 
+% Custom commands for easy editing
+\newcommand{\projecttitle}{Adversarial Attacks on Deep Learning}
+\newcommand{\degreetype}{Bachelor of Science in Electronics \& Electrical Communication Engineering}
+\newcommand{\supervisor}{Prof. Dr. Hanan Ahmed Kamal}
+\newcommand{\supervisortwo}{Dr. Mohamed Abdo Tolba}
+\newcommand{\sponsor}{Si-Vision}
+\newcommand{\academicyear}{2024/2025}
 
+% Student names in English
+\newcommand{\studentone}{Ahmed Tamer Samir Mohamed}
+\newcommand{\studenttwo}{Salma Mohamed Hamed Mostafa}
+\newcommand{\studentthree}{Saad Ahmed Saad Ali}
+\newcommand{\studentfour}{Omar Khaled Abdel Aleem Ali}
+\newcommand{\studentfive}{Fatma Hussein Abdel Wahed Zaher}
+\newcommand{\studentsix}{Youssef Hesham Abdel Fattah Mohamed}
 
 \begin{document}
 
+% Cover Page
+\begin{titlepage}
+\pagestyle{empty}
+\begin{center}
+
+% Header with logos and university info
+\vspace*{1cm}
+\begin{tabular}{m{3cm} m{8cm} m{3cm}}
+\includegraphics[width=2.5cm]{images/cu.png} & 
+\begin{center}
+\Large \textbf{Cairo University} \\
+\large \textbf{Faculty of Engineering} \\
+\large \textbf{Electronics \& Electrical Communication} \\
+\large \textbf{Engineering Department}
+\end{center} & 
+\includegraphics[width=2.5cm]{images/eng.png}
+\end{tabular}
+
+\vspace{1cm}
+
+% Project Title
+{\Huge \textbf{\projecttitle}}
+
+\vspace{1cm}
+
+% Subtitle
+{\Large \textbf{A Graduation Project Report}}
+
+\vspace{0.5cm}
+
+{\large \textbf{Submitted in partial fulfillment of the requirements of the degree of}}
+
+\vspace{0.3cm}
+
+{\large \textbf{\degreetype}}
+
+\vspace{1cm}
+
+% Submitted by section
+{\Large \textbf{Submitted by}}
+
+\vspace{1cm}
+
+% Student names
+\begin{spacing}{1.5}
+{\large \textbf{\studentone}} \\
+{\large \textbf{\studenttwo}} \\
+{\large \textbf{\studentthree}} \\
+{\large \textbf{\studentfour}} \\
+{\large \textbf{\studentfive}} \\
+{\large \textbf{\studentsix}}
+\end{spacing}
+
+\vspace{1cm}
+
+% Supervised by
+{\Large \textbf{Supervised by}}
+
+\vspace{0.5cm}
+
+{\large \textbf{\supervisor}}
+
+\vspace{0.3cm}
+
+{\large \textbf{\supervisortwo}}
+
+\vspace{1cm}
+
+% Sponsored by
+{\Large \textbf{Sponsored by}}
+
+\vspace{0.5cm}
+
+{\large \textbf{\sponsor}}
+
+\vfill
+
+% Academic year at bottom
+{\Large \textbf{\academicyear}}
+
+\vspace{1cm}
+
+\end{center}
+\end{titlepage}
+
+% Acknowledgment Page
+\chapter*{Acknowledgment}
+
+% Add your acknowledgment text here
+We would like to express our sincere gratitude to all those who contributed to the successful completion of this graduation project.
+
+First and foremost, we extend our deepest appreciation to our supervisors, \textbf{\supervisor} and \textbf{\supervisortwo}, for their invaluable guidance, continuous support, and expertise throughout this research work.
+
+We are grateful to \textbf{\sponsor} for sponsoring this project and providing the necessary resources and technical support.
+
+We also thank the Faculty of Engineering at Cairo University and the Electronics \& Electrical Communication Engineering Department for providing the academic environment and facilities that made this work possible.
+
+Finally, we acknowledge our families and friends for their unwavering support and encouragement throughout our academic journey.
+
+\newpage
+
+% Abstract Page
+\chapter*{Abstract}
+
+% Add your abstract here
+This graduation project explores adversarial attacks and defenses in deep learning across two domains: computer vision and language models. We investigate how adversarial examples can affect image classification, object detection, segmentation, text classification, large language models, and automatic speech recognition. This project also evaluates state‑of‑the‑art defense methods to enhance model robustness, aiming to improve the security and reliability of AI systems in critical applications. To achieve these objectives, we begin with a systematic survey of adversarial research to identify common vulnerability patterns and to establish a conceptual framework for evaluating model integrity. Using widely adopted benchmark datasets, we train representative convolutional and transformer‑based architectures under standard conditions to establish baseline performance metrics. We then deploy a controlled adversarial evaluation regime, measuring the degradation of key indicators such as accuracy, precision, recall, and stability across both vision and language tasks.
+
+In parallel, we generate a diverse set of adversarial samples to characterize how different threat scenarios undermine model predictions, examining the influence of perturbation magnitude and access assumptions on attack success. Based on these insights, we evaluate a suite of defense approaches—ranging from robust training and input transformations to lightweight monitoring mechanisms—testing each for its ability to recover performance without introducing prohibitive latency or resource overhead. We quantify the trade‑offs between security gains and operational cost, and integrate the most effective techniques into a modular safeguard system that adapts its protections in response to detected attack patterns. Our results demonstrate balanced advances in both attack understanding and defense effectiveness, yielding a practical blueprint for deploying resilient, trustworthy AI solutions in safety‑critical settings.
+\newpage
+
+% Table of Contents
+\tableofcontents
+\newpage
+
+% List of Figures
+\listoffigures
+\newpage
+
+% List of Tables (optional)
+% \listoftables
+% \newpage
+
+% Main Content
 \part{Computer Vision}
 \subfile{chapters/cv_intro}
 
@@ -44,24 +187,19 @@
 \chapter{Object Detection}
 \subfile{chapters/object_detection}
 
-
 \part{Language Models}
 \subfile{chapters/lm_intro}
-
 
 \chapter{LLMs}
 \subfile{chapters/llm}
 
-
-
 \chapter{NLP}
 \subfile{chapters/nlp}
-
-
 
 \chapter{Automatic Speech Recognition}
 \subfile{chapters/asr}
 
+% Bibliography
 \printbibliography
 
 \end{document}

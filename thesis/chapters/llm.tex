@@ -61,25 +61,84 @@ Fábio Perez, Ian Ribeiro., 2022. \cite{perez2022ignorepreviouspromptattack} inv
 \subsection{White Box Attacks}
 \subsubsection{Greedy Coordinate Gradient Attack}
 \paragraph{Introduction}\leavevmode\\
-The Greedy Coordinate Gradient (GCG) \cite{zou2023universaltransferableadversarialattacks} is a whie-box jailbreak attack that can in fact induce
+The Greedy Coordinate Gradient (GCG) \cite{zou2023universaltransferableadversarialattacks} is a white-box jailbreak attack that can in fact induce
 aligned language models to produce virtually any objectionable content. Specifically, given a (po-
 tentially harmful) user query, the attack appends an adversarial suffix to the query that attempts
 to induce negative behavior. that is, the user’s original query is left intact, but additional
 tokens are added to attack the model. To choose these adversarial suffix tokens, the attack consists of three
-key elements; these elements have indeed existed in very similar forms in the literature, but i's found that their careful combination leads to reliably successful attacks in practice.
+key elements; these elements have indeed existed in very similar forms in the literature, but it's found that their careful combination leads to reliably successful attacks in practice.
 \begin{enumerate}
     \item \textbf{Initial affirmative responses:}
-    Prior research [Wei et al., 2023; Carlini et al., 2023] has shown that language models can be manipulated into generating harmful content by prompting them to start their response with a short affirmative phrase, such as "Sure, here is (content of query)." This attack exploits the observation that once the model begins its reply this way, it tends to continue producing objectionable material. Consistent with earlier findings, we confirm that simply controlling the initial tokens of the response can trigger the model to enter a "mode" where it readily complies with harmful requests.
+    Prior research has shown that language models can be manipulated into generating harmful content by prompting them to start their response with a short affirmative phrase, such as "Sure, here is (content of query)." This attack exploits the observation that once the model begins its reply this way, it tends to continue producing objectionable material. Consistent with earlier findings, we confirm that simply controlling the initial tokens of the response can trigger the model to enter a "mode" where it readily complies with harmful requests.
     \item \textbf{Combined greedy and gradient-based discrete optimization:} 
-   Optimizing the adversarial suffix is difficult because it involves searching for discrete tokens that maximize the attack’s success likelihood. To solve this, token-level gradients are used to identify high-potential single-token substitutions, test multiple candidates, and select the optimal replacement. While similar to AutoPrompt [Shin et al., 2020], this method introduces a key enhancement: rather than replacing just one token per step, a greedy search is performed across all possible replacements, significantly improving effectiveness.
+   Optimizing the adversarial suffix is difficult because it involves searching for discrete tokens that maximize the probability of success of the attack. To solve this, token-level gradients are used to identify high-potential single-token substitutions, test multiple candidates, and perform a greedy search to select the optimal replacement.
    \item \textbf{Robust Multi-Prompt Attack with Weighted Loss}
-   To generate reliable adversarial suffixes, we developed an attack that works across multiple prompts simultaneously rather than optimizing for individual prompts sequentially. Unlike original GCG approach \cite{zou2023universaltransferableadversarialattacks} that add and optimize prompts one at a time until success, our method employs a weighted loss function that prioritizes harder prompts (those with higher loss values) during the optimization process. This weighted sum approach provides two key advantages: (1) it gives greater influence to more challenging prompts when updating the suffix, and (2) it significantly reduces computation time compared to sequential optimization methods while maintaining attack effectiveness.
+   To generate reliable adversarial suffixes, we developed an attack that works across multiple prompts simultaneously rather than optimizing for individual prompts sequentially. Unlike the original GCG approach \cite{zou2023universaltransferableadversarialattacks} that adds and optimizes prompts one at a time until success, our method employs a weighted loss function that prioritizes harder prompts (those with higher loss values) during the optimization process. This weighted-sum approach provides two key advantages: (1) it gives greater influence to more challenging prompts when updating the suffix, and (2) it significantly reduces computation time compared to sequential optimization methods while maintaining attack effectiveness.
 \end{enumerate}
 
 \paragraph{Methodology}\leavevmode\\
+We implemented two distinct approaches for adversarial suffix optimization:
+\begin{enumerate}
+    \item Optimizing an adversarial suffix for each individual harmful prompt.
+    \item  Optimizing a single universal suffix for a set of prompts using a weighted loss function that prioritizes prompts with higher difficulty.
+\end{enumerate}
+The experiments were conducted using the AdvBench dataset. For the first approach, we sampled 50 harmful prompts to evaluate the effectiveness of individualized suffix optimization. For the second approach, we selected 10 prompts to assess the generalization of the universal suffix across multiple prompts. The Qwen-1.5-1.8B model was used as the target model for all experiments.
 
-The following pseudo code outlines our implementation of the GCG attack.
-\begin{breakablealgorithm}{Greedy Coordinate Gradient (GCG) Attack}
+The following pseudocode describes the implementation of the first approach for the Greedy Coordinate Gradient (GCG) attack.
+\begin{breakablealgorithm}{Greedy Coordinate Gradient (GCG) Attack for Single Prompt Processing}
+\begin{algorithmic}[1]
+\Require $model$: Target language model, $tokenizer$: Model tokenizer, 
+        $inputs$: List of harmful prompts, $targets$: List of target responses,
+        $T$: Number of iterations, $k$: Top-k candidates, $B$: Batch size,
+\Ensure $optimized\_suffixes$: List of adversarial suffix strings for each prompt
+
+\State Initialize list to store optimized suffixes: $optimized\_suffixes \gets []$
+\State Initialize suffix tokens: $initial\_suffix \gets$ tokenize("!" repeated 20 times)
+
+\For{each $prompt$, $target\_ids$ in $inputs$, $targets$} \Comment{Loop over prompts}
+    \State $current\_suffix \gets initial\_suffix.copy()$ \Comment{Reset suffix for each prompt}
+    \State $modifiable\_indices \gets [0..len(current\_suffix)-1]$ \Comment{All tokens modifiable}
+
+    \For{$t \gets 1$ to $T$} \Comment{Iterate for optimization}
+        \State Clear previous gradients
+        \State $loss \gets compute\_loss(model, tokenizer, prompt, current\_suffix, target\_ids)$ \Comment{Single prompt loss}
+        \State $loss.backward()$ \Comment{Compute gradients for current prompt}
+        
+        \Comment{Find top-k candidate substitutions per token position}
+        \State $candidates \gets []$
+        \For{each $i$ in $modifiable\_indices$}
+            \State Compute gradient for position $i$
+            \State Project gradient onto embedding space to find top-$k$ token candidates
+            \State $candidates.extend([(i, token) for token in topk\_indices])$
+        \EndFor
+        
+        \Comment{Evaluate batch of substitutions}
+        \State $best\_loss \gets loss.item()$
+        \State $best\_suffix \gets current\_suffix.copy()$
+        \For{$b \gets 1$ to $B$}
+            \State Randomly select $(pos, new\_token)$ from $candidates$
+            \State $temp\_suffix \gets current\_suffix.copy()$
+            \State $temp\_suffix[pos] \gets new\_token$
+            \State $temp\_loss \gets compute\_loss(model, tokenizer, prompt, temp\_suffix, target\_ids)$
+            \If{$temp\_loss < best\_loss$}
+                \State $best\_loss \gets temp\_loss$
+                \State $best\_suffix \gets temp\_suffix.copy()$
+            \EndIf
+        \EndFor
+        
+        \State Update $current\_suffix \gets best\_suffix$
+        \State Print iteration statistics for current prompt
+    \EndFor
+    
+    \State $optimized\_suffix \gets tokenizer.decode(current\_suffix)$
+    \State Append $optimized\_suffix$ to $optimized\_suffixes$
+\EndFor
+
+\State \Return $optimized\_suffixes$
+\end{algorithmic}
+\end{breakablealgorithm}
+The following pseudocode describes the implementation of the second approach for the Greedy Coordinate Gradient (GCG) attack.
+\begin{breakablealgorithm}{Greedy Coordinate Gradient (GCG) Attack for universal suffix optimization}
 \begin{algorithmic}[1]
 \Require $model$: Target language model, $tokenizer$: Model tokenizer, 
         $inputs$: List of harmful prompts, $targets$: List of target responses,
@@ -111,9 +170,6 @@ The following pseudo code outlines our implementation of the GCG attack.
     \State $best\_loss \gets total\_loss$
     \State $best\_suffix \gets current\_suffix.copy()$
     \For{$b \gets 1$ to $B$}
-        \If{$candidates$ is empty}
-            \State Continue
-        \EndIf
         \State Randomly select $(pos, new\_token)$ from $candidates$
         \State $temp\_suffix \gets current\_suffix.copy()$
         \State $temp\_suffix[pos] \gets new\_token$
@@ -132,6 +188,104 @@ The following pseudo code outlines our implementation of the GCG attack.
 \State \Return $optimized\_suffix$
 \end{algorithmic}
 \end{breakablealgorithm}
+The key objective in the two approaches is to minimize the adversarial loss function, defined as the negative log-likelihood of a target affirmative response sequence \(\mathbf{x}_{n+1:n+H}^* = [t_1, \ldots, t_H]\) (e.g., ``Sure, here is...'') given the input prompt \(\mathbf{x}_{1:n}\):
+
+\[
+\mathcal{L}(\mathbf{x}_{1:n}) = -\log p(\mathbf{x}_{n+1:n+H}^* \mid \mathbf{x}_{1:n}) = -\sum_{i=1}^H \log p(t_i \mid \mathbf{x}_{1:n+i-1}),
+\]
+
+where \( p(t_i \mid \mathbf{x}_{1:n+i-1}) \) is the LM's next-token probability. For universal optimization, the loss is a weighted sum over \( m \) prompts: \(\sum_{j=1}^m w_j \mathcal{L}_j\), with weights \( w_j \) balancing contributions. GCG optimizes a single adversarial suffix per prompt by iteratively selecting a token position, computing gradients to identify \( k = 256 \) candidate token substitutions, evaluating \( B = 128 \) random substitutions, and updating with the substitution yielding the lowest loss. This process repeats for \( T = 50 \) iterations, targeting a 20-token suffix. 
+
+\paragraph{Results}\leavevmode\\
+The Attack Success Rate (ASR) was calculated by evaluating whether a large language model’s (LLM) response contains any predefined refusal phrases, such as "sorry," "I apologize," or "I can’t." An attack is considered successful if none of these phrases appear in the response. However, this approach has limitations. It may produce False Positives when the model generates irrelevant content instead of the targeted harmful response. Similarly, it may yield False Negatives when the model includes a refusal phrase but still produces the targeted response within the same output. To address these limitations, we reviewed responses manually, and calculated additional evaluation metrics, including Recall, Precision, and F1 Score.
+\begin{table}[H]
+\centering
+\caption{Jailbreak Attack Success Rate (ASR) and Detection Metrics}
+\label{tab:safe_eval}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Method} & \textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
+\midrule
+Individual Suffix   & 84 & 0.92  & 0.83  & 0.87  \\
+Universal Suffix  & 0 & 0  & 0  & 0.00  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Beam search-based Adversarial Attack}
+\paragraph{Introduction}\leavevmode\\
+The fast Beam search-based Adversarial (BEAST) \cite{zou2023universaltransferableadversarialattacks} is a white-box
+jailbreak attack designed to elicit undesirable outputs from aligned language
+models by appending an adversarial suffix to individual user prompts. Unlike
+the Greedy Coordinate Gradient (GCG) attack, which employs gradient-based
+greedy search, BEAST utilizes a computationally efficient, gradient-free beam
+search optimization scheme. This approach processes one prompt at a time,
+optimizing the adversarial suffix with tunable hyperparameters to balance attack speed, success rate, and prompt readability.
+
+
+\paragraph{Methodology}\leavevmode\\
+The experiments were conducted using the AdvBench dataset. Using the same 50 sampled harmful prompts in the GCG Attack. The Qwen-1.5-1.8B model was used as the target model for all experiments.\\
+
+The following pseudocode describes the implementation of the Beam Search-based Adversarial Attack (BEAST).
+\begin{breakablealgorithm}{Beam Search-based Adversarial Attack (BEAST) for Jailbreaking}
+\begin{algorithmic}[1]
+\Require $model$: Target language model, $tokenizer$: Model tokenizer, $prompt$: User prompt (string), $target$: Target harmful string (string), $k_1$: Beam size, $k_2$: Tokens to sample per beam element, $L$: Adversarial suffix length, $max\_batch\_size$: Maximum batch size
+\Ensure $adversarial\_prompt$: Adversarial prompt string
+
+\State $prompt\_ids \gets tokenizer(\texttt{"A chat..."} \oplus \texttt{"User: "} \oplus prompt)$
+\State $target\_ids \gets tokenizer(target)$
+\State Initialize $beam \gets [prompt\_ids]$, $best\_prompt \gets prompt\_ids$, $best\_score \gets +\infty$
+
+\State $logits \gets model(prompt\_ids)[-1, :]$ \Comment{Last token logits}
+\State $initial\_tokens \gets MultinomialSample(logits, k_1)$
+\State Update $beam$ with $k_1$ candidates: $prompt\_ids \oplus [token]$ for each $token$
+
+\For{$l \gets 2$ to $L$} \Comment{Generate $L-1$ adversarial tokens}
+    \State $candidates \gets []$
+    \For{each $beam\_element$ in $beam$}
+        \State $logits \gets model(beam\_element)[-1, :]$
+        \State $tokens \gets MultinomialSample(logits, k_2)$
+        \State Append $beam\_element \oplus [token]$ to $candidates$ for each $token$
+    \EndFor
+
+    \State $scores \gets []$
+    \For{batch in $candidates$ with size $\leq max\_batch\_size$} \Comment{Batch scoring}
+        \State $batch\_scores \gets PerplexityLoss(model, tokenizer, batch, target\_ids)$
+        \State Append $batch\_scores$ to $scores$
+    \EndFor
+
+    \State Select top $k_1$ candidates with lowest $scores$ to update $beam$
+    \If{$scores[0] < best\_score$}
+        \State $best\_score \gets scores[0]$, $best\_prompt \gets beam[0]$
+    \EndIf
+\EndFor
+
+\State $adversarial\_prompt \gets tokenizer.decode(best\_prompt)$
+\State \Return $adversarial\_prompt$
+\end{algorithmic}
+\end{breakablealgorithm}
+The key objective is to minimize the adversarial objective function, defined as the perplexity of the target harmful string \(\mathbf{t} = [t_1, \ldots, t_d]\) given the adversarial prompt \(\mathbf{x}\):
+
+\[
+\mathcal{L}(\mathbf{x}) = \exp\left(-\frac{1}{d} \sum_{i=1}^d \log p(t_i \mid \mathbf{x} \oplus \mathbf{t}_{<i})\right),
+\]
+where \( p(t_i \mid \mathbf{x} \oplus \mathbf{t}_{<i}) \) is the LM's next-token probability. BEAST aims to maximize the likelihood of generating \(\mathbf{t}\) by iteratively expanding a beam of \( k_1 \) candidates, sampling \( k_2 \) tokens per candidate, and selecting the top \( k_1 \) candidates with the lowest \(\mathcal{L}(\mathbf{x})\). The algorithm processes one prompt at a time, using parameters \( k_1 = 15 \), \( k_2 = 15 \), and \( L = 30 \) for a 30-token suffix.
+
+\paragraph{Results}\leavevmode\\
+The Attack Success Rate (ASR) was calculated using the same methodology as in the GCG attack (including the predefined refusal phrases), with identical evaluation metrics: Recall, Precision, and F1 Score.
+\begin{table}[H]
+\centering
+\caption{Jailbreak Attack Success Rate (ASR) and Detection Metrics}
+\label{tab:safe_eval}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Method} & \textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
+\midrule
+Individual Suffix   & 0 & 0  & 0  & 0.00  \\
+Universal Suffix  & 0 & 0  & 0  & 0.00  \\
+\bottomrule
+\end{tabular}
+\end{table}
 \subsection{Black Box Attacks}
 \section{Defenses}
 \clearpage

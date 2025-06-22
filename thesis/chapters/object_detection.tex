@@ -19,7 +19,7 @@ Class-specific mAP@0.5 was evaluated to identify vulnerabilities across differen
 \subsubsection{FGSM Attack on YOLO}
 
 \paragraph{Introduction}\leavevmode\\
-The Fast Gradient Sign Method (FGSM) is a single-step adversarial attack that generates adversarial examples by perturbing inputs along the gradient of the loss function \cite{goodfellow2015explaining}. For YOLO \cite{lu2017noneed}, FGSM targets high-confidence detections from raw model outputs before non-maximum suppression (NMS) to maximize classification errors, causing misclassifications or missed detections. The attack uses an $\ell_\infty$-bounded perturbation (controlled by $\epsilon$) to maintain similarity while disrupting the model's predictions.
+The Fast Gradient Sign Method (FGSM) is a single-step adversarial attack that generates adversarial examples by perturbing inputs along the gradient of the loss function \cite{goodfellow2015explaining}. For YOLO FGSM targets high-confidence detections from raw model outputs before non-maximum suppression (NMS) to maximize classification errors, causing misclassifications or missed detections. The attack uses an $\ell_\infty$-bounded perturbation (controlled by $\epsilon$) to maintain similarity while disrupting the model's predictions.
 
 \paragraph{Methodology}\leavevmode\\
 
@@ -108,12 +108,15 @@ The following tables ~\ref{tab:yolo_fgsm_overall_performance}and ~\ref{tab:yolo_
     \end{tabular}
 \end{table}
 
+\subparagraph{Comparison to The Original FGSM Paper}  
+Our YOLO adaptation of FGSM achieved a 55.1\% mAP@0.5 reduction at $\epsilon=0.1$, consistent with the original paper's demonstration of classifier vulnerability to linear perturbations\cite{goodfellow2015explaining}. More robustness ($\Delta$mAP = -0.511 at $\epsilon=0.1$) exceeds the original paper's CIFAR-10 error rate (87.15\%)\cite{goodfellow2015explaining}, suggesting object detection exhibit greater resistance to small perturbations.
+
 
 \subsubsection{PGD Attack on YOLO}
 
 % Writing introduction paragraph
 \paragraph{Introduction}\leavevmode\\
-The Projected Gradient Descent (PGD) attack is an iterative adversarial attack that generates adversarial examples by repeatedly perturbing the input image along the gradient of the loss function, with projections to ensure perturbations remain within an $\ell_\infty$-bounded $\epsilon$-ball \cite{madry2018towardspgd}. For YOLO \cite{lu2017noneed}, PGD targets high-confidence detections from raw model outputs before non-maximum suppression (NMS), aiming to maximize classification errors and cause misclassifications or missed detections. Unlike the single-step FGSM, PGD's iterative nature with smaller step sizes and optional random initialization enhances attack strength while maintaining visual similarity, controlled by the perturbation magnitude $\epsilon$.
+The Projected Gradient Descent (PGD) attack is an iterative adversarial attack that generates adversarial examples by repeatedly perturbing the input image along the gradient of the loss function, with projections to ensure perturbations remain within an $\ell_\infty$-bounded $\epsilon$-ball \cite{madry2018towardspgd}. For YOLO PGD targets high-confidence detections from raw model outputs before non-maximum suppression (NMS), aiming to maximize classification errors and cause misclassifications or missed detections. Unlike the single-step FGSM, PGD's iterative nature with smaller step sizes and optional random initialization enhances attack strength while maintaining visual similarity, controlled by the perturbation magnitude $\epsilon$.
 
 % Writing methodology paragraph with algorithm
 \paragraph{Methodology}\leavevmode\\
@@ -206,6 +209,10 @@ The impact of the PGD attack on YOLO's performance is detailed in Tables~\ref{ta
         \bottomrule
     \end{tabular}
 \end{table}
+
+\subparagraph{Comparison to The Original PGD Paper}  
+Our YOLO adaptation of PGD achieved an 81.3\% mAP@0.5 reduction at $\epsilon=0.1$, consistent with the original paper's demonstration of deep neural network vulnerability to iterative attacks with >89\% error rates\cite{madry2018towardspgd}. The attack efficiency (significant degradation in 10 iterations) exceeds Madry et al.'s 40-step MNIST results. This confirms PGD's transferability across architectures while highlighting task-specific vulnerability profiles.
+
 
 
 \subsubsection{Dense Adversary Generation (DAG)}
@@ -395,6 +402,11 @@ The Dense Adversary Generation (DAG) attack both targeted and untargeted overall
     \end{tabular}
 \end{table}
 
+
+\subparagraph{Comparison to the Original DAG Paper}
+The original DAG algorithm~\cite{xie2017DAG} was proposed as a \textit{targeted} attack, and our targeted DAG implementation on YOLO yields a similarly dramatic drop in detection performance. Specifically, under targeted DAG, the YOLO detector's mAP@0.5 plummeted from 0.927 (clean) to 0.0947, representing a reduction of nearly 90\%. This is comparable to the results reported by Xie et al., where targeted DAG attacks reduced mAP from 58.70\% to 3.61\% on FR-ZF-07 and from 69.14\% to 5.92\% on FR-VGG-07\cite{xie2017DAG}. While the absolute values differ due to variations in model architecture (YOLO vs.\ Faster-RCNN) and experimental setup, both studies confirm that targeted DAG attacks can almost completely suppress correct detections in state-of-the-art object detectors. Thus, our findings reinforce the original paper's conclusion regarding the high effectiveness of targeted adversarial perturbations for object detection networks.
+
+
 \subsubsection{"Adversarial Examples that Fool Detectors" Attack}
 \paragraph{Introduction}\leavevmode\\
 The "Adversarial Examples that Fool Detectors" method, introduced by Lu et al. \cite{lu2017fooldetectors}, presents a technique for creating adversarial examples designed specifically to deceive object detection models.The authors demonstrate its effectiveness by generating robust digital and physical perturbations for objects like stop signs and faces, showing successful generalization from Faster R-CNN to YOLO.
@@ -491,6 +503,9 @@ The impact of the "Adversarial Examples that Fool Detectors" attack on YOLO's pe
         \bottomrule
     \end{tabular}
 \end{table}
+
+\subparagraph{Comparison to the Original Paper}  
+Our YOLOv8 implementation of the ``Fool Detectors'' attack achieved an $83.3\,\%$ relative $\text{mAP@0.5}$ reduction ($0.927 \rightarrow 0.155$), consistent with Lu et al.'s findings of near-total object suppression $90+\,\%$\cite{lu2017fooldetectors}. While both methodologies use iterative sign-gradient updates with $L_2$ regularization, our attack targeted multiple traffic sign classes---yielding stronger per-class degradation (e.g., Green Light $\text{mAP@0.5}$: $0.0204$)---whereas the original focused on stop signs--faces. Notably, our subtle digital perturbations achieved comparable degradation to Lu et al.'s large physical perturbations, highlighting the attack's efficiency in digital domains. This confirms the transferability of their attack framework across modern YOLO architectures and target classes.
 
 
 \subsubsection{Universal Adversarial Perturbations (UAP)}
@@ -590,6 +605,9 @@ The impact of the UAP attack on YOLO's performance is detailed in Tables~\ref{ta
     \end{tabular}
 \end{table}
 
+\subparagraph{Comparison to The Original UAP Paper}  
+Our YOLO UAP implementation achieved a 52.3\% mAP@0.5 reduction, confirming the original paper's core thesis that universal perturbations degrade model performance significantly. However, object detection exhibits lower vulnerability than classification (52.3\% vs. 85-93\% error rates)\cite{moosavi2017universal}. Achieving comparable degradation, our larger $\ell_\infty$ bound ($\epsilon=0.1$ vs. $\approx 0.039$ scaled) suggests detectors require stronger perturbations.
+
 
 \subsection{Black Box Attacks}
 \subsubsection{Square Attack}
@@ -654,6 +672,10 @@ The Attacks parameters are (epsilon, patch size)
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subparagraph{Comparison to The Original Square Attack Paper}
+Our YOLO adaptation of the Square Attack achieves significant degradation (mAP50 drop of 35.6\% at $\epsilon=0.2$), confirming the original paper's core finding that randomized square updates effectively compromise model integrity\cite{andriushchenko2020square}. However, object detection exhibits higher residual robustness (mAP50=0.597) than image classification (near-zero accuracy)\cite{andriushchenko2020square}, likely due to multi-object suppression requirements.
+
 
 
 \subsection{Physical Attacks}

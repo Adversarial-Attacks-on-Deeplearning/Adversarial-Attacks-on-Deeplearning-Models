@@ -688,9 +688,9 @@ This diverse mixture of gradient-based, targeted, universal, and detector-specif
 In addition to hardening the model itself via adversarial training, a complementary approach is to defend the system at the input level. Instead of processing every image as a potential threat, we designed a more efficient, two-stage dynamic pipeline. This pipeline first uses a lightweight classifier to detect likely adversarial examples and then applies a series of purification transformations only to those flagged images. This targeted approach aims to neutralize threats while minimizing the computational overhead and potential quality degradation for benign images.
 
 The entire process is illustrated in Figure~\ref{fig:defense_pipeline_flowchart} and the specific parameters used are summarized in Table~\ref{tab:pipeline_params}.
-\begin{figure}[h!]
+\begin{figure}[H]
     \centering
-    \includegraphics[width=0.4\textwidth]{images/CV/OD/flow.pdf} % You would create this image
+    \includegraphics[width=0.3\textwidth]{images/CV/OD/flow.pdf} % You would create this image
     \caption{The logic of our two-stage dynamic defense pipeline. An input image is first classified. If it is deemed adversarial, it undergoes purification before being sent to the YOLOv8 detector. Otherwise, it is passed through directly.}
     \label{fig:defense_pipeline_flowchart}
 \end{figure}
@@ -699,9 +699,32 @@ The entire process is illustrated in Figure~\ref{fig:defense_pipeline_flowchart}
 
 \subsubsection{Stage 1: Adversarial Detection}
 
-The first stage of our pipeline acts as a gatekeeper. We employ a \texttt{MobileNetV2} model configured as a binary classifier. This model was trained specifically to distinguish between clean images and images perturbed by various adversarial attacks. \texttt{MobileNetV2} was chosen for its high efficiency and low inference time, making it suitable for a rapid preprocessing check without creating a significant bottleneck.
+% Introducing the adversarial detection stage
+The initial stage of our pipeline serves as a critical gatekeeper to identify and mitigate adversarial perturbations in input images. We utilize a \texttt{MobileNetV2} model, configured as a binary classifier, to distinguish between clean and adversarially perturbed images. The \texttt{MobileNetV2} architecture was selected for its computational efficiency and low inference latency, enabling rapid preprocessing without introducing significant bottlenecks in the pipeline.
 
-An incoming image is passed through this classifier. If the predicted probability of the image being adversarial exceeds a threshold of \textbf{0.3}, the image is flagged for purification. Otherwise, it is considered clean and is passed to the YOLOv8 detector without modification.
+% Describing the classification process
+Each incoming image is evaluated by the \texttt{MobileNetV2} classifier. If the predicted probability of the image being adversarial exceeds a predefined threshold of 0.3, the image is flagged for subsequent purification. Conversely, images classified as clean are directly forwarded to the YOLOv8 detector for object detection without modification.
+
+\paragraph{Classifier Training Process}
+
+% Outlining the dataset composition
+\subparagraph{Dataset Composition}
+The training dataset comprises 14,000 images, including 7,000 clean images and 7,000 adversarially perturbed images. The adversarial subset consists of 2,000 images generated using Projected Gradient Descent (PGD), 2,000 using Fast Gradient Sign Method (FGSM), 1,500 using Universal Adversarial Perturbations (UAP), 500 using Targeted Deep Adversarial Generation (DAG), and 1,000 images from food detection datasets. The dataset is split into 12,000 images for training, 1,000 for validation, and 1,000 for testing.
+
+% Specifying training parameters
+\subparagraph{Training Parameters}
+The \texttt{MobileNetV2} model was trained for 10 epochs to achieve robust performance in distinguishing clean and adversarial images.
+
+\paragraph{Classifier Performance}
+
+% Presenting test dataset performance
+\subparagraph{Test Dataset Performance}
+On the test dataset, the classifier achieved an accuracy of 0.9980. demonstrating high reliability in controlled settings.
+
+% Evaluating performance on real-world data
+\subparagraph{Real-World Data Performance}
+To assess generalization, the classifier was evaluated on a separate dataset of 1,100 images, comprising 500 clean images and 600 adversarial images generated using attack methods not encountered during training. With the adversarial classification threshold set at 0.3, the classifier correctly identified 555 out of 600 adversarial images, yielding an accuracy of 92.5\%.
+
 
 \subsubsection{Stage 2: Input Purification Transformations}
 When an image is flagged as adversarial, it is subjected to a sequence of three transformations designed to disrupt or remove the adversarial noise:

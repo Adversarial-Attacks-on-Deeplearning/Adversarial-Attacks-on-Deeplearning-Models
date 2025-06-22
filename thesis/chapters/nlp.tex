@@ -2,10 +2,627 @@
 \begin{document}
 
 \section{Introduction}
-\section{Attacks}
-\subsection{White Box Attacks}
-%% \paragraph{first attack}
-\subsection{Black Box Attacks}
-\section{Defenses}
+
+\label{sec:sentiment_intro}
+
+Sentiment Analysis, also known as opinion mining, is a fundamental task in Natural Language Processing (NLP) that aims to automatically identify and extract subjective information from text, determining the emotional tone behind a piece of writing \cite{jin2019textfooler}. This computational task has become increasingly critical in our digital age, where understanding public opinion, customer feedback, and social media sentiment drives decision-making across industries ranging from marketing and finance to politics and public health \cite{morris2020textattack}. Traditional sentiment analysis systems have evolved from simple rule-based approaches to sophisticated neural network architectures that have demonstrated remarkable performance on benchmark datasets \cite{miyato2017virtual}.
+
+Despite their impressive capabilities on benchmark datasets, recent research has exposed a concerning vulnerability in these neural sentiment analysis models: their susceptibility to adversarial attacks \cite{jin2019textfooler}\cite{li2018textbugger}. Adversarial examples in the text domain represent carefully crafted input modifications that, while appearing natural and semantically coherent to human readers, can deceive machine learning models into making incorrect predictions \cite{gao2018deepwordbug}. Unlike adversarial attacks in computer vision where pixel-level perturbations can be imperceptible, text-based adversarial examples face unique challenges due to the discrete nature of language and the need to maintain grammatical correctness and semantic meaning \cite{morris2020textattack}.
+
+The implications of these vulnerabilities are particularly severe for sentiment analysis applications deployed in security-sensitive contexts \cite{jin2019textfooler}. Recent incidents demonstrate the practical severity of these vulnerabilities: adversarial text manipulation has contributed to market volatility when sentiment analysis systems misclassified coordinated social media campaigns, and content moderation systems have been evaded through character-level perturbations that maintain toxic intent while appearing benign to automated filters \cite{vazquez2023white}\cite{oroy2024adversarial}. In such scenarios, an adversary could potentially manipulate market sentiment or evade content filters by crafting adversarial text that misleads the underlying sentiment classification models while appearing benign to human moderators \cite{gao2018deepwordbug}.
+
+To systematically investigate these vulnerabilities, our research focuses on three prominent adversarial attack methodologies that have demonstrated effectiveness in black-box settings \cite{morris2020textattack}. \textbf{TextFooler} \cite{jin2019textfooler} employs a synonym-based substitution strategy, identifying the most important words in the input text and replacing them with semantically similar alternatives that preserve the overall meaning while maximizing the likelihood of misclassification. This approach leverages pre-trained word embeddings and uses semantic similarity constraints to ensure that the generated adversarial examples remain coherent and natural \cite{jin2019textfooler}. \textbf{TextBugger} \cite{li2018textbugger} takes a different approach by applying character-level transformations such as character insertion, deletion, and substitution, combined with word-level modifications, making it particularly effective against real-world systems and more robust to simple preprocessing defenses \cite{li2018textbugger}. Finally, \textbf{DeepWordBug} \cite{gao2018deepwordbug} operates as a black-box attack that uses character-level perturbations guided by scoring strategies to identify critical tokens, requiring only access to the model's final predictions without knowledge of internal parameters or gradients \cite{gao2018deepwordbug}.
+
+The choice of these three attack methods is strategic, as they collectively represent a spectrum of practical adversarial text generation techniques, including word-level and character-level perturbations, as well as heuristic-based approaches. By implementing these attacks using the \textbf{TextAttack library} \cite{morris2020textattack}, a comprehensive framework that provides standardized implementations and evaluation metrics for adversarial attacks in NLP, we ensure reproducible and fair comparisons across different attack strategies \cite{jin2019textfooler}. It is important to note that, while some of these attacks were originally proposed with white-box access in mind, our implementation using TextAttack operates in a black-box setting, requiring only access to the model's predictions, which better reflects real-world deployment constraints.
+
+To counteract these threats, we investigate a comprehensive defense strategy combining two complementary approaches: \textbf{Virtual Adversarial Training (VAT)} \cite{miyato2017virtual} and \textbf{character-level purification}. VAT is a regularization technique that improves model robustness by generating virtual adversarial examples during training—perturbations that are designed to maximally change the model's output distribution while maintaining proximity to the original input \cite{miyato2017virtual}. Unlike traditional adversarial training that requires actual adversarial examples, VAT generates these perturbations on-the-fly using gradient information, making it computationally efficient and applicable to various neural network architectures \cite{miyato2017virtual}. To address the limitations of VAT against character-level attacks, we complement it with a lightweight character-level purification defense that operates as a preprocessing layer, targeting specific character-level transformations such as homoglyph substitutions, character insertions, deletions, and adjacent swaps commonly employed by attacks like TextBugger and DeepWordBug \cite{morris2020textattack}.
+
+Our experimental methodology focuses on measuring the effectiveness of these attacks through accuracy degradation metrics, evaluating how significantly each attack method can reduce the performance of sentiment analysis models \cite{jin2019textfooler}. The systematic evaluation allows us to understand the relative strengths and weaknesses of different attack approaches, providing insights into the vulnerability landscape of modern sentiment analysis systems \cite{li2018textbugger}. Subsequently, we assess the defensive capabilities of our hybrid defense strategy by measuring the accuracy recovery achieved when models are trained with VAT regularization and protected by character-level purification \cite{miyato2017virtual}.
+
+The significance of this research extends beyond academic interest, as sentiment analysis systems are increasingly deployed in real-world applications where security and reliability are paramount \cite{morris2020textattack}. Despite the widespread deployment of sentiment analysis in production systems processing millions of texts daily, systematic evaluation of adversarial robustness remains limited, with current literature focusing predominantly on transformer-based models while traditional architectures like BiLSTM-GloVe combinations remain prevalent in resource-constrained environments \cite{belmoukadam2023adversnlp}. Understanding the attack surface and developing effective defenses is crucial for maintaining trust in these systems and ensuring their safe deployment in production environments \cite{jin2019textfooler}. 
+
+Our research makes three primary contributions: (1) systematic evaluation of adversarial vulnerabilities in BiLSTM-GloVe sentiment models across word-level, character-level, and hybrid attack strategies; (2) implementation and assessment of Virtual Adversarial Training defense effectiveness; and (3) development of a novel hybrid defense combining VAT with character-level purification, achieving up to 76.91\% attack success rate reduction against character-level attacks \cite{miyato2017virtual}\cite{morris2020textattack}.
+
+In the subsequent sections, we will detail our experimental setup, present comprehensive results from our attack implementations, analyze the effectiveness of our hybrid defense strategy, and discuss the broader implications of our findings for the security and robustness of sentiment analysis systems in practical deployment scenarios \cite{morris2020textattack}.
+
+
+
+
+\section{Background and Related Work}
+
+\label{sec:sentiment_background}
+
+\subsection{Sentiment Analysis: Evolution and Architectures}
+
+Sentiment analysis, also known as opinion mining, has evolved significantly from early rule-based approaches to sophisticated deep learning architectures that can capture complex semantic relationships in text \cite{pimpalkar2022mblstmglove}. The field has witnessed a paradigm shift from traditional machine learning methods using hand-crafted features to neural network architectures that can automatically learn meaningful representations from raw text data \cite{kumar2023amc}.
+
+The application of deep learning to sentiment analysis has demonstrated remarkable success across various domains, with neural architectures showing superior performance in capturing sequential dependencies and contextual information present in textual data \cite{li2022glove}. Modern sentiment analysis systems leverage sophisticated word embedding techniques combined with recurrent neural networks to achieve high accuracy in understanding emotional nuances in text \cite{li2022glove}.
+
+Bidirectional Long Short-Term Memory (BiLSTM) networks have emerged as particularly effective architectures for sentiment analysis tasks due to their ability to process information in both forward and backward directions, capturing comprehensive contextual dependencies \cite{kumar2023amc}\cite{pimpalkar2022mblstmglove}. These models, when combined with pre-trained word embeddings such as GloVe (Global Vectors for Word Representation), have consistently demonstrated superior performance compared to traditional approaches \cite{li2022glove}.
+
+GloVe embeddings provide rich semantic representations by leveraging global word-word co-occurrence statistics from large-scale corpora, enabling models to understand complex word relationships and semantic similarities \cite{li2022glove}\cite{kumar2023amc}. Research has shown that the combination of GloVe embeddings with BiLSTM architectures achieves remarkable accuracy rates, often exceeding 90\% on standard sentiment analysis benchmarks \cite{li2022glove}\cite{pimpalkar2022mblstmglove}.
+
+\subsection{Adversarial Vulnerabilities in NLP Systems}
+
+Despite their impressive performance, deep learning models for natural language processing have been shown to be inherently vulnerable to adversarial attacks, where carefully crafted input modifications can cause models to make incorrect predictions while appearing natural to human readers \cite{belmoukadam2023adversnlp}. These vulnerabilities pose significant security risks, particularly for sentiment analysis systems deployed in security-sensitive applications such as financial markets and content moderation \cite{vazquez2023white}.
+
+Adversarial examples in the text domain present unique challenges compared to other modalities due to the discrete nature of language and the need to maintain grammatical correctness and semantic coherence \cite{anschutz2024simpler}. Unlike image-based adversarial attacks where pixel-level perturbations can be imperceptible, text-based attacks must carefully balance between effectiveness and naturalness to avoid detection \cite{oroy2024adversarial}.
+
+The research community has identified several categories of adversarial attacks against NLP models, ranging from character-level perturbations to word-level substitutions and syntactic modifications \cite{belmoukadam2023adversnlp}. These attacks can be classified based on the adversary's knowledge of the target model, with white-box attacks requiring full access to model parameters and black-box attacks operating with limited information about the target system \cite{vazquez2023white}.
+
+\subsection{Adversarial Attack Methodologies}
+
+\subsubsection{TextFooler: Synonym-Based Substitution Attack}
+
+TextFooler represents a significant advancement in adversarial text generation, employing a sophisticated synonym-based substitution strategy that identifies semantically important words and replaces them with contextually appropriate alternatives \cite{jin2019textfooler}. The attack leverages pre-trained word embeddings to ensure semantic similarity between original and substituted words while maximizing the likelihood of model misclassification \cite{morris2020textattack}.
+
+The effectiveness of TextFooler lies in its ability to maintain semantic coherence while achieving high attack success rates across various NLP tasks, including sentiment analysis \cite{jin2019textfooler}. Research has demonstrated that TextFooler can achieve significant performance degradation in target models while preserving human readability and semantic meaning \cite{morris2020textattack}.
+
+\subsubsection{TextBugger: Character-Level Transformation Attack}
+
+TextBugger introduces a novel approach to adversarial text generation through character-level transformations combined with word-level modifications \cite{li2018textbugger}. This attack method applies character insertion, deletion, and substitution operations to generate adversarial examples that are particularly effective against real-world systems and robust to simple preprocessing defenses \cite{li2018textbugger}.
+
+The key innovation of TextBugger lies in its ability to generate adversarial examples that preserve semantic similarity while being computationally efficient and highly effective \cite{li2018textbugger}. Empirical evaluations have demonstrated TextBugger's effectiveness across multiple platforms: the attack achieved 100\% success rate specifically on the IMDB dataset when tested against Amazon AWS Comprehend within 4.61 seconds while preserving 97\% semantic similarity \cite{li2018textbugger}. The attack maintains high utility preservation, with 94.9\% of adversarial text correctly recognized by human readers, demonstrating its ability to generate natural-appearing adversarial examples \cite{li2018textbugger}.
+
+
+\subsubsection{DeepWordBug: Black-Box Character-Level Attack}
+
+DeepWordBug operates as a black-box adversarial attack that uses character-level perturbations guided by scoring strategies to identify and modify critical tokens in the input text \cite{gao2018deepwordbug}. This approach requires only access to the model's final predictions, making it particularly suitable for attacking real-world systems where internal model details are not accessible \cite{gao2018deepwordbug}.
+
+The attack employs novel scoring functions to rank the importance of words in the input text, applying simple character-level transformations to the highest-ranked tokens to minimize edit distance while maximizing classification errors \cite{gao2018deepwordbug}. Research has demonstrated that DeepWordBug can achieve significant accuracy degradation across multiple text classification tasks, with the attack showing effectiveness in generating adversarial examples with minimal perturbations while maintaining computational efficiency \cite{gao2018deepwordbug}.
+
+
+\subsection{Defense Mechanisms Against Adversarial Attacks}
+
+\subsubsection{Virtual Adversarial Training (VAT)}
+
+Virtual Adversarial Training emerges as a promising defense mechanism that enhances model robustness by generating virtual adversarial examples during the training process \cite{miyato2017virtual}. VAT improves model resilience by creating perturbations designed to maximally change the model's output distribution while maintaining proximity to the original input \cite{miyato2017virtual}.
+
+Unlike traditional adversarial training approaches that require explicit adversarial examples, VAT generates perturbations on-the-fly using gradient information, making it computationally efficient and applicable to various neural network architectures including recurrent models \cite{miyato2017virtual}. The method has demonstrated effectiveness in improving model robustness across multiple NLP tasks while maintaining competitive performance on clean data \cite{miyato2017virtual}.
+
+\subsubsection{Character-Level Purification Defenses}
+
+Character-level purification represents a preprocessing approach to adversarial defense that aims to reverse common character-level perturbations before they reach the target model \cite{morris2020textattack}. This approach is particularly effective against attacks like TextBugger and DeepWordBug that rely on character-level transformations such as insertion, deletion, substitution, and swapping \cite{li2018textbugger}\cite{gao2018deepwordbug}.
+
+Recent advances in purification-based defenses have demonstrated significant promise in the NLP domain. MaskPure, a stochastic purification method, has shown success against both character-level and word-level attacks by randomly masking and refilling portions of input text before classification \cite{maskpure2024}. The method achieves robustness without requiring adversarial classifier training and without assuming knowledge of the attack type, making it broadly applicable across different threat models \cite{maskpure2024}.
+
+Character-level purification methods typically employ multiple correction strategies including homoglyph substitution reversal, repetition normalization, single-edit corrections, and adjacent character swap fixes. These techniques target the specific transformations commonly used in character-level attacks while maintaining computational efficiency with minimal processing overhead \cite{morris2020textattack}. The key advantage of purification-based defenses lies in their ability to operate independently of the target model architecture, making them broadly applicable across different NLP systems \cite{morris2020textattack}.
+
+Research has shown that purification methods can effectively defend against character-level attacks while preserving text semantics and readability \cite{li2023textpurification}. These approaches demonstrate that purification can serve as a complementary defense mechanism alongside training-based methods like VAT, with experimental results indicating successful defense against strong word-substitution attacks including TextFooler \cite{li2023textpurification}.
+
+\subsubsection{Adversarial Training Approaches}
+
+Recent research has explored various adversarial training methodologies to enhance the robustness of sentiment analysis models against malicious inputs \cite{xu2021grey}. These approaches involve training models on both original and adversarially perturbed examples to improve their ability to resist attacks while maintaining accuracy on legitimate inputs \cite{xu2021grey}.
+
+Studies have shown that adversarial training can significantly improve model robustness, with some approaches achieving substantial improvements in defense effectiveness while preserving model performance on benign inputs \cite{xu2021grey}. The integration of adversarial training with traditional training procedures has emerged as a practical approach for developing more secure NLP systems \cite{belmoukadam2023adversnlp}.
+
+\subsubsection{Hybrid Defense Strategies}
+
+Recent studies recommend layered defense strategies that combine input-space purification with representation-space regularization, motivating hybrid approaches that address vulnerabilities at multiple linguistic levels \cite{moraffah2024adversarial}. The combination of character-level purification with VAT creates a comprehensive defense framework where purification handles discrete character-level perturbations while VAT provides continuous embedding-space robustness \cite{maskpure2024}. This multi-stage approach has demonstrated superior performance compared to individual defense mechanisms, particularly against diverse attack strategies that operate across different linguistic granularities \cite{li2023textpurification}.
+
+
+\subsection{Research Gaps and Challenges}
+
+Despite significant advances in both adversarial attacks and defenses for NLP systems, several challenges remain unaddressed in the current literature \cite{oroy2024adversarial}. The majority of existing research focuses on transformer-based models, with limited investigation into the vulnerabilities and defense mechanisms for traditional neural architectures such as BiLSTM networks combined with classical word embeddings \cite{vazquez2023white}.
+
+Furthermore, there exists a need for comprehensive evaluation frameworks that can assess both attack effectiveness and defense mechanisms across different model architectures and attack scenarios \cite{belmoukadam2023adversnlp}. The TextAttack framework has emerged as a valuable tool for standardizing adversarial evaluation in NLP, providing implementations of multiple attack methods and evaluation metrics \cite{morris2020textattack}.
+
+Current research also highlights the importance of developing defense mechanisms that can maintain model performance while providing robust protection against diverse attack strategies \cite{xu2021grey}. The trade-off between model accuracy and adversarial robustness remains an active area of investigation, with researchers exploring various approaches to achieve optimal balance between these competing objectives \cite{oroy2024adversarial}.
+
+Our research addresses these gaps by providing a systematic evaluation of adversarial attacks and defenses specifically tailored to sentiment analysis models using GloVe-BiLSTM architectures, contributing to the understanding of adversarial robustness in traditional neural network approaches to NLP tasks.
+
+
+
+
+
+\section{Methodology}
+
+\label{sec:sentiment_methodologyy}
+
+This section details the experimental design, implementation methodology, and evaluation framework employed to investigate adversarial vulnerabilities in sentiment analysis models and assess the effectiveness of Virtual Adversarial Training (VAT) as a defense mechanism. Our methodology encompasses the complete pipeline from model architecture selection to adversarial attack implementation and defense evaluation.
+
+\subsection{Target Sentiment Analysis Model Architecture}
+
+\subsubsection{Model Design and Architecture}
+
+Our target sentiment analysis model employs a BiLSTM architecture combined with pre-trained GloVe embeddings, representing a classical yet effective approach to sentiment classification tasks \cite{pimpalkar2022mblstmglove}. The model architecture consists of the following components:
+
+\begin{enumerate}
+\item \textbf{Embedding Layer}: Utilizes pre-trained GloVe 6B.100d embeddings with a vocabulary size of 50,000 words, providing rich semantic representations learned from large-scale text corpora \cite{li2022glove}
+\item \textbf{Bidirectional LSTM Layer}: Processes sequences in both forward and backward directions with 32 hidden units and L2 regularization (0.001), enabling the capture of long-range dependencies and contextual information \cite{kumar2023amc}
+\item \textbf{Dropout Regularization}: Applied with a rate of 0.4 to prevent overfitting during training
+\item \textbf{Global Average Pooling}: Aggregates sequence representations over time steps to create fixed-size feature vectors
+\item \textbf{Dense Classification Layer}: A fully connected layer with 32 neurons and ReLU activation, followed by a final sigmoid output layer for binary sentiment classification \cite{pimpalkar2022mblstmglove}
+\end{enumerate}
+
+The model architecture is formally defined as:
+
+\begin{equation}
+h_t = \text{BiLSTM}(e_t, h_{t-1})
+\end{equation}
+
+\begin{equation}
+\text{pooled} = \text{GlobalAvgPool}(h_1, h_2, ..., h_T)
+\end{equation}
+
+\begin{equation}
+y = \sigma(W_2 \cdot \text{ReLU}(W_1 \cdot \text{pooled} + b_1) + b_2)
+\end{equation}
+
+where $e_t$ represents the GloVe embedding for token $t$, $h_t$ is the hidden state at time $t$, and $\sigma$ denotes the sigmoid activation function.
+
+
+\subsubsection{Model Training Configuration}
+
+The model training procedure follows established best practices for sentiment analysis tasks \cite{li2022glove}. The configuration includes:
+
+\begin{itemize}
+\item \textbf{Optimizer}: Adam optimizer with default learning rate (0.001)
+\item \textbf{Loss Function}: Binary cross-entropy for binary sentiment classification
+\item \textbf{Batch Size}: 64 samples per batch to balance computational efficiency and gradient stability
+\item \textbf{Early Stopping}: Implemented with patience of 2 epochs monitoring validation loss to prevent overfitting
+\item \textbf{Maximum Epochs}: 20 epochs with automatic termination via early stopping
+\item \textbf{Regularization}: L2 regularization (0.001) applied to LSTM and dense layers, combined with dropout (0.4)
+\end{itemize}
+
+\subsection{Dataset Selection and Preprocessing}
+
+\subsubsection{Yelp Polarity Reviews Dataset}
+
+Our experiments utilize the Yelp Polarity Reviews dataset, a widely-recognized benchmark for binary sentiment classification tasks \cite{morris2020textattack}. The dataset characteristics are:
+
+\begin{itemize}
+\item \textbf{Training Set}: 560,000 reviews (280,000 positive, 280,000 negative)
+\item \textbf{Test Set}: 38,000 reviews (19,000 positive, 19,000 negative)
+\item \textbf{Class Distribution}: Balanced binary classification with stars 1-2 labeled as negative (class 0) and stars 4-5 labeled as positive (class 1)
+\item \textbf{Domain}: Restaurant and business reviews from Yelp platform
+\end{itemize}
+
+\subsubsection{Text Preprocessing Pipeline}
+
+The preprocessing pipeline ensures consistent input formatting and optimal model performance \cite{kumar2023amc}:
+
+\begin{enumerate}
+\item \textbf{Text Extraction}: Raw text extracted from TensorFlow Datasets format using UTF-8 decoding
+\item \textbf{Tokenization}: Keras Tokenizer configured with vocabulary size limit of 50,000 most frequent words
+\item \textbf{Sequence Conversion}: Text converted to integer sequences using fitted tokenizer vocabulary
+\item \textbf{Padding and Truncation}: Sequences standardized to maximum length of 200 tokens using post-padding and post-truncation strategies
+\item \textbf{Label Processing}: Sentiment labels converted to binary format (0 for negative, 1 for positive)
+\end{enumerate}
+
+\subsubsection{Justification for BiLSTM with GloVe Embeddings}
+
+We selected the BiLSTM architecture with GloVe embeddings over transformer-based models like BERT for several compelling reasons. First, BiLSTM models offer significantly lower computational requirements while maintaining competitive performance for binary sentiment classification tasks \cite{li2022glove}\cite{kumar2023amc}. This efficiency is particularly valuable when developing robust defenses that require multiple training iterations. Second, BiLSTM's bidirectional processing capability effectively captures long-range dependencies in both directions, which is essential for sentiment analysis where emotional tone may depend on the entire sequence context \cite{pimpalkar2022mblstmglove}. Third, GloVe embeddings provide rich semantic representations through global word co-occurrence statistics, offering a strong foundation for identifying sentiment-bearing words \cite{li2022glove}. Finally, recent research has demonstrated that BiLSTM models with GloVe embeddings can achieve comparable or superior performance to transformer models on certain sentiment analysis tasks, particularly when dealing with adversarial perturbations \cite{kumar2023amc}\cite{pimpalkar2022mblstmglove}. This architecture thus represents an optimal balance between computational efficiency and model performance for our adversarial robustness investigation.
+
+
+
+\subsection{TextAttack Framework Implementation}
+
+\subsubsection{Framework Overview and Model Integration}
+
+We implement adversarial attacks using the TextAttack framework, a comprehensive library for adversarial attacks in NLP that provides standardized implementations and evaluation metrics \cite{morris2020textattack}. The framework ensures reproducible and fair comparisons across different attack strategies through its modular design.
+
+\subsubsection{Custom Model Wrapper Implementation}
+
+To integrate our BiLSTM model with TextAttack, we implement a custom model wrapper that conforms to the framework's API requirements \cite{morris2020textattack}:
+
+\begin{breakablealgorithm}{Custom Keras Model Wrapper for TextAttack Integration}
+\begin{algorithmic}[1]
+\Require BiLSTM model, tokenizer, max\_length=200 \Comment{Target model, text processor, sequence length}
+\Ensure Compatible model wrapper for TextAttack \Comment{Returns wrapper instance}
+
+\State Initialize wrapper with model, tokenizer, and max\_length parameters
+\Function{\_\_call\_\_}{text\_input\_list} \Comment{Main processing function}
+    \State $sequences \gets tokenizer.texts\_to\_sequences(text\_input\_list)$ \Comment{Convert text to token IDs}
+    \State $padded \gets pad\_sequences(sequences, maxlen=max\_length, padding='post')$ \Comment{Pad/truncate sequences}
+    \State $preds \gets model.predict(padded)$ \Comment{Get model predictions}
+    \State \Return $concatenate([1 - preds, preds], axis=1)$ \Comment{Convert to binary class probabilities}
+\EndFunction
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subsection{Adversarial Attack Implementation}
+
+\subsubsection{TextFooler Attack Configuration}
+
+TextFooler represents a sophisticated synonym-based substitution attack that leverages semantic similarity constraints to generate natural adversarial examples \cite{jin2019textfooler}. Our implementation configures the attack with the following components:
+
+\begin{itemize}
+\item \textbf{Transformation}: WordSwapEmbedding with maximum of 50 candidate substitutions per word
+\item \textbf{Constraints}:
+\begin{itemize}
+\item RepeatModification to prevent redundant transformations
+\item StopwordModification to preserve linguistic function words
+\item WordEmbeddingDistance with minimum cosine similarity of 0.5
+\item PartOfSpeech constraint allowing verb-noun swaps
+\item UniversalSentenceEncoder with threshold of 0.840845057 and angular metric
+\end{itemize}
+\item \textbf{Search Method}: GreedyWordSwapWIR with deletion-based word importance ranking
+\item \textbf{Goal Function}: UntargetedClassification for general misclassification
+\end{itemize}
+
+\subsubsection{TextBugger Attack Configuration}
+
+TextBugger employs a multi-level transformation approach combining character-level and word-level modifications \cite{li2018textbugger}. The attack implementation includes:
+
+\begin{itemize}
+\item \textbf{Character-Level Transformations}:
+\begin{itemize}
+\item WordSwapRandomCharacterInsertion (space insertion)
+\item WordSwapRandomCharacterDeletion (character removal)
+\item WordSwapNeighboringCharacterSwap (adjacent character swapping)
+\item WordSwapHomoglyphSwap (visually similar character substitution)
+\end{itemize}
+\item \textbf{Word-Level Transformation}: WordSwapEmbedding with top-5 nearest neighbors
+\item \textbf{Constraints}: UniversalSentenceEncoder with threshold of 0.8 to maintain semantic similarity
+\item \textbf{Search Strategy}: GreedyWordSwapWIR for efficient perturbation identification
+\end{itemize}
+
+\subsubsection{DeepWordBug Attack Configuration}
+
+DeepWordBug operates as a black-box attack using character-level perturbations with strategic scoring \cite{gao2018deepwordbug}. The implementation specifications include:
+
+\begin{itemize}
+\item \textbf{Transformation Set}:
+\begin{itemize}
+\item WordSwapNeighboringCharacterSwap for adjacent character exchanges
+\item WordSwapRandomCharacterSubstitution for single character replacement
+\item WordSwapRandomCharacterDeletion for character removal
+\item WordSwapRandomCharacterInsertion for character addition
+\end{itemize}
+\item \textbf{Constraints}:
+\begin{itemize}
+\item LevenshteinEditDistance with maximum of 30 character modifications
+\item StopwordModification to preserve functional words
+\item RepeatModification to avoid duplicate transformations
+\end{itemize}
+\item \textbf{Search Method}: GreedyWordSwapWIR for importance-based token ranking
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\caption{Comparison of Implemented Adversarial Attack Methods}
+\label{tab:attack_comparison}
+\begin{tabular}{|p{2.5cm}|p{3.5cm}|p{3.5cm}|p{3.5cm}|}
+\hline
+\textbf{Feature} & \textbf{TextFooler} & \textbf{TextBugger} & \textbf{DeepWordBug} \\
+\hline
+Attack Level & Word-level & Word and character-level & Character-level \\
+\hline
+Transformation & Word substitution with semantically similar alternatives & Character insertion, deletion, swapping, and word substitution & Character swapping, substitution, deletion, insertion \\
+\hline
+Key Constraint & Universal Sentence Encoder (0.84 threshold) & Universal Sentence Encoder (0.8 threshold) & Levenshtein Edit Distance (max 30) \\
+\hline
+Search Method & Greedy Word Importance Ranking & Greedy Word Importance Ranking & Greedy Word Importance Ranking \\
+\hline
+Attack Type & Black-box & Black-box & Black-box \\
+\hline
+Primary Strength & Preserves semantic meaning while maximizing misclassification & Effective against real-world systems with multiple transformation types & Computationally efficient with minimal model access requirements \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Rationale for Selected Attack Methods}
+
+The three attack methods implemented in this study—TextFooler, TextBugger, and DeepWordBug—were strategically selected to represent diverse adversarial approaches against sentiment analysis models \cite{jin2019textfooler}\cite{li2018textbugger}\cite{gao2018deepwordbug}. These methods collectively cover the spectrum of text perturbation strategies: TextFooler operates primarily at the word level with semantic constraints, TextBugger combines both character and word-level modifications, and DeepWordBug focuses exclusively on character-level perturbations \cite{morris2020textattack}. This diversity enables comprehensive evaluation of model vulnerabilities across different linguistic levels. Additionally, all three attacks have demonstrated high success rates against state-of-the-art NLP models while maintaining text fluency and semantic preservation \cite{jin2019textfooler}\cite{li2018textbugger}. Furthermore, these methods represent practical black-box attack scenarios that reflect real-world threats, where adversaries typically have limited access to model internals \cite{morris2020textattack}\cite{gao2018deepwordbug}. By implementing these complementary attack strategies through the standardized TextAttack framework, we ensure fair comparison and reproducible evaluation of adversarial vulnerabilities in sentiment analysis models.
+
+
+\subsection{Virtual Adversarial Training Defense Implementation}
+
+\subsubsection{VAT Theoretical Foundation}
+
+Virtual Adversarial Training enhances model robustness by generating virtual adversarial examples during training through gradient-based perturbation generation \cite{miyato2017virtual}. A key advantage of VAT is that it does not require labeled adversarial examples, as the definition of virtual adversarial perturbation only requires input $x$ and does not require label $y$, making it applicable to semi-supervised learning scenarios \cite{miyato2017virtual}.
+
+VAT operates by identifying directions in the input space where the model's output distribution is most sensitive, then regularizing the model to be smooth in these directions \cite{miyato2017virtual}. The method generates perturbations that maximize the KL divergence between the original and perturbed predictions, effectively finding the locally adversarial direction for each input \cite{miyato2017virtual}. This approach allows VAT to improve model robustness without requiring explicit adversarial examples, making it computationally efficient compared to traditional adversarial training methods \cite{miyato2017virtual}.
+
+
+\subsubsection{VAT Model Architecture and Implementation}
+
+Our VAT implementation extends the base BiLSTM model with adversarial regularization capabilities by applying perturbations at the embedding level rather than directly to the input tokens:
+
+\begin{breakablealgorithm}{Virtual Adversarial Training (VAT) - Verified Implementation}
+\begin{algorithmic}[1]
+\Require Base model $f_\theta$, perturbation magnitude $\epsilon=2.0$, step size $\xi=1e-6$, iterations $K=1$ 
+\Ensure Robust model $f_\theta$ with adversarial regularization
+
+\State Initialize model parameters $\theta$ from base model
+\Function{TrainingStep}{input batch $(X, y)$}
+    \State \textbf{Standard Forward Pass:}
+    \State $y_{\text{pred}} \gets f_\theta(X)$ \Comment{Compute model predictions}
+    \State $\mathcal{L}_{\text{CE}} \gets \text{CrossEntropy}(y_{\text{pred}}, y)$ \Comment{Classification loss}
+    
+    \State \textbf{Virtual Adversarial Direction Finding:} 
+    \State $d \gets \mathcal{N}(0, I)$ \Comment{Initialize random unit vector}
+    \For{$k \gets 1$ to $K$} \Comment{Power iteration for adversarial direction}
+        \State $d \gets \xi \cdot \frac{d}{\|d\|_2}$ \Comment{Normalize and scale perturbation}
+        \State $\tilde{X} \gets X + d$ \Comment{Apply temporary perturbation}
+        \State $\mathcal{L}_{\text{KL}} \gets \text{KL}(f_\theta(X) \| f_\theta(\tilde{X}))$ \Comment{KL divergence}
+        \State $d \gets \nabla_d \mathcal{L}_{\text{KL}}$ \Comment{Compute gradient w.r.t. perturbation}
+        \State $d \gets \text{stop\_gradient}(\frac{d}{\|d\|_2})$ \Comment{Prevent gradient flow + normalize}
+    \EndFor
+    
+    \State \textbf{Final Virtual Adversarial Perturbation:}
+    \State $r_{\text{adv}} \gets \epsilon \cdot \frac{d}{\|d\|_2}$ \Comment{Scale by $\epsilon$}
+    
+    \State \textbf{VAT Regularization Loss:}
+    \State $\mathcal{L}_{\text{VAT}} \gets \text{KL}(f_\theta(X) \| f_\theta(X + r_{\text{adv}}))$ \Comment{Virtual adversarial loss}
+    
+    \State \textbf{Combined Loss Optimization:}
+    \State $\theta \gets \theta - \eta \nabla_\theta (\mathcal{L}_{\text{CE}} + \alpha \mathcal{L}_{\text{VAT}})$ \Comment{$\alpha=1$}
+    
+    \State \Return Updated parameters $\theta$
+\EndFunction
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
+\subsubsection{VAT Hyperparameter Configuration}
+
+The VAT implementation employs carefully selected hyperparameters based on the original VAT methodology and empirical optimization for text classification tasks \cite{miyato2017virtual}:
+
+\begin{itemize}
+\item \textbf{Perturbation Magnitude ($\epsilon$)}: 2.0, selected through empirical optimization for sentiment analysis tasks. While the original VAT paper notes that optimal $\epsilon$ values are task-dependent, our choice reflects the embedding space scale of GloVe vectors and the need for sufficient perturbation magnitude to achieve regularization effects \cite{miyato2017virtual}
+\item \textbf{Step Size ($\xi$)}: 1e-6, chosen to ensure numerical stability during power iteration while maintaining sufficient gradient signal for perturbation direction finding \cite{miyato2017virtual}
+\item \textbf{Power Iterations ($ip$)}: 1 iteration for computational efficiency. The original VAT framework demonstrates that even a single power iteration can provide effective approximation of the adversarial direction when combined with appropriate step size selection \cite{miyato2017virtual}
+\item \textbf{VAT Loss Weight ($\alpha$)}: 1.0, following the original VAT recommendation where superior performance is achieved by tuning only $\epsilon$ while fixing $\alpha=1$ \cite{miyato2017virtual}
+\item \textbf{Gradient Clipping}: [-0.5, 0.5] range for training stability during adversarial training
+\item \textbf{Learning Rate Schedule}: Cosine decay from 1e-4 over 1000 steps for stable convergence
+\end{itemize}
+
+The original VAT paper emphasizes that there are only two scalar-valued hyperparameters requiring tuning: the norm constraint $\epsilon > 0$ for the adversarial direction and the regularization coefficient $\alpha > 0$ \cite{miyato2017virtual}. Our hyperparameter selection aligns with this principle, focusing primarily on $\epsilon$ optimization while maintaining the recommended $\alpha=1$ setting.
+
+
+\subsubsection{Justification for Virtual Adversarial Training}
+
+We selected Virtual Adversarial Training (VAT) as our defense mechanism over alternatives like traditional adversarial training for several key advantages in the NLP domain \cite{miyato2017virtual}. First, VAT generates adversarial perturbations without requiring labeled examples, making it applicable to semi-supervised learning scenarios where labeled data may be limited \cite{miyato2017virtual}\cite{morris2020textattack}. This is particularly valuable for sentiment analysis tasks where obtaining large quantities of labeled data can be resource-intensive. Second, VAT creates perturbations on-the-fly using gradient information, offering computational efficiency compared to methods that require explicit adversarial example generation \cite{miyato2017virtual}. Third, VAT has demonstrated superior performance in regularizing neural networks by smoothing the model's decision boundaries in the direction most vulnerable to adversarial perturbations \cite{miyato2017virtual}. Finally, unlike traditional adversarial training that focuses on specific attack types, VAT improves general robustness by considering the worst-case perturbations within a small neighborhood of each input \cite{miyato2017virtual}\cite{morris2020textattack}. This approach aligns with our goal of developing sentiment analysis models that are robust against diverse and potentially unknown adversarial attacks.
+
+\subsection{Character-Level Purification Defense Implementation}
+
+\subsubsection{Purification Framework Design}
+
+To address the limitations of VAT against character-level attacks, we implement a lightweight character-level purification defense that operates as a preprocessing layer before text reaches the VAT-trained model. The purification framework targets the specific character-level transformations employed by TextBugger and DeepWordBug attacks, providing complementary protection to VAT's embedding-space regularization.
+
+\subsubsection{Purification Algorithm Components}
+
+Our character purification implementation consists of four main components designed to counter specific attack strategies:
+
+\begin{enumerate}
+\item \textbf{Character Substitution Correction}: Reverses common homoglyph substitutions (0→o, 1→l, @→a, \$→s) frequently used in character-level attacks
+\item \textbf{Repetition Normalization}: Removes excessive character repetitions while preserving legitimate doubles (ll, ss, etc.) using regex pattern matching
+\item \textbf{Single Edit Correction}: Attempts single character deletion, insertion, and substitution to restore out-of-vocabulary words to valid vocabulary entries
+\item \textbf{Adjacent Swap Correction}: Fixes character transpositions commonly used in swap-based attacks through systematic adjacent character exchange
+\end{enumerate}
+
+\begin{breakablealgorithm}{Character-Level Purification Algorithm}
+\begin{algorithmic}[1]
+\Require Input text $T$, vocabulary $V$, character substitution map $S$
+\Ensure Purified text $T'$ with character-level perturbations corrected
+
+\Function{PurifyText}{$T$}
+    \State $words \gets \text{split}(T, \text{' '})$ \Comment{Tokenize input text}
+    \State $purified\_words \gets []$
+    
+    \For{each $word$ in $words$}
+        \If{$word.lower() \in \text{protected\_stopwords}$}
+            \State $purified\_words.\text{append}(word)$ \Comment{Skip protected words}
+            \State \textbf{continue}
+        \EndIf
+        
+        \If{$word.lower() \in V$}
+            \State $purified\_words.\text{append}(word)$ \Comment{Valid vocabulary word}
+            \State \textbf{continue}
+        \EndIf
+        
+        \State $corrected \gets \text{ApplyCharacterCorrections}(word, S, V)$
+        \State $purified\_words.\text{append}(corrected)$
+    \EndFor
+    
+    \State \Return $\text{join}(purified\_words, \text{' '})$
+\EndFunction
+
+\Function{ApplyCharacterCorrections}{$word$, $S$, $V$}
+    \State \textbf{Step 1:} Apply homoglyph substitutions from map $S$
+    \State \textbf{Step 2:} Remove excessive character repetitions
+    \State \textbf{Step 3:} Try single character deletion/insertion/substitution
+    \State \textbf{Step 4:} Try adjacent character swaps
+    \State \Return $corrected\_word$ if valid, else $original\_word$
+\EndFunction
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subsubsection{Implementation Specifications}
+
+The purification defense employs the following configuration optimized for computational efficiency:
+
+\begin{itemize}
+\item \textbf{Vocabulary Reference}: Uses the same tokenizer vocabulary as the target model (50,000 words) for consistency
+\item \textbf{Protected Words}: Preserves stopwords and function words that are typically protected in attacks, matching the TextAttack framework's stopword list
+
+\item \textbf{Character Frequency Analysis}: Prioritizes corrections using character frequency analysis from vocabulary sample (50000 words)
+\item \textbf{Processing Strategy}: Sequential application of correction methods with early termination upon successful vocabulary match
+\end{itemize}
+
+\subsubsection{Integration with VAT Defense}
+
+The hybrid defense architecture combines character-level purification with VAT through a two-stage process:
+
+\begin{enumerate}
+\item \textbf{Stage 1 - Input Purification}: Character-level corrections applied to adversarial text before model processing
+\item \textbf{Stage 2 - VAT Robustness}: Purified text processed by VAT-trained model with embedding-space regularization
+\end{enumerate}
+
+This layered approach addresses vulnerabilities at multiple linguistic levels: purification handles discrete character-level perturbations while VAT provides continuous embedding-space robustness.
+
+
+\subsection{Evaluation Metrics and Experimental Design}
+
+\subsubsection{Performance Metrics}
+
+Our evaluation framework employs standard metrics for adversarial robustness assessment \cite{morris2020textattack}:
+
+\begin{itemize}
+\item \textbf{Original Accuracy}: Model performance on clean, unperturbed test data
+\item \textbf{Accuracy Under Attack (AuA)}: Model performance on adversarial examples
+\item \textbf{Attack Success Rate (ASR)}: Percentage of successful adversarial examples
+\item \textbf{Accuracy Recovery}: Performance improvement achieved through defense mechanisms
+\end{itemize}
+
+The metrics are formally defined as:
+
+\begin{equation}
+\text{ASR} = \frac{\text{Number of Successful Attacks}}{\text{Total Attack Attempts}} \times 100%
+\end{equation}
+
+\begin{equation}
+\text{AuA} = \frac{\text{Correctly Classified Adversarial Examples}}{\text{Total Adversarial Examples}} \times 100%
+\end{equation}
+
+\begin{equation}
+\text{Defense Effectiveness} = \text{AuA}{defended} - \text{AuA}{original}
+\end{equation}
+
+\subsubsection{Experimental Protocol}
+
+Our experimental design ensures reproducible and statistically significant results:
+
+\begin{enumerate}
+\item \textbf{Sample Selection}: Evaluation performed on samples correctly classified by the original model to measure attack effectiveness
+\item \textbf{Sample Sizes}: 1000 samples initially selected for each attack method, with evaluation performed on correctly classified samples (resulting in approximately 957 valid samples after filtering)
+
+\item \textbf{Attack Constraints}: All attacks limited to preserve semantic meaning and grammatical correctness
+\item \textbf{Defense Training}: VAT models trained for 8 epochs using Adam optimizer with cosine decay learning rate schedule (initial: 1e-4), batch size of 32, on 5,000 sample subset with 20\% validation split
+
+\end{enumerate}
+
+\subsection{Implementation Environment}
+
+\subsubsection{Software Dependencies and Versions}
+
+The experimental environment ensures reproducibility through standardized software configurations:
+
+\begin{itemize}
+\item \textbf{Python}: 3.8+ with TensorFlow 2.x framework
+\item \textbf{TextAttack}: Latest version for attack implementations
+\item \textbf{TensorFlow Datasets}: For Yelp Polarity Reviews data loading
+\item \textbf{NumPy and SciPy}: For numerical computations and statistical analysis
+\item \textbf{Transformers}: Version 4.41.0 for compatibility with TextAttack
+\end{itemize}
+
+
+This comprehensive methodology provides a robust framework for evaluating adversarial vulnerabilities in sentiment analysis models and assessing the effectiveness of Virtual Adversarial Training as a defense mechanism. The systematic approach ensures fair comparisons across different attack strategies while maintaining scientific rigor in experimental design and evaluation.
+
+\section{Experimental Results}
+
+This section presents detailed metrics for three adversarial attacks—TextFooler, TextBugger, and DeepWordBug—on our BiLSTM–GloVe sentiment model, both before and after applying Virtual Adversarial Training (VAT) defense \cite{jin2019textfooler}\cite{li2018textbugger}\cite{gao2018deepwordbug}.
+
+\subsection{TextFooler Results}
+\begin{table}[H]
+\centering
+\caption{TextFooler Attack and Hybrid Defense Metrics}
+\label{tab:textfooler_results}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Metric} & \textbf{Original} & \textbf{VAT Only} & \textbf{VAT+Purif} \\ \hline
+Original Accuracy & 95.70\% & 95.70\% & 95.70\% \\ \hline
+Accuracy Under Attack (AuA) & 3.97\% & 49.74\% & 49.74\% \\ \hline
+Attack Success Rate (ASR) & 96.03\% & 50.26\% & 50.26\% \\ \hline
+Successful Attacks & 919 & 481 & 481 \\ \hline
+Failed Attacks & 38 & 476 & 476 \\ \hline
+Total Attempted & 957 & 957 & 957 \\ \hline
+ASR Reduction & — & 45.77\% & 45.77\% \\ \hline
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+TextFooler's synonym-based substitutions achieved a 96.03\% ASR on the original model. VAT defense improved accuracy under attack to 49.74\%, reducing ASR by 45.77\%. The purification component showed no additional improvement for word-level attacks, as expected since character-level corrections do not address semantic substitutions \cite{jin2019textfooler}.
+
+
+\subsection{TextBugger Results}
+\begin{table}[H]
+\centering
+\caption{TextBugger Attack and Hybrid Defense Metrics}
+\label{tab:textbugger_results}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Metric} & \textbf{Original} & \textbf{VAT Only} & \textbf{VAT+Purif} \\ \hline
+Original Accuracy & 95.70\% & 95.70\% & 95.70\% \\ \hline
+Accuracy Under Attack (AuA) & 7.31\% & 52.98\% & 57.68\% \\ \hline
+Attack Success Rate (ASR) & 92.69\% & 47.02\% & 42.32\% \\ \hline
+Successful Attacks & 887 & 450 & 405 \\ \hline
+Failed Attacks & 70 & 507 & 552 \\ \hline
+Total Attempted & 957 & 957 & 957 \\ \hline
+ASR Reduction & — & 45.66\% & 50.37\% \\ \hline
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+TextBugger achieved a 92.69\% ASR through mixed character and word-level modifications. VAT defense improved accuracy to 52.98\% (45.66\% ASR reduction), while the hybrid VAT+Purification approach achieved 57.68\% accuracy with 50.37\% ASR reduction. The additional 4.71\% improvement demonstrates purification's effectiveness against the character-level components of TextBugger \cite{li2018textbugger}.
+
+
+\subsection{DeepWordBug Results}
+\begin{table}[H]
+\centering
+\caption{DeepWordBug Attack and Hybrid Defense Metrics}
+\label{tab:deepwordbug_results}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Metric} & \textbf{Original} & \textbf{VAT Only} & \textbf{VAT+Purif} \\ \hline
+Original Accuracy & 95.70\% & 95.70\% & 95.70\% \\ \hline
+Accuracy Under Attack (AuA) & 7.42\% & 43.68\% & 84.33\% \\ \hline
+Attack Success Rate (ASR) & 92.58\% & 56.32\% & 15.67\% \\ \hline
+Successful Attacks & 886 & 539 & 150 \\ \hline
+Failed Attacks & 71 & 418 & 807 \\ \hline
+Total Attempted & 957 & 957 & 957 \\ \hline
+ASR Reduction & — & 36.26\% & 76.91\% \\ \hline
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+DeepWordBug achieved a 92.58\% ASR through character-level perturbations. VAT defense improved accuracy to 43.68\% (36.26\% ASR reduction), while the hybrid approach dramatically improved accuracy to 84.33\% with 76.91\% ASR reduction. This substantial 40.65\% additional improvement validates the effectiveness of character-level purification against pure character-level attacks \cite{gao2018deepwordbug}.
+
+
+\subsection{Overall ASR Reduction Comparison}
+\begin{table}[H]
+\centering
+\caption{Comprehensive Defense Effectiveness Comparison}
+\label{tab:asr_comparison}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Attack Method} & \textbf{Original ASR} & \textbf{VAT ASR} & \textbf{VAT+Purif ASR} & \textbf{Total Reduction} \\ \hline
+TextFooler & 96.03\% & 50.26\% & 50.26\% & 45.77\% \\ \hline
+TextBugger & 92.69\% & 47.02\% & 42.32\% & 50.37\% \\ \hline
+DeepWordBug & 92.58\% & 56.32\% & 15.67\% & 76.91\% \\ \hline
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+
+\subsection{Hybrid Defense Analysis}
+
+\subsubsection{Defense Effectiveness by Attack Granularity}
+
+The experimental results demonstrate a clear hierarchy in defense effectiveness that validates our theoretical expectations:
+
+\begin{itemize}
+\item \textbf{Word-level attacks (TextFooler)}: Purification provides no additional benefit (0\% improvement) since character-level corrections cannot address semantic word substitutions
+\item \textbf{Hybrid attacks (TextBugger)}: Moderate purification improvement (4.71\% additional ASR reduction) due to character-level components being corrected while word-level components remain challenging
+\item \textbf{Character-level attacks (DeepWordBug)}: Substantial purification improvement (40.65\% additional ASR reduction) validating the targeted approach against pure character-level perturbations
+\end{itemize}
+
+\subsubsection{Synergistic Defense Effects}
+
+The combination of VAT and character purification creates a comprehensive defense strategy where:
+
+\begin{enumerate}
+\item \textbf{Complementary Coverage}: VAT provides embedding-space regularization while purification handles input-space character-level perturbations
+\item \textbf{Layered Protection}: Two-stage defense process addresses vulnerabilities at multiple linguistic levels
+\item \textbf{Attack-Specific Effectiveness}: Defense performance correlates with attack granularity, achieving highest effectiveness against character-level attacks (76.91\% total ASR reduction)
+\end{enumerate}
+
+The results confirm that character-level purification is most effective against attacks that operate at the character level, providing minimal benefit for semantic word-level attacks but substantial improvement for character-level perturbations.
+
+
+
+
 
 \end{document}

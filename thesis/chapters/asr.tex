@@ -920,13 +920,15 @@ The randomized smoothing algorithm works with the following components:
 \end{enumerate}
 
 
-\subsubsection{Results with PGD Attacks}
+\subsubsection{Results}
+On the clean dataset The WER slightly rises to be 3.21\% with a +0.20\% rise.
+Table ~\ref{pgd_results_RS} randomized smoothing defense results are summarized with PDG attack.
 
 \begin{table}[H]
 \caption{Defense Effectiveness Against PGD Attacks with Adaptive Smoothing}
 \centering
 \footnotesize
-\label{pgd_results}
+\label{pgd_results_RS}
 \begin{tabular}{@{\hspace{0.3cm}}ccS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=3.2]S[table-format=3.2]c@{\hspace{0.3cm}}}
 \toprule
 $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)} & {$\Delta$CER} & {$\Delta$WER} & {Samp.} \\
@@ -939,6 +941,7 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 \bottomrule
 \end{tabular}
 \end{table}
+
 
 \subsection{MP3 Compression}
  \subsubsection{Introduction}
@@ -987,8 +990,9 @@ The MP3 compression defense is implemented with the following components:
 \end{enumerate}
 
 
-\subsubsection{Results with PGD Attacks}
-
+\subsubsection{Results}
+On the clean dataset The WER slightly rises to be 3.21\% with a +0.20\% rise.
+Table ~\ref{mp3_results} MP3 Compression defense results are summarized with PDG attack.
 \begin{table}[H]
 \caption{Defense Effectiveness Against PGD Attacks with MP3 Compression}
 \centering
@@ -1056,7 +1060,6 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 \bottomrule
 \end{tabular}
 \end{table}
-
 
 
 \subsection{Spectral Gating Defense}
@@ -1195,6 +1198,7 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 \end{table}
 
 
+
 \subsection{Quantization Defense}
 \subsubsection{Introduction}
 Input quantization reduces the precision of audio signals by mapping continuous values to discrete levels, effectively attenuating adversarial perturbations \cite{li2024investigating}. The defense preprocesses audio inputs by quantizing them to a specified bit-width (e.g., 4-bit, 8-bit, 16-bit), scaling values to a discrete range, and dequantizing back to the original scale. This process introduces noise that can disrupt adversarial perturbations while preserving speech intelligibility.
@@ -1261,6 +1265,8 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 \end{tabular}
 \end{table}
 
+
+
 \subsection{Comprehensive Pipeline Evaluation}\noindent
 \label{subsec:pipeline_evaluation}
 
@@ -1272,26 +1278,26 @@ Table~\ref{tab:pipeline_summary} summarizes the performance of various pipeline 
 \caption{Comprehensive Pipeline Evaluation Summary}
 \label{tab:pipeline_summary}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{l@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=1.4]}
+\begin{tabular}{l@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=1.4]}
 \toprule
-{\textbf{Pipeline Configuration}} & {\textbf{CER (\%)}} & {\textbf{WER (\%)}} & {\textbf{\(\Delta\)CER (\%)}} & {\textbf{\(\Delta\)WER (\%)}} & {\textbf{Avg Time (s)}} \\
+{\textbf{Pipeline Configuration}} & {\textbf{CER (\%)}} & {\textbf{WER (\%)}} & {\textbf{\(\Delta\)CER (\%)}} & {\textbf{\(\Delta\)WER (\%)}} & {\textbf{Clean Data WER (\%)}} & {\textbf{Avg Time (s)}} \\
 \midrule
-Baseline (No Defense) & 37.90 & 61.98 & 0.00 & 0.00 & 0.0663 \\
-SG & 2.84 & 7.01 & 35.06 & 54.97 & 0.2268 \\
-MP3 & 7.08 & 14.94 & 30.82 & 47.04 & 0.4710 \\
-Q & 14.70 & 29.96 & 23.20 & 32.02 & 0.0547 \\
-RS & 11.46 & 22.95 & 26.44 & 39.03 & 1.1155 \\
-SG \(\to\) MP3 & 2.79 & 6.95 & 35.11 & 55.03 & 0.5753 \\
-SG \(\to\) Q & 3.35 & 8.50 & 34.55 & 53.48 & 0.1425 \\
-MP3 \(\to\) Q & 7.53 & 17.43 & 30.37 & 44.55 & 0.4888 \\
-SG \(\to\) MP3 \(\to\) Q & 3.52 & 8.66 & 34.38 & 53.32 & 0.5816 \\
-SG \(\to\) RS & 16.87 & 27.27 & 21.03 & 34.71 & 1.1237 \\
-MP3 \(\to\) RS & 5.28 & 11.12 & 32.62 & 50.86 & 1.4871 \\
-Q \(\to\) RS & 6.56 & 14.22 & 31.34 & 47.76 & 1.0738 \\
-SG \(\to\) MP3 \(\to\) RS & 20.20 & 30.59 & 17.70 & 31.39 & 1.5576 \\
-SG \(\to\) Q \(\to\) RS & 17.25 & 27.22 & 20.65 & 34.76 & 1.1653 \\
-MP3 \(\to\) Q \(\to\) RS & 5.11 & 11.12 & 32.79 & 50.86 & 1.4704 \\
-SG \(\to\) MP3 \(\to\) Q \(\to\) RS & 19.76 & 30.11 & 18.14 & 31.87 & 1.5762 \\
+Baseline (No Defense) & 37.90 & 61.98 & 0.00 & 0.00 & 2.83 & 0.0663 \\
+SG & 2.84 & 7.01 & 35.06 & 54.97 & 5.67 & 0.2268 \\
+MP3 & 7.08 & 14.94 & 30.82 & 47.04 & 4.49 & 0.4710 \\
+Q & 14.70 & 29.96 & 23.20 & 32.02 & 4.28 & 0.0547 \\
+RS & 11.46 & 22.95 & 26.44 & 39.03 & 3.21 & 1.1155 \\
+SG \(\to\) MP3 & 2.79 & 6.95 & 35.11 & 55.03 & 7.06 & 0.5753 \\
+SG \(\to\) Q & 3.35 & 8.50 & 34.55 & 53.48 & 6.47 & 0.1425 \\
+MP3 \(\to\) Q & 7.53 & 17.43 & 30.37 & 44.55 & 4.01 & 0.4888 \\
+SG \(\to\) MP3 \(\to\) Q & 3.52 & 8.66 & 34.38 & 53.32 & 7.54 & 0.5816 \\
+SG \(\to\) RS & 16.87 & 27.27 & 21.03 & 34.71 & 24.65 & 1.1237 \\
+MP3 \(\to\) RS & 5.28 & 11.12 & 32.62 & 50.86 & 5.03 & 1.4871 \\
+Q \(\to\) RS & 6.56 & 14.22 & 31.34 & 47.76 & 4.71 & 1.0738 \\
+SG \(\to\) MP3 \(\to\) RS & 20.20 & 30.59 & 17.70 & 31.39 & 28.98 & 1.5576 \\
+SG \(\to\) Q \(\to\) RS & 17.25 & 27.22 & 20.65 & 34.76 & 24.81 & 1.1653 \\
+MP3 \(\to\) Q \(\to\) RS & 5.11 & 11.12 & 32.79 & 50.86 & 5.29 & 1.4704 \\
+SG \(\to\) MP3 \(\to\) Q \(\to\) RS & 19.76 & 30.11 & 18.14 & 31.87 & 29.09 & 1.5762 \\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -1301,6 +1307,10 @@ The results in Table~\ref{tab:pipeline_summary} provide a comprehensive comparis
 
 
 Based on comprehensive pipeline evaluation~\ref{tab:pipeline_summary}, Spectral Gating (SG) and SG\(\to\)MP3 were selected as optimal defenses against adversarial attacks. SG alone demonstrated exceptional efficiency, reducing adversarial CER from \SI{37.90}{\percent} to \SI{2.84}{\percent} with minimal latency (\num{0.2268}\,s), making it ideal for real-time applications. The SG\(\to\)MP3 pipeline achieved marginally superior robustness (CER \SI{2.79}{\percent}, WER \SI{6.95}{\percent}) by combining SG's spectral noise removal with MP3's lossy compression, which actively degrades adversarial perturbations through psychoacoustic masking. This two-stage approach is reserved for high-security scenarios where maximum protection justifies the \num{2.5}\(\times\) latency increase (\num{0.5753}\,s). Together, these defenses represent complementary points on the robustness-efficiency frontier: SG prioritizes operational practicality, while SG\(\to\)MP3 delivers maximum security for critical systems.
+
+The clean-data WER increase is the cost of robustness—defenses must distort inputs to remove adversarial noise, inevitably affecting benign speech. Optimal pipelines minimize this trade-off: SG and SG→MP3 deliver maximal security per unit of clean-data degradation, while RS-based pipelines impose excessive penalties.
+
+
 
 
 \subsection{Evaluation of Chosen Defense Pipelines Against All Adversarial Attacks}
@@ -1313,13 +1323,13 @@ This section evaluates the effectiveness of defense pipelines against adversaria
 \centering
 \caption{Performance under FGSM attack}
 \label{tab:fgsm}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccc}
 \toprule
-Pipeline Configuration & CER (\%) & WER (\%) & $\Delta$CER (\%) & Avg Time (s) \\
+Pipeline Configuration & CER (\%) & WER (\%) & $\Delta$CER (\%) \\
 \midrule
-Baseline (No Defense) & 2.50 & 6.90 & N/A & 0.0557 \\
-SG & 3.58 & 9.09 & +1.07 & 0.1374 \\
-SG$\to$MP3 & 3.99 & 9.79 & +1.49 & 0.5250 \\
+Baseline (No Defense) & 2.50 & 6.90 & N/A \\
+SG & 3.58 & 9.09 & +1.07 \\
+SG$\to$MP3 & 3.99 & 9.79 & +1.49 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1329,13 +1339,13 @@ SG$\to$MP3 & 3.99 & 9.79 & +1.49 & 0.5250 \\
 \centering
 \caption{Performance under Cramér-IPM attack}
 \label{tab:cramer}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccc}
 \toprule
-Pipeline Configuration & CER (\%) & WER (\%) & $\Delta$CER (\%) & Avg Time (s) \\
+Pipeline Configuration & CER (\%) & WER (\%) & $\Delta$CER (\%) \\
 \midrule
-Baseline (No Defense) & 39.60 & 61.98 & N/A & 0.0703 \\
-SG & 2.34 & 5.94 & -37.26 & 0.1398 \\
-SG$\to$MP3 & 2.65 & 7.27 & -36.95 & 0.5972 \\
+Baseline (No Defense) & 39.60 & 61.98 & N/A \\
+SG & 2.34 & 5.94 & -37.26 \\
+SG$\to$MP3 & 2.65 & 7.27 & -36.95 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1345,13 +1355,13 @@ SG$\to$MP3 & 2.65 & 7.27 & -36.95 & 0.5972 \\
 \centering
 \caption{Performance under Imperceptible Attack (Stage 1)}
 \label{tab:imp_s1}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccc}
 \toprule
-Pipeline Configuration & CER (\%) & WER (\%) & $\Delta$CER (\%) & Avg Time (s) \\
+Pipeline Configuration & CER (\%) & WER (\%) & $\Delta$CER (\%) \\
 \midrule
-Baseline (No Defense) & 44.35 & 85.00 & N/A & 0.0577 \\
-SG & 0.00 & 0.00 & -44.35 & 0.2157 \\
-SG$\to$MP3 & 0.00 & 0.00 & -44.35 & 0.8901 \\
+Baseline (No Defense) & 44.35 & 85.00 & N/A \\
+SG & 0.00 & 0.00 & -44.35 \\
+SG$\to$MP3 & 0.00 & 0.00 & -44.35 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1361,13 +1371,13 @@ SG$\to$MP3 & 0.00 & 0.00 & -44.35 & 0.8901 \\
 \centering
 \caption{Performance under Imperceptible Attack (Stage 2)}
 \label{tab:imp_s2}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccc}
 \toprule
-Pipeline Configuration & CER (\%) & WER (\%) & $\Delta$CER (\%) & Avg Time (s) \\
+Pipeline Configuration & CER (\%) & WER (\%) & $\Delta$CER (\%) \\
 \midrule
-Baseline (No Defense) & 95.65 & 100.00 & N/A & 0.0341 \\
-SG & 0.00 & 0.00 & -95.65 & 0.0769 \\
-SG$\to$MP3 & 0.00 & 0.00 & -95.65 & 0.7699 \\
+Baseline (No Defense) & 95.65 & 100.00 & N/A \\
+SG & 0.00 & 0.00 & -95.65 \\
+SG$\to$MP3 & 0.00 & 0.00 & -95.65 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1378,6 +1388,73 @@ The results are consistent with prior findings on adversarial robustness in ASR 
 In contrast, the Cramér-IPM attack~\cite{esmaeilpour2021towards} significantly degrades baseline performance (WER 61.98\%), but SG and SG$\to$MP3 reduce WER to 5.94--7.27\%, aligning with their effectiveness against structured adversarial noise~\cite{oreilly2022voiceblock,andronic2020mp3}. The imperceptible attacks (Stage 1 and Stage 2)~\cite{qin2019imperceptible} are highly effective, with baseline WER reaching 85--100\%. Remarkably, both SG and SG$\to$MP3 fully restore performance (WER 0\%), demonstrating their ability to counter psychoacoustic masking~\cite{oreilly2022voiceblock,andronic2020mp3}.
 
 These findings align with the literature, where spectral gating and MP3 compression excel against advanced attacks, while randomized smoothing and quantization offer moderate benefits with higher latency~\cite{cohen2019certified,li2024adaptive,li2024investigating}. The increased processing times for SG$\to$MP3 (0.5250--0.8901s) reflect the computational cost of multi-stage pipelines. Overall, the results validate the efficacy of targeted signal processing defenses against sophisticated adversarial attacks on ASR systems.
+
+
+
+
+\subsection{Adaptive Defense Pipeline Evaluation}
+\label{subsec:adaptive_defense}
+
+The adaptive defense pipeline combines lightweight detection with robust mitigation:
+\begin{enumerate}
+    \item \textbf{Detection Stage:} 8-bit quantization applied to input audio
+    \item \textbf{Decision Logic:} Classifies as adversarial if transcription dissimilarity (WER) > 12\%
+    \item \textbf{Mitigation Stage:} For detected attacks, applies Spectral Gating (SG) + MP3 compression (64kbps)
+\end{enumerate}
+
+\textbf{Evaluation on 100 samples (50 adversarial, 50 clean):}
+
+\begin{table}[H]
+\centering
+\caption{Adaptive Defense Performance}
+\label{tab:adaptive_defense}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Accuracy & 0.990 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Confusion Matrix}
+\label{tab:adaptive_confusion}
+\begin{tabular}{lcc}
+\toprule
+& \textbf{Predicted Adversarial} & \textbf{Predicted Clean} \\
+\midrule
+\textbf{Actual Adversarial} & 50 (TP) & 0 (FN) \\
+\textbf{Actual Clean} & 1 (FP) & 49 (TN) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Timing Analysis:}
+\begin{itemize}
+    \item \textbf{Average total time/sample:} 0.375s
+    \item \textbf{Breakdown:}
+    \begin{itemize}
+        \item Original transcription: 0.044s (11.7\%)
+        \item Quantization + transcription: 0.045s (12.1\%)
+        \item SG→MP3 defense: 0.534s
+    \end{itemize}
+\end{itemize}
+
+\noindent\textbf{Adversarial Samples (50):}
+\begin{itemize}
+    \item \textbf{Detection rate:} 100.0\% (50/50)
+    \item \textbf{WER reduction:} 57.49\% (65.91\% → 8.42\%)
+\end{itemize}
+
+\noindent\textbf{Clean Samples (50):}
+\begin{itemize}
+    \item \textbf{Correct classification:} 98.0\% (49/50)
+    \item \textbf{WER impact:} Minimal degradation (4.21\% → 3.93\%)
+\end{itemize}
+
+The adaptive pipeline achieves near-perfect attack detection (100\% recall) while maintaining low false positives (2\%). The defense reduces adversarial WER by 57.49 percentage points with minimal computational overhead, demonstrating an optimal balance between robustness and efficiency. The single false positive case confirms the pipeline's conservative design, prioritizing security over minimal clean-sample degradation.
 
 
 \ifSubfilesClassLoaded{

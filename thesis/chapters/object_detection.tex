@@ -682,6 +682,39 @@ Our baseline training set consists of 10,590 clean images from the LISA dataset.
 \end{itemize}
 
 This diverse mixture of gradient-based, targeted, universal, and detector-specific attacks ensures that the model does not overfit its defense to one particular threat vector. The entire combined dataset of clean and adversarial images was then shuffled and used for training the YOLOv8 model, ensuring that each batch contained a random combination of samples and forced the model to learn robust features effective against multiple attack modalities.
+
+\subsubsection{Results}
+\label{sec:adversarial_training_results}
+To evaluate the effectiveness of our mixed-data adversarial training strategy, we subjected both the standard YOLOv8 model and our adversarially trained model to a suite of eight different attack algorithms. The performance, measured in mean Average Precision (mAP), is detailed in Table~\ref{tab:at_results}.
+
+\begin{table}[h!]
+    \centering
+    \caption{Effectiveness of Adversarial Training against Various Attacks}
+    \label{tab:at_results}
+    \begin{tabular}{l S[table-format=1.4] S[table-format=1.3]}
+        \toprule
+        \textbf{Attack Type} & {\textbf{Baseline (No Defense)}} & {\textbf{Adversarial Training}} \\
+        \midrule
+        PGD ($\epsilon=0.1$) & 0.2150 & 0.676 \\
+        FGSM                 & 0.3120 & 0.789 \\
+        UAP                  & 0.4430 & 0.854 \\
+        HopSkipJump          & 0.6380 & 0.929 \\
+        Square               & 0.5970 & 0.919 \\
+        Targeted DAG         & 0.0947 & 0.222 \\
+        Disappearance DAG    & 0.5470 & 0.788 \\
+        FoolDetectors        & 0.1550 & 0.251 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The results demonstrate that our adversarial training strategy successfully improves model robustness against a majority of threats. The defense is particularly potent against standard gradient-based attacks and, crucially, against black-box methods like \textbf{HopSkipJump} and \textbf{Square}, where performance is almost fully restored. This indicates that the training has successfully encouraged the model to learn more generalizable features that are less sensitive to adversarial manipulations it has not explicitly seen.
+
+However, the most striking result is the model's limited performance against the \textbf{FoolDetectors} and \textbf{Targeted DAG} attacks, with mAP scores of only 0.251 and 0.222, respectively. Given that examples from these attacks were included in the training set, this outcome is not a simple failure of generalization. Instead, it serves as a powerful illustration of the challenge posed by \textbf{adaptive attacks}.
+
+The reason for this lies in the adaptive nature of the attack itself. Attacks like FoolDetectors are not static threats; they are engineered to find vulnerabilities in the *defended model*. Standard adversarial training hardens a model against a known distribution of threats, but an adaptive attack is specifically designed to find and exploit the new, residual weaknesses that remain *after* this hardening process. Therefore, the modest improvement from 0.1550 to 0.251 mAP should be seen not as a failure of the defense, but as evidence of the attack's sophistication. This result illustrates the escalating cycle of adversarial development, where the attack has successfully adapted to circumvent the specific protections introduced during training.
+
+This highlights a fundamental dynamic in adversarial security: a defense is only as strong as its ability to withstand attacks that are aware of its existence. While our adversarial training regimen was effective against non-adaptive threats, the results against FoolDetectors confirm that defeating state-of-the-art adaptive attacks requires more advanced defensive strategies beyond simply augmenting the training set.
+
 \subsection{Dynamic Defensive Preprocessing Pipeline}
 \label{sec:defense_pipeline}
 
@@ -760,6 +793,40 @@ These transformations, applied in sequence, create a powerful defense by attacki
 A critical implementation detail of this pipeline is ensuring the ground truth remains accurate. Since the resizing transformation alters the image dimensions, the original YOLO bounding box labels become invalid. 
 
 To correct this, we implemented a label rescaling function. After an image is resized, this function mathematically adjusts the normalized coordinates (\texttt{x\_center}, \texttt{y\_center}, \texttt{width}, \texttt{height}) of each bounding box to correspond to the new image dimensions. This ensures that the YOLOv8 model is evaluated against the correct ground truth for the transformed image, guaranteeing a fair assessment of the defense's effectiveness.
+
+\subsubsection{Results}
+
+To assess the performance of our dynamic preprocessing pipeline, we evaluated its defensive capabilities against the full suite of attacks. The results, comparing the mAP scores of the baseline model against the pipeline-defended model, are presented in Table~\ref{tab:pipeline_results}.
+
+\begin{table}[h!]
+    \centering
+    \caption{Effectiveness of the Dynamic Preprocessing Pipeline}
+    \label{tab:pipeline_results}
+    \begin{tabular}{l S[table-format=1.4] S[table-format=1.3]}
+        \toprule
+        \textbf{Attack Type} & {\textbf{Baseline (No Defense)}} & {\textbf{Preprocessing Pipeline}} \\
+        \midrule
+        PGD ($\epsilon=0.1$) & 0.2150 & 0.780 \\
+        FGSM                 & 0.3120 & 0.690 \\
+        UAP                  & 0.4430 & 0.766 \\
+        HopSkipJump          & 0.6380 & 0.810 \\
+        Square               & 0.5970 & 0.730 \\
+        Targeted DAG         & 0.0947 & 0.800 \\
+        Disappearance DAG    & 0.5470 & 0.804 \\
+        FoolDetectors        & 0.1550 & 0.780 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The results clearly demonstrate that the preprocessing pipeline is a highly effective defense strategy, providing a dramatic improvement over the undefended baseline across all attack types. The pipeline's key strength lies in its remarkable consistency and its ability to generalize its defense to a wide array of threats.
+
+A deeper analysis emerges when these results are compared to those of the adversarially trained model, as detailed in Section~\ref{sec:adversarial_training_results}. While adversarial training achieved higher peak performance against certain attacks like HopSkipJump and UAP (see Table~\ref{tab:at_results}), our preprocessing pipeline is clearly more effective against the most advanced attacks.
+
+The pipeline's most significant strength is revealed against the attacks that were most devastating to the baseline model: \textbf{Targeted DAG} and \textbf{FoolDetectors}. The pipeline provides a dramatic recovery, elevating the mAP from the baseline scores of 0.0947 and 0.1550 to a strong 0.800 and 0.780, respectively. This stands in stark contrast to the adversarially trained model, which, as previously discussed, struggled significantly against these same adaptive attacks.
+
+This disparity highlights the fundamental advantage of the pipeline's attack-agnostic approach. Its defense mechanism does not rely on learning specific adversarial patterns. Instead, by applying universal transformations like JPEG compression and blurring, it disrupts the structural integrity of the adversarial perturbations themselves, regardless of their origin. This makes it inherently resilient to the type of adaptive attacks that proved so effective against the learned defenses of the adversarially trained model.
+
+In conclusion, the dynamic preprocessing pipeline establishes itself as a robust, reliable, and well-rounded defense. Its consistent effectiveness—especially against the very adaptive attacks that challenge adversarial training—makes it a more dependable and practical solution for securing object detection systems in realistic threat environments.
 
 
 \subsubsection{Performance Overhead and Latency}

@@ -659,9 +659,115 @@ The Attacks parameters are (epsilon, patch size)
 \subsection{Physical Attacks}
 
 \section{Defenses}
+\subsection{Adversarial Training}
+As a foundational defense, adversarial training is highly effective for improving the robustness of object detection models. have been thoroughly explained in Section~\ref{sec:adversarial_training} of our chapter on Image Classification (Chapter~\ref{chap:classification}).
+
+In the context of object detection, the same core idea applies. Adversarial examples are generated to maximize the detector's composite loss function, which includes errors in both class prediction and bounding box localization. By training the model on these worst-case examples, it learns to produce more stable bounding boxes and maintain correct class labels, even when subjected to carefully crafted perturbations.
+
+\subsubsection{Training Data Composition}
+To build a model with comprehensive robustness against a wide array of potential threats, we adopted a mixed-data adversarial training strategy. Rather than training solely against a single attack like PGD, we augmented our original dataset with adversarial examples generated from a diverse suite of attack algorithms.
+
+Our baseline training set consists of 10,590 clean images from the LISA dataset. We expanded this set by generating 8,252 adversarial examples, creating a final combined training corpus of 18,842 images. The composition of the adversarial portion was intentionally heterogeneous to encourage the model to learn more generalized defensive features. The breakdown is as follows:
+
+\begin{itemize}
+    \item \textbf{Projected Gradient Descent (PGD):} 2,000 images were generated using a strong, iterative PGD attack to build foundational robustness.
+    
+    \item \textbf{Fast Gradient Sign Method (FGSM):} 3,000 images were created using the fast, single-step FGSM attack. Including these ensures the model is resilient against less computationally expensive threats.
+    
+    \item \textbf{Targeted DAG (DAG):} 500 images were perturbed with the DAG attack, which focuses on creating misclassifications to specific target labels.
+    
+    \item \textbf{Universal Adversarial Perturbations (UAP):} 1,500 examples were generated using a single, image-agnostic perturbation, testing the model's resilience to systematic noise patterns.
+    
+    \item \textbf{FoolDetectors:} 1,500 examples were generated using an attack specifically designed to fool object detectors by causing bounding boxes to vanish or mis-localize.
+\end{itemize}
+
+This diverse mixture of gradient-based, targeted, universal, and detector-specific attacks ensures that the model does not overfit its defense to one particular threat vector. The entire combined dataset of clean and adversarial images was then shuffled and used for training the YOLOv8 model, ensuring that each batch contained a random combination of samples and forced the model to learn robust features effective against multiple attack modalities.
+\subsection{Dynamic Defensive Preprocessing Pipeline}
+\label{sec:defense_pipeline}
+
+In addition to hardening the model itself via adversarial training, a complementary approach is to defend the system at the input level. Instead of processing every image as a potential threat, we designed a more efficient, two-stage dynamic pipeline. This pipeline first uses a lightweight classifier to detect likely adversarial examples and then applies a series of purification transformations only to those flagged images. This targeted approach aims to neutralize threats while minimizing the computational overhead and potential quality degradation for benign images.
+
+The entire process is illustrated in Figure~\ref{fig:defense_pipeline_flowchart} and the specific parameters used are summarized in Table~\ref{tab:pipeline_params}.
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.4\textwidth]{images/CV/OD/flow.pdf} % You would create this image
+    \caption{The logic of our two-stage dynamic defense pipeline. An input image is first classified. If it is deemed adversarial, it undergoes purification before being sent to the YOLOv8 detector. Otherwise, it is passed through directly.}
+    \label{fig:defense_pipeline_flowchart}
+\end{figure}
+% It's highly recommended to create a simple flowchart for this.
+% You can use tools like draw.io and export it as a PDF/PNG.
+
+\subsubsection{Stage 1: Adversarial Detection}
+
+The first stage of our pipeline acts as a gatekeeper. We employ a \texttt{MobileNetV2} model configured as a binary classifier. This model was trained specifically to distinguish between clean images and images perturbed by various adversarial attacks. \texttt{MobileNetV2} was chosen for its high efficiency and low inference time, making it suitable for a rapid preprocessing check without creating a significant bottleneck.
+
+An incoming image is passed through this classifier. If the predicted probability of the image being adversarial exceeds a threshold of \textbf{0.3}, the image is flagged for purification. Otherwise, it is considered clean and is passed to the YOLOv8 detector without modification.
+
+\subsubsection{Stage 2: Input Purification Transformations}
+When an image is flagged as adversarial, it is subjected to a sequence of three transformations designed to disrupt or remove the adversarial noise:
+
+\begin{enumerate}
+    \item \textbf{JPEG Compression:} The image is first compressed using the JPEG algorithm. This lossy compression method is particularly effective at removing high-frequency noise, which is a common characteristic of adversarial perturbations.
+    
+    \item \textbf{Gaussian Blurring:} Following compression, a Gaussian blur is applied. This acts as a low-pass filter, smoothing the image and further mitigating any fine-grained, pixel-level manipulations that may have survived the compression step.
+    
+    \item \textbf{Random Resizing:} Finally, the image is randomly resized by a scale factor drawn uniformly from a predefined range. This transformation disrupts the precise spatial structure of an adversarial pattern, as the attack was crafted for the original image dimensions.
+\end{enumerate}
 
 
+These transformations, applied in sequence, create a powerful defense by attacking the adversarial perturbation from multiple angles: frequency, local pixel coherence, and spatial alignment.
 
+\begin{table}[h!]
+    \centering
+    \caption{Hyperparameters for the Input Purification Stage}
+    \label{tab:pipeline_params}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Parameter} & \textbf{Value} \\
+        \midrule
+        JPEG Quality & 30 \\
+        Gaussian Blur Sigma ($\sigma$) & 1.5 \\
+        Random Resize Scale Range & (0.8, 1.2) \\
+        Adversarial Classifier Threshold & 0.3 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsection{Maintaining Label Integrity: Bounding Box Rescaling}
+A critical implementation detail of this pipeline is ensuring the ground truth remains accurate. Since the resizing transformation alters the image dimensions, the original YOLO bounding box labels become invalid. 
+
+To correct this, we implemented a label rescaling function. After an image is resized, this function mathematically adjusts the normalized coordinates (\texttt{x\_center}, \texttt{y\_center}, \texttt{width}, \texttt{height}) of each bounding box to correspond to the new image dimensions. This ensures that the YOLOv8 model is evaluated against the correct ground truth for the transformed image, guaranteeing a fair assessment of the defense's effectiveness.
+
+
+\subsubsection{Performance Overhead and Latency}
+
+While effectiveness against attacks is the primary goal, a practical defense must also be computationally efficient to be viable in real-world applications. To quantify the overhead of our dynamic defensive pipeline, we measured the processing time on our test set. The key performance metrics are summarized in Table~\ref{tab:pipeline_timing}.
+
+\begin{table}[h!]
+    \centering
+    \caption{Per-Image Timing Analysis of the Dynamic Defense Pipeline}
+    \label{tab:pipeline_timing}
+    \begin{tabular}{l S[table-format=3.1]} % Using siunitx for decimal alignment
+        \toprule
+        \textbf{Metric} & {\textbf{Time (ms)}} \\
+        \midrule
+        \multicolumn{2}{l}{\textit{Cost for All Images:}} \\
+        \quad Classification Overhead & 21.2 \\
+        \quad Label & 0.2 \\
+        \addlinespace % Adds a little space
+        \multicolumn{2}{l}{\textit{Cost for Flagged Adversarial Images Only:}} \\
+        \quad Purification (JPEG, Blur, Resize) & 204.6 \\
+        \addlinespace
+        \midrule
+        \textbf{Total Latency (per Clean Image)} & \textbf{21.7} \\
+        \textbf{Total Latency (per Adversarial Image)} & \textbf{226.0} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The results clearly illustrate the primary advantage of our dynamic approach. Benign images, which constitute the vast majority of inputs in a real-world scenario, incur a minimal overhead of only 21.7 ms, primarily from the initial classification check. This ensures that the system's performance on clean data is not significantly degraded.
+
+In contrast, when an image is flagged as adversarial, the full purification pipeline is triggered, resulting in a total processing time of 226.0 ms. While this latency is substantially higher, it is only applied to a small subset of suspicious inputs. This demonstrates a successful trade-off, concentrating the computational effort where it is most needed to neutralize threats while maintaining high throughput for normal operations. The total time to process the entire test set was approximately 2 minutes and 18 seconds.
 
 \ifSubfilesClassLoaded{
   \bibliographystyle{unsrt}

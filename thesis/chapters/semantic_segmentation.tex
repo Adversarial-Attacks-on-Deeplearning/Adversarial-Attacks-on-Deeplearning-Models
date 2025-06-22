@@ -4,6 +4,8 @@
 \section{Introduction}
 \section{Attacks}
 \subsection{White Box Attacks}
+
+
 \subsubsection{FGSM Attack on UNet}
 
 \paragraph{Introduction}\leavevmode\\
@@ -192,10 +194,172 @@ The following table ~\ref{tab:unet_fgsm_overall_performance} presents the overal
 \end{table}
 The PGD attack results on the Caravana validation set, as shown in Table 2, reveal a significant decline in the UNet model's performance compared to clean conditions, with accuracy dropping from 99.31\% to 37.21\% at $\epsilon$ = 0.031 ($\alpha$ = 2/255) and further to 30.32\% at $\epsilon$ = 0.062 ($\alpha$ = 2/255) over 10 iterations, alongside Dice scores falling from 0.98 to 0.396 and 0.371, respectively. This indicates a severe disruption in detection capability, with the visual comparison in Figure~\ref{fig:pgd_example_unet} showing poorer prediction masks as $\epsilon$ increases, underscoring the model's vulnerability to adversarial perturbations. Notably, the perturbations in PGD are less visible compared to FGSM, yet they still cause substantial degradation.
 
+
+\subsection{White Box Attacks}
+
+\subsubsection{Universal Adversarial Perturbation (UAP) Attack on U-Net Segmentation Model}
+
+% Introducing the UAP attack on U-Net
+\paragraph{Introduction}\leavevmode\\
+Now we will explore the vulnerability of U-Net, to Universal Adversarial Perturbation (UAP) attacks\cite{moosavi2017universal}.
+% Outlining methodology with algorithm
+\paragraph{Methodology}\leavevmode\\
+The methodology involves training a U-Net model for medical image segmentation and subsequently generating a UAP to disrupt its performance. The U-Net architecture, comprising an encoder-decoder structure with skip connections, is implemented with double convolutional layers, batch normalization, and ReLU activations. The UAP is crafted using a gradient-based optimization process to maximize segmentation error while constraining perturbation magnitude.
+
+% Presenting the UAP training algorithm
+\begin{breakablealgorithm}{Universal Adversarial Perturbation Training for U-Net}
+\begin{algorithmic}[1]
+\Require $X = \{x_1, \dots, x_N\} \subset \mathbb{R}^{H \times W \times C}$: training images, $M$: U-Net model, $Y = \{y_1, \dots, y_N\} \subset \mathbb{R}^{H \times W \times K}$: ground truth masks, $E > 0$: number of epochs, $\epsilon > 0$: perturbation bound, $\alpha > 0$: learning rate, $\beta > 0$: momentum, $\ell$: BCEWithLogitsLoss
+\Ensure $\delta \in \mathbb{R}^{H \times W \times C}$: universal perturbation
+\State Preprocess each $x_i \in X$ for input to $M$ \Comment{E.g., normalize to $[0, 1]$, resize to $160 \times 240$}
+\State Initialize $\delta \gets 0$ \Comment{Set initial perturbation to zero}
+\State Initialize optimizer: $\text{opt} \gets \text{SGD}(\{\delta\}, \text{lr}=\alpha, \text{momentum}=\beta)$
+\For{$e \gets 1$ to $E$}
+    \State Initialize epoch loss: $L_e \gets 0$
+    \For{batch $\{x_i, y_i\}$ in $X, Y$}
+        \State Compute perturbed images: $x_{adv} \gets \text{clamp}(x_i + \delta, 0, 1)$
+        \State Compute predictions: $p \gets M(x_{adv})$ \Comment{$p \in \mathbb{R}^{H \times W \times K}$: segmentation logits}
+        \State Compute loss: $L \gets -\ell(p, y_i)$ \Comment{Maximize segmentation error}
+        \State Accumulate epoch loss: $L_e \gets L_e + L$
+        \State Compute gradient: $g \gets \nabla_{\delta} L$ \Comment{Gradient w.r.t. $\delta$}
+        \State Update perturbation: $\text{opt.step()}$ \Comment{SGD update with momentum}
+        \State Clamp perturbation: $\delta \gets \text{clip}(\delta, -\epsilon, \epsilon)$ \Comment{Ensure $||\delta||_\infty \leq \epsilon$}
+    \EndFor
+    \State Compute average epoch loss: $L_e \gets L_e / N$
+\EndFor
+\State \Return $\delta$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+% Detailing implementation specifics
+\subparagraph{Implementation Details}\leavevmode\\
+The UAP attack is implemented with the following parameters:
+\begin{itemize}
+    \item \textbf{Input Size}: $160 \times 240$ pixels.
+    \item \textbf{Batch Size}: 4, balancing gradient diversity and memory efficiency to enhance perturbation universality.
+    \item \textbf{Perturbation Bound} ($\epsilon$): 0.2, empirically chosen to ensure imperceptibility.
+    \item \textbf{Training Epochs}: 7, sufficient for convergence.
+    \item \textbf{Learning Rate} ($\alpha$): 0.1, empirically optimized.
+    \item \textbf{Momentum} ($\beta$): 0.9, for stable optimization.
+    \item \textbf{Loss Function}: BCEWithLogitsLoss, suitable for binary segmentation tasks.
+\end{itemize}
+
+\paragraph{Results}\leavevmode\\
+
+The UAP attack was applied and Figure~\ref{fig:uap_example_unet} illustrates the effect of the attack on image example from the caravana dataset, showing the original image, the adversarial image.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/CV/Segmentation/uap_unet.png} % Replace with the actual path to your image file
+    \caption{UAP Example For Unet.}
+    \label{fig:uap_example_unet}
+\end{figure}
+
+
+
+The results are summarized in Table~\ref{tab:uap_unet_results}, demonstrating a significant performance degradation due to the perturbation.
+
+\begin{table}[h]
+\centering
+\caption{Performance Metrics for U-Net under Clean and Perturbed Conditions}
+\label{tab:uap_unet_results}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Clean Dice Score & 0.9837 \\
+Perturbed Dice Score & 0.3263  \\
+Performance Drop & 65.74\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Deep Fool}
+\paragraph{Introduction}\leavevmode\\
+Now we investigate the susceptibility of U-Net, to DeepFool adversarial attacks~\cite{moosavi2016deepfool}. DeepFool generates input-specific perturbations that exploit the decision boundaries of the model to minimally perturb each image, causing missegmentation while maintaining imperceptibility.
+
+% Outlining methodology with algorithm
+\paragraph{Methodology}\leavevmode\\
+The methodology involves applying the DeepFool attack to a pretrained U-Net model using gradient-based optimization constrained by a small perturbation bound.
+
+
+
+\begin{breakablealgorithm}{DeepFool Attack for U-Net}
+\label{alg:deepfool_unet}
+\begin{algorithmic}[1]
+\Require $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$: input image, $M$: U-Net model, $\mathbf{y} \in \mathbb{R}^{H \times W \times K}$: ground truth mask, $I > 0$: maximum iterations, $\epsilon > 0$: overshoot bound, $\ell$: BCEWithLogitsLoss, $\texttt{device}$: computation device
+\Ensure $\mathbf{x}_{\text{adv}} \in \mathbb{R}^{H \times W \times C}$: adversarial image, $\mathbf{r} \in \mathbb{R}^{H \times W \times C}$: perturbation
+\State Preprocess $\mathbf{x}$ for input to $M$ \Comment{E.g., normalize to $[0, 1]$, resize to $160 \times 240$}
+\State Initialize $\mathbf{x}_{\text{adv}} \gets \mathbf{x}$, $\mathbf{r} \gets \mathbf{0}$ \Comment{Set initial perturbation to zero}
+\State Move $\mathbf{x}_{\text{adv}}$ to $\texttt{device}$ with $\texttt{requires\_grad}=\text{True}$ \Comment{Enable gradient computation}
+\For{$i \gets 1$ to $I$}
+    \State Compute predictions: $\mathbf{p} \gets M(\mathbf{x}_{\text{adv}})$ \Comment{$\mathbf{p} \in \mathbb{R}^{H \times W \times K}$: segmentation logits}
+    \State Compute target: $\mathbf{t} \gets (\mathbf{y} > 0.5)$ \Comment{Binary mask as target}
+    \State Compute prediction: $\hat{\mathbf{p}} \gets (\text{sigmoid}(\mathbf{p}) > 0.5)$ \Comment{Binary prediction}
+    \If{$\hat{\mathbf{p}} = \mathbf{t}$} \Comment{Check if prediction matches target}
+        \State \textbf{break} \Comment{Exit if no missegmentation}
+    \EndIf
+    \State Compute loss: $L \gets \ell(\mathbf{p}, \mathbf{t})$ \Comment{Binary cross-entropy loss}
+    \State Compute gradient: $\mathbf{g} \gets \nabla_{\mathbf{x}_{\text{adv}}} L$ \Comment{Gradient w.r.t. $\mathbf{x}_{\text{adv}}$}
+    \State Normalize gradient: $\mathbf{w} \gets \mathbf{g} / (\lVert \mathbf{g} \rVert_2 + 10^{-8})$ \Comment{Perturbation direction}
+    \State Compute perturbation step: $\mathbf{r}_i \gets (L + 10^{-4}) \cdot \mathbf{w}$ \Comment{Small perturbation}
+    \State Update total perturbation: $\mathbf{r} \gets (\mathbf{r} + \mathbf{r}_i)$ \Comment{Accumulate perturbation}
+    \State Clamp perturbation: $\mathbf{r} \gets \texttt{clip}(\mathbf{r}, -\epsilon, \epsilon)$ \Comment{Ensure $\lVert \mathbf{r} \rVert_\infty \leq \epsilon$}
+    \State Update adversarial image: $\mathbf{x}_{\text{adv}} \gets \texttt{clamp}(\mathbf{x} + \mathbf{r}, 0, 1)$ \Comment{Apply perturbation}
+\EndFor
+\State \Return $\mathbf{x}_{\text{adv}}, \mathbf{r}$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+% Detailing implementation specifics
+\subparagraph{Implementation Details}\leavevmode\\
+The DeepFool attack is implemented with the following parameters:
+\begin{itemize}
+    \item \textbf{Input Size}: $160 \times 240$ pixels.
+    \item \textbf{Batch Size}: Processed individually per image for input-specific perturbation.
+    \item \textbf{Overshoot Bound} ($\epsilon$): 0.02, empirically chosen for minimal perceptibility.
+    \item \textbf{Maximum Iterations}: 50, sufficient for convergence.
+    \item \textbf{Loss Function}: BCEWithLogitsLoss, appropriate for binary segmentation.
+\end{itemize}
+
+% Presenting results with figure and table
+\paragraph{Results}\leavevmode\\
+The DeepFool attack was applied to a validation set from a medical image segmentation dataset. Figure~\ref{fig:deepfool_example_unet} illustrates the effect of the attack on an example image, displaying the original image, perturbed image, perturbation pattern, clean prediction, perturbed prediction, and ground truth.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/CV/Segmentation/deepfool_unet.png}
+    \caption{DeepFool Attack Example for U-Net.}
+    \label{fig:deepfool_example_unet}
+\end{figure}
+
+The results are summarized in Table~\ref{tab:deepfool_unet_results}, highlighting the performance degradation induced by the attack.
+
+\begin{table}[h]
+\centering
+\caption{Performance Metrics for U-Net under Clean and Perturbed Conditions}
+\label{tab:deepfool_unet_results}
+\begin{tabular}{lc}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Clean Dice Score & 0.9837 \\
+Perturbed Dice Score & 0.6758 \\
+Performance Drop & 30.79\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsubsection{MI-FGSM Attack on UNet}
 
 \paragraph{Introduction}\leavevmode\\\subsection{Black Box Attacks}
 \section{Defenses}
 
+
+
+\ifSubfilesClassLoaded{
+  \bibliographystyle{unsrt}
+  \bibliography{references}
+}{}
 
 \end{document}

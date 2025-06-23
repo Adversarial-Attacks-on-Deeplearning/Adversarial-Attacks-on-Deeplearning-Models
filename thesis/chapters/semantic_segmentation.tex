@@ -674,7 +674,97 @@ The training algorithm is outlined as follows:
 
 This approach leverages adjusting the loss weighting to balance robustness across different $\epsilon$ values. However, using a fixed $\epsilon$ can limit adaptability, potentially reducing robustness against diverse attack magnitudes and iterative methods. Future work should consider dynamically tuning $\epsilon$ during training to enhance resilience against a broader range of adversarial attacks.
 
-\paragraph{Results}
+\paragraph{Results}\leavevmode\\
+After adversarial training, FGSM attack was applied  with the maximum allowable perturbation $\epsilon$=0.031,
+0.062 and 0.1
+
+Figure~\ref{fig:adv_training_example_unet} illustrates the effect of the FGSM attack on image example after adversarial training from the caravana dataset, showing how it improved the prediction of adversarial examples for different perturbation values.
+
+% Figure: FGSM after adversarial training Example Image
+\begin{figure}[H]
+    \centering
+    % First row of images
+    \begin{subfigure}[b]{0.24\textwidth}
+        \includegraphics[width=\textwidth]{images/CV/Segmentation/original_adv_training.jpg}
+        \caption{Original Input Image}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.24\textwidth}
+        \includegraphics[width=\textwidth]{images/CV/Segmentation/adv_training_unet_eps=0.031.jpg}
+        \caption{Adversarial image. $\epsilon$ = 0.031}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.2\textwidth}
+        \includegraphics[width=\textwidth]{images/CV/Segmentation/adv_training_unet_eps=0.062.jpg}
+        \caption{Adversarial image. $\epsilon$ = 0.062}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.2\textwidth}
+        \includegraphics[width=\textwidth]{images/CV/Segmentation/adv_training_unet_eps=0.1.jpg}
+        \caption{Adversarial image. $\epsilon$ = 0.1}
+    \end{subfigure}
+
+    \vspace{0.2cm} % Adding space between rows
+
+    % Second row of images
+    \begin{subfigure}[b]{0.2\textwidth}
+        \includegraphics[width=\textwidth]{images/CV/Segmentation/mask_adv_training.jpg}
+        \caption{Ground Truth Mask}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.2\textwidth}
+        \includegraphics[width=\textwidth]{images/CV/Segmentation/pred_adv_training_eps=0.031.jpg}
+        \caption{Prediction. $\epsilon$ = 0.031}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.2\textwidth}
+        \includegraphics[width=\textwidth]{images/CV/Segmentation/pred_adv_training_eps=0.062.jpg}
+        \caption{Prediction. $\epsilon$ = 0.062}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.2\textwidth}
+        \includegraphics[width=\textwidth]{images/CV/Segmentation/pred_adv_training_eps=0.1.jpg}
+        \caption{Prediction. $\epsilon$ = 0.1}
+    \end{subfigure}
+    \label{adv_training_example_unet}
+\end{figure}
+
+The following table ~\ref{tab:unet_adv_trainging_fgsm_performance} presents the overall performance metrics (e.g., accuracy and Dice score) on the Caravana validation set for  $\epsilon$=0.031, 0.062 and 0.1, highlighting the impact of adversarial training on increasing robustness of the model against FGSM attack.
+
+% Table 1: FGSM Performance
+\begin{table}[H]
+\caption{Overall Performance of UNet under Clean and FGSM Attacks After Adversarial training}
+    \label{tab:unet_adv_trainging_fgsm_performance}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
+        \toprule
+        \textbf{Metric} & {\textbf{Clean}} & {\textbf{FGSM $\epsilon=0.031$}} & {\textbf{FGSM $\epsilon=0.062$}} & {\textbf{FGSM $\epsilon=0.1$}}
+        \\
+        \midrule
+        Accuracy (\%)    & 99.29 & 98.49 & 98.26 & 97.51\\
+        Dice Score        & 0.98 & 0.96 & 0.96  & 0.94\\
+        \bottomrule
+    \end{tabular}
+\end{table}
+The following table ~\ref{tab:unet_adv_trainging_all_performance} presents the overall performance metrics (e.g., accuracy and Dice score) on the Caravana validation set for  $\epsilon$=0.031 for iterative attacks,
+
+% Table 2: Overall Performance
+\begin{table}[H]
+\caption{Overall Performance of UNet under Clean and iterative Attacks After Adversarial training}
+    \label{tab:unet_adv_trainging_all_performance}
+   \begin{tabular}{p{2.5cm}p{2.5cm}p{2.5cm}p{2.5cm}p{2.5cm}p{2.5cm}}
+        \toprule
+        \textbf{Metric} & \textbf{Clean} & \textbf{PGD} & \textbf{PGD} & \textbf{MI-FGSM} & \textbf{MI-FGSM} \\
+         & & Before & After & Before & After \\
+        \midrule
+        Accuracy (\%) & 99.29  & 37.21  & 75.81 & 72.75 & 97.62 \\
+        Dice Score & 0.98 & 0.396 & 0.60 & 0.60 & 0.94 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+Results demonstrate enhanced robustness of the UNet segmentation model against one-step adversarial attacks, as the weighted loss approach effectively balances clean and adversarial training with different $\epsilon$ values, though with a modest reduction in accuracy or Dice score on clean data (e.g., <1\%). Robustness to higher $  \epsilon  $ values (e.g., 32/255) may be constrained due to the lower weighting (0.1), indicating potential vulnerability to stronger perturbations.
+However, results of iterative attacks indicates that they are likely less effectively countered, exhibiting limited transferability.
 
 
 

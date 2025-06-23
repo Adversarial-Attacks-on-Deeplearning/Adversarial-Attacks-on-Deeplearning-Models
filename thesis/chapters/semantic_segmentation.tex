@@ -2,6 +2,131 @@
 \begin{document}
 
 \section{Introduction}
+
+Image segmentation is the process of partitioning a digital image into multiple segments (sets of pixels) to simplify or change the representation of an image into something more meaningful and easier to analyze. It plays a critical role in various computer vision tasks such as medical imaging, autonomous driving, and scene understanding, by enabling the identification and delineation of objects within an image.
+
+\subsection{U-Net Architecture}
+The U-Net \cite{ronneberger2015u} is a convolutional neural network architecture originally designed for biomedical image segmentation. Its encoder--decoder structure with skip connections allows it to capture both context and fine-grained localization:
+\begin{itemize}
+\item \textbf{Encoder (contracting) path:} Repeated application of two 3×3 convolutions (with padding to preserve spatial dimensions), each followed by a ReLU activation and a 2×2 max pooling for down-sampling. At each down-sampling step, the number of feature channels doubles.
+\item \textbf{Decoder (expanding) path:} Each step consists of an up-convolution (2×2) that halves the number of feature channels, concatenation with the corresponding feature map from the encoder via skip connections, followed by two 3×3 convolutions and ReLU activations.
+\end{itemize}
+The only modification in our implementation from the original U-Net is the use of padding in every convolutional layer to maintain feature-map size; otherwise, the structure remains identical. For completeness, a high-level view of our PyTorch implementation is available in our GitHub repository: \url{https://github.com/Adversarial-Attacks-on-Deeplearning/U_net}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/CV/Segmentation/unet_arch.jpg}
+\caption{Overview of the U-Net architecture}
+\label{fig\:unet-arch}
+\end{figure}
+
+\subsection{Accuracy Metrics for Segmentation} Segmentation performance is evaluated using pixel-wise overlap metrics and region-based scores. In our implementation, we encapsulate the computation of pixel accuracy and Dice score in the following algorithmic form:
+
+\begin{breakablealgorithm}{Compute Pixel Accuracy and Dice Score}
+\begin{algorithmic}[1]
+\Require trained segmentation model, data loader yielding (image, mask) pairs
+\Ensure overall pixel accuracy and average Dice score
+
+\State Initialize counters:
+\[
+  \textit{correct\_pixels} \gets 0,\quad
+  \textit{total\_pixels} \gets 0,\quad
+  \textit{dice\_accumulator} \gets 0
+\]
+\For{each batch of images and masks}
+  \State Predict masks using the model
+  \State Binarize predictions (threshold at 0.5)
+  \State Count matching pixels in batch:
+    \[
+      \textit{batch\_correct} \gets \#\{p \mid \text{pred}(p) = \text{gt}(p)\}
+    \]
+  \State Determine batch size (total pixels):
+    \[
+      \textit{batch\_pixels} \gets \#\{\text{pixels in batch}\}
+    \]
+  \State Compute batch Dice score:
+    \[
+      \textit{batch\_dice}
+      \;=\;\frac{2 \times \lvert \text{pred} \cap \text{gt}\rvert}
+               {\lvert \text{pred}\rvert + \lvert \text{gt}\rvert + \epsilon}
+    \]
+  \State Update accumulators:
+    \begin{align*}
+      \textit{correct\_pixels}   &\gets \textit{correct\_pixels} + \textit{batch\_correct},\\
+      \textit{total\_pixels}     &\gets \textit{total\_pixels}   + \textit{batch\_pixels},\\
+      \textit{dice\_accumulator} &\gets \textit{dice\_accumulator} + \textit{batch\_dice}
+    \end{align*}
+\EndFor
+\State Compute final metrics:
+\[
+  \textit{pixel\_accuracy}
+  = \frac{\textit{correct\_pixels}}{\textit{total\_pixels}},\quad
+  \textit{average\_dice}
+  = \frac{\textit{dice\_accumulator}}{\textit{number\_of\_batches}}
+\]
+\Return pixel\_accuracy, average\_dice
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\noindent Here, \textit{pixel accuracy} is the percentage of correctly classified pixels, and the \textit{Dice score} (Sørensen--Dice coefficient) quantifies overlap between predicted and ground truth masks.
+
+\noindent Here, \textit{pixel accuracy} is computed as the ratio of correctly predicted pixels to the total number of pixels, and the \textit{Dice score} (Sørensen--Dice coefficient) is calculated per batch and averaged over all batches.
+
+\subsection{Dataset and Experimental Setup}
+We employ the Carvana image masking dataset \cite{carvana2024} (downloaded from \url{https://www.kaggle.com/competitions/carvana-image-masking-challenge/data}, which comprises 5,087 RGB images of vehicles and corresponding binary masks. Following common practice, the dataset was randomly split into:
+\begin{itemize}
+\item \textbf{Training set:} 4,087 images
+\item \textbf{Validation set:} 1,000 images
+\end{itemize}
+Several recent works applying U-Net to this dataset have reported pixel accuracies above 99% and Dice scores around 0.98, corroborating the values we obtain.
+
+\subsection{Results}
+The following performance was obtained:
+
+\begin{itemize}
+\item \textbf{Training set:} \\
+accuracy 99.30\% \\
+Dice score: 0.9834
+
+\item \textbf{Validation set:} \\
+accuracy 99.26\% \\
+Dice score: 0.9823
+
+\end{itemize}
+
+These high scores reflect strong overlap between predictions and ground truth, and are consistent with those reported in the original U-Net paper (Dice $\approx0.90$–0.95 for cell segmentation) and subsequent applications to this Kaggle dataset.
+
+\subsection{Sample Images}
+To illustrate the data, Figure \ref{fig:sample-data} shows a sample input image (top), the ground truth mask (bottom left), and the predicted mask (bottom right).
+
+\begin{figure}[H]
+\centering
+% First row: input image
+\begin{subfigure}[b]{0.8\textwidth}
+\centering
+\includegraphics[width=0.6\textwidth]{images/CV/Segmentation/sample_unet_img.jpg}
+\caption{Sample input image}
+\label{fig:sample-input}
+\end{subfigure}\\
+% Second row: two masks side by side
+\begin{subfigure}[b]{0.45\textwidth}
+\centering
+\includegraphics[width=0.8\textwidth]{images/CV/Segmentation/sample_unet_gt.png}
+\caption{Ground truth mask}
+\label{fig:sample-mask}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.45\textwidth}
+\centering
+\includegraphics[width=0.7\textwidth]{images/CV/Segmentation/sample_unet_pred.png}
+\caption{Predicted mask}
+\label{fig:predicted-mask}
+\end{subfigure}
+\caption{Example of training image and its annotations}
+\label{fig:sample-data}
+\end{figure}
+
+
 \section{Attacks}
 \subsection{White Box Attacks}
 

@@ -1,0 +1,178 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+
+% In your literature_review.tex file
+
+% In your literature_review.tex file
+
+\section{Introduction to the Adversarial Threat}
+\label{sec:intro_to_threat}
+
+Deep learning has become a transformative force across modern technology, powering applications in domains as diverse as computer vision, natural language processing, autonomous systems, and cybersecurity \cite{pimpalkar2022mblstmglove, ronneberger2015u}. The remarkable success of deep neural networks (DNNs), however, has been paralleled by the discovery of a critical and counter-intuitive vulnerability: their susceptibility to adversarial attacks \cite{goodfellow2015explaining}. An adversarial attack consists of making small, carefully crafted perturbations to a model's input. These perturbations are often imperceptible to humans but can cause a well-trained model to make a confident, yet completely incorrect, prediction. This fragility poses significant security and safety risks, especially in high-stakes, safety-critical applications where model reliability is paramount \cite{akhtar2018threatadversarialattacksdeep}.
+
+The phenomenon of adversarial examples was first systematically demonstrated in the computer vision domain by Szegedy et al. Their seminal work revealed that state-of-the-art image classifiers could be consistently fooled by adding a minute, "quasi-imperceptible" perturbation to an input image \cite{szegedy2014intriguingpropertiesneuralnetworks}. They showed, for instance, that an image correctly classified as a "dog" could be modified so slightly that it appeared unchanged to a human observer, yet the model would classify it as an "ostrich" with high confidence. This discovery was profound because it challenged the assumption that deep learning models were learning robust, high-level concepts similar to human perception. Instead, it suggested that their decision boundaries were unexpectedly brittle in high-dimensional space.
+
+Following this initial discovery, Goodfellow et al. provided a compelling explanation for this vulnerability, arguing that it was not an artifact of model non-linearity or overfitting, but rather a direct consequence of the linear behavior of models in high-dimensional spaces \cite{goodfellow2015explaining}. They proposed that many small, directionally-aligned perturbations could accumulate to cause a large change in the model's output, leading to the development of the fast and effective FGSM attack. This foundational work sparked an extensive and ongoing research effort, creating an "arms race" between the development of increasingly sophisticated attack methods and the design of corresponding defense mechanisms to enhance model robustness \cite{yuan2018adversarialexamplesattacksdefenses, madry2018towardspgd}.
+
+Initially focused on image classification, the field has rapidly expanded to demonstrate that this vulnerability is a near-universal property of deep learning models. Adversarial attacks have been successfully mounted against a wide array of tasks and modalities, including:
+\begin{itemize}
+    \item \textbf{Object Detection and Segmentation}, where attacks can make objects invisible to a detector or alter the predicted pixel-level masks \cite{xie2017DAG, lu2017fooldetectors}.
+    \item \textbf{Natural Language Processing (NLP)}, where subtle changes to text, such as swapping synonyms or altering characters, can flip a model's sentiment prediction or change its translation output \cite{jin2019textfooler, li2018textbugger}.
+    \item \textbf{Automatic Speech Recognition (ASR)}, where adding a faint, inaudible background noise to an audio clip can cause a speech-to-text system to transcribe a completely different command \cite{qin2019imperceptible, zelasko2021adversarial}.
+    \item \textbf{Large Language Models (LLMs)}, where the attack surface is the natural language prompt itself, enabling "jailbreaks" that bypass safety filters or "prompt injections" that hijack the model's behavior \cite{perez2022ignorepreviouspromptattack, zou2023universaltransferableadversarialattacks}.
+\end{itemize}
+
+The significance of this research extends far beyond academic interest. The potential for adversarial attacks has profound practical implications for the trustworthy deployment of AI. In autonomous driving, a misclassified traffic sign can lead to fatal accidents \cite{3d_physical_attacks}. In medical diagnostics, a manipulated medical scan could result in a misdiagnosis \cite{kurakin2017adversarialmachinelearningscale}. In finance, sentiment analysis models manipulated by adversarial text could trigger market instability. As AI systems become more deeply integrated into the fabric of society, understanding, evaluating, and mitigating the threat of adversarial attacks has become one of the most critical challenges in ensuring the development of safe, secure, and reliable artificial intelligence \cite{yuan2018adversarialexamplesattacksdefenses, akhtar2018threatadversarialattacksdeep}.
+
+\section{The Adversarial Threat Model: A Unified Framework}
+\label{sec:threat_model}
+
+To systematically analyze and compare adversarial attacks and defenses, the research community has converged on a formal threat model. This framework provides a structured way to define an attacker's capabilities, goals, and the constraints under which they operate \cite{carlini2017evaluatingrobustnessneuralnetworks, akhtar2018threatadversarialattacksdeep}. Understanding this model is essential, as the effectiveness of any given attack or defense is only meaningful within the context of a clearly defined threat scenario. The model is typically defined along three primary axes: the attacker's knowledge, their objective, and the nature of the attack setting.
+
+\subsection{Attacker's Knowledge: The White-Box to Black-Box Spectrum}
+The most fundamental dimension of the threat model is the attacker's level of knowledge about the target model \cite{papernot2016limitations}. This is a spectrum, but it is often categorized into two main settings:
+
+\subsubsection{White-Box Setting}
+In a white-box scenario, the attacker is assumed to have perfect and complete information about the target model. This includes:
+\begin{itemize}
+    \item \textbf{Model Architecture:} The full structure of the neural network, including the types of layers, their sequence, and activation functions.
+    \item \textbf{Model Parameters:} The exact values of all trained weights and biases in the network.
+    \item \textbf{Training Data and Procedure:} In some variations, the attacker may also know about the data used to train the model.
+\end{itemize}
+This level of access allows the attacker to directly compute the gradient of the model's loss function with respect to the input data ($\nabla_x J$). This gradient provides the most efficient direction in which to perturb the input to maximize the loss, making white-box attacks extremely powerful and effective \cite{goodfellow2015explaining, madry2018towardspgd}. While often unrealistic for deployed systems, the white-box model is crucial for research as it establishes a worst-case scenario, providing an upper bound on a model's vulnerability. If a defense can withstand a strong white-box attack, it is likely to be robust against weaker attacks.
+
+\subsubsection{Black-Box Setting}
+The black-box setting is far more realistic, assuming the attacker has no internal knowledge of the model. They can only interact with it as an opaque oracle, providing inputs and observing the outputs. Because gradients are unavailable, attackers must resort to other strategies:
+\begin{itemize}
+    \item \textbf{Query-Based Attacks:} The attacker repeatedly queries the model to infer its decision boundaries. This can be further divided into:
+        \begin{itemize}
+            \item \textit{Score-Based Attacks}, where the attacker has access to the model's output probabilities or logits. This information can be used to estimate the gradient or guide a search, as seen in attacks like the \textbf{Square Attack} \cite{andriushchenko2020square}.
+            \item \textit{Decision-Based Attacks}, the most restrictive scenario, where the attacker only receives the final, hard-label prediction (e.g., "cat" or "dog"). Attacks like the \textbf{Boundary Attack} and \textbf{HopSkipJumpAttack} are designed for this setting, often employing clever random walks or geometric estimation techniques to find adversarial examples \cite{brendel2018decisionbasedadversarialattacksreliable, chen2020hopskipjumpattackqueryefficientdecisionbasedattack}.
+        \end{itemize}
+    \item \textbf{Transfer-Based Attacks:} This strategy exploits the phenomenon of \textit{transferability}, where an adversarial example crafted for one model is often effective against another, even with a different architecture \cite{cross_model_transfer, olivier2023transferable}. The attacker trains their own local "surrogate" model, crafts a white-box attack against it, and then deploys this attack against the black-box target, hoping the vulnerability transfers.
+\end{itemize}
+
+\subsection{Attacker's Goal: Misclassification and Deception}
+The second dimension of the threat model defines the attacker's objective.
+\begin{itemize}
+    \item \textbf{Untargeted Attack:} The goal is simply to cause any misclassification. The attacker's only aim is to force the model's prediction, $f(x_{adv})$, to be different from the true label, $y_{true}$. This is generally an easier task and serves as a baseline for measuring a model's general reliability.
+    \item \textbf{Targeted Attack:} The goal is to force the model to predict a specific, attacker-chosen target class, $y_{target}$, where $y_{target} \neq y_{true}$. This is a more difficult but also more malicious objective, as it allows an attacker to control the model's output in a predictable way. For example, forcing a stop sign detector to always classify stop signs as "speed limit 100" signs \cite{carlini2017evaluatingrobustnessneuralnetworks}.
+\end{itemize}
+
+\subsection{Attack Setting and Perturbation Constraints}
+The final dimension concerns the domain of the attack and the rules that constrain the adversarial perturbation to ensure it remains stealthy or practical.
+
+\subsubsection{Digital vs. Physical Attacks}
+The attack can be purely digital, where pixel or feature values are directly manipulated, or it can be physical. \textbf{Physical-world attacks} involve creating real-world objects (e.g., printed stickers on a stop sign) that are robustly adversarial even when captured by a camera under various lighting conditions, angles, and distances \cite{3d_physical_attacks, kurakin2017adversarialmachinelearningscale}. These attacks are much harder to execute as they must be robust to real-world transformations.
+
+\subsubsection{Perturbation Norms and Semantic Constraints}
+To prevent an attack from being obvious, the perturbation $\delta$ is typically constrained to be "small."
+\begin{itemize}
+    \item For continuous data like images and audio, this smallness is measured by an \textbf{$L_p$ norm}. A perturbation is considered valid if $||\delta||_p \le \epsilon$ for a small budget $\epsilon$. The most common norms are the $L_\infty$ norm (maximum change per pixel), the $L_2$ norm (Euclidean distance), and the $L_0$ norm (number of changed pixels) \cite{goodfellow2015explaining, carlini2017evaluatingrobustnessneuralnetworks, Su_2019}.
+    \item For discrete data like text, $L_p$ norms are meaningless. Instead, the constraints are \textbf{semantic}. An adversarial text must remain grammatically correct and preserve the original meaning to a human reader. This is a much harder constraint to formalize and is a core challenge in NLP attacks, as explored in Chapter \ref{chap:nlp} \cite{jin2019textfooler, morris2020textattack}.
+\end{itemize}
+
+This unified threat model provides the essential framework used throughout this thesis to define, execute, and evaluate adversarial attacks and defenses across all investigated domains.
+
+\section{Core Attack Methodologies and Their Adaptations}
+\label{sec:core_methodologies}
+
+The principles of adversarial attacks, while universal, manifest in diverse and highly specialized algorithms tailored to the unique characteristics of different data modalities. This section reviews the core methodologies, from foundational gradient-based techniques to sophisticated optimization and query-based strategies, illustrating how these concepts are adapted across the continuous domains of vision and audio and the discrete, semantic domains of text and language.
+
+\subsection{White-Box Attacks: Exploiting Model Internals}
+White-box attacks leverage full access to the model's architecture and parameters to craft highly effective perturbations. The primary mechanism is the use of model gradients to guide the attack.
+
+\subsubsection{Gradient-Based Perturbations}
+The most direct way to attack a model is to move an input in the direction that maximally increases the loss function.
+\begin{itemize}
+    \item \textbf{Single-Step Methods:} The foundational \textbf{Fast Gradient Sign Method (FGSM)} \cite{goodfellow2015explaining} provides a computationally efficient, one-shot attack by linearizing the loss function. The perturbation is calculated as $\delta = \epsilon \cdot \text{sign}(\nabla_x J(\theta, x, y))$, where $\epsilon$ is the magnitude. While fast, its assumption of local linearity limits its effectiveness against robustly trained models.
+    \item \textbf{Iterative Methods:} To overcome the limitations of single-step attacks, iterative methods apply the same principle over multiple, smaller steps. The \textbf{Projected Gradient Descent (PGD)} attack, introduced by Madry et al. \cite{madry2018towardspgd}, is considered a first-order oracle for adversarial robustness. It performs iterative gradient ascent and, crucially, projects the resulting perturbation back into a constrained $L_p$-norm ball after each step, ensuring the final example remains within the allowed $\epsilon$-budget. This constrained optimization makes PGD far more powerful than FGSM and serves as a central benchmark in our evaluations for image classification (Chapter \ref{chap:classification}) and automatic speech recognition (ASR) (Chapter \ref{chap:asr}).
+    \item \textbf{Momentum-Based Methods:} The transferability of adversarial examples can be significantly enhanced by stabilizing the update direction across iterations. The \textbf{Momentum Iterative Method (MIM)} \cite{dong2018momentum} integrates a momentum term from optimization theory into the PGD loop. By accumulating a velocity vector of the gradient directions, MIM is less likely to get stuck in poor local maxima and can produce adversarial examples that are more effective against black-box models. We explore this attack in our image classification experiments.
+\end{itemize}
+
+\subsubsection{Optimization and Geometric Attacks}
+Instead of just following the gradient, these attacks frame the problem as a formal optimization, often seeking the minimal possible perturbation.
+\begin{itemize}
+    \item The \textbf{Carlini \& Wagner (C\&W) attack} \cite{carlini2017evaluatingrobustnessneuralnetworks} is a powerful, optimization-based white-box attack. It minimizes a custom objective function that jointly encourages misclassification (by a certain confidence margin) and minimizes the $L_2$ distance of the perturbation. This produces highly effective and often imperceptible adversarial examples, though at a significant computational cost.
+    \item The \textbf{DeepFool} method \cite{moosavidezfooli2016deepfoolsimpleaccuratemethod} offers a more efficient geometric approach. It assumes the classifier's decision boundaries can be locally approximated by hyperplanes. In each iteration, it calculates the minimal perturbation required to push the input onto the nearest linearized decision boundary, repeating the process until the classification label flips.
+    \item The \textbf{Jacobian-based Saliency Map Attack (JSMA)} \cite{papernot2016limitations} focuses on creating sparse, $L_0$-norm attacks. It computes the model's Jacobian matrix to identify the input pixels or features that have the most significant impact on the output logits. It then greedily modifies only these few "saliency" features until a misclassification is achieved.
+\end{itemize}
+
+\subsection{Black-Box Attacks: Interacting with an Opaque Oracle}
+Black-box attacks are more practical against real-world systems where model internals are inaccessible.
+
+\subsubsection{Query-Based Attacks}
+These methods probe the model to infer its behavior.
+\begin{itemize}
+    \item \textbf{Score-Based Attacks:} If the attacker can obtain class probabilities or logits, they can use this information to estimate the gradient or guide a search. The \textbf{Square Attack} \cite{andriushchenko2020square}, which we apply to object detection in Chapter \ref{chap:object_detection}, is a highly effective score-based attack that uses a randomized search with localized square-shaped updates, making it very query-efficient.
+    \item \textbf{Decision-Based Attacks:} In the most challenging scenario, the attacker only gets the final hard label. The \textbf{HopSkipJumpAttack} \cite{chen2020hopskipjumpattackqueryefficientdecisionbasedattack} is a state-of-the-art decision-based attack that combines a geometric estimation of the gradient at the decision boundary with a binary search projection, enabling it to find adversarial examples with very few queries. We evaluate this attack extensively in our image classification work.
+\end{itemize}
+
+\subsubsection{Transfer-Based Attacks}
+This powerful black-box strategy relies on the principle of \textit{transferability} \cite{cross_model_transfer}. The attacker trains a local "surrogate" model, crafts a white-box attack against it, and then applies the same perturbation to the black-box target. As we investigate in our ASR experiments (Chapter \ref{chap:asr}), the success of this strategy is highly dependent on the architectural and objective-function similarity between the models \cite{olivier2023transferable, gao2024transferable}.
+
+\subsection{Domain-Specific Adaptations and Methodologies}
+The abstract principles of attack must be adapted to the specific constraints of each data domain.
+
+\subsubsection{Attacks on Text and NLP}
+The discrete nature of language requires a complete rethinking of perturbation. Instead of small changes in a continuous space, attacks must make discrete changes (swapping words or characters) while preserving semantic meaning and grammar.
+\begin{itemize}
+    \item \textbf{Word-Level Attacks:} The \textbf{TextFooler} algorithm \cite{jin2019textfooler} identifies the most important words for a model's prediction and iteratively replaces them with semantically similar synonyms (found via word embeddings) until the classification changes.
+    \item \textbf{Character-Level Attacks:} To evade defenses against word-level changes, attacks like \textbf{TextBugger} \cite{li2018textbugger} and \textbf{DeepWordBug} \cite{gao2018deepwordbug} introduce character-level edits such as swaps, insertions, deletions, and visual substitutions (e.g., 'o' to '0'). These subtle changes are often missed by both humans and models. We evaluate these NLP-specific attacks in Chapter \ref{chap:nlp}.
+\end{itemize}
+
+\subsubsection{Attacks on Audio and ASR}
+For audio, perturbations must be imperceptible to the human ear.
+\begin{itemize}
+    \item \textbf{Psychoacoustic Attacks:} Advanced attacks, such as the one proposed by Qin et al. \cite{qin2019imperceptible}, leverage the psychoacoustic principle of auditory masking. They intentionally add adversarial noise to time-frequency regions where the original speech signal is loud, effectively hiding the perturbation under the threshold of human hearing.
+    \item \textbf{Optimization-based Audio Attacks:} The \textbf{Cramér-IPM} attack \cite{esmaeilpour2021towards} is a sophisticated method that jointly optimizes for transcription loss (using the CTC loss) and statistical similarity to the original audio distribution, achieving high success rates while maintaining perceptual quality. We implement both psychoacoustic and optimization-based attacks in Chapter \ref{chap:asr}.
+\end{itemize}
+
+\subsubsection{Attacks on Large Language Models}
+LLMs introduce a new paradigm of attack that targets their reasoning and instruction-following capabilities.
+\begin{itemize}
+    \item \textbf{Jailbreaking:} This aims to bypass safety alignments. White-box methods like \textbf{GCG} optimize an "adversarial suffix" to append to a malicious prompt \cite{zou2023universaltransferableadversarialattacks}. Black-box methods use techniques like automated prompt rewriting with another LLM (\textbf{PAIR} \cite{chao2025jailbreaking}) or game-theoretic red-teaming \cite{ma2024evolvingdiverseredteamlanguage}.
+    \item \textbf{Prompt Injection:} This attack hijacks the model's behavior by embedding hidden commands in its input. \textbf{Indirect Prompt Injection (IPI)} is particularly dangerous, as the malicious instruction can be hidden in external data that the LLM processes, enabling remote and autonomous exploitation \cite{greshake2023youvesignedforcompromising}.
+\end{itemize}
+
+This survey of core methodologies highlights the creativity and adaptability of adversarial research. While the underlying principles are often shared, their manifestation is deeply tied to the specific nature of the data and the model being attacked, necessitating the broad, multi-domain investigation undertaken in this thesis.
+
+
+\section{Defense Mechanisms: A Multi-Layered Approach}
+\label{sec:defense_mechanisms}
+
+In response to the diverse and evolving threat of adversarial attacks, a wide array of defense mechanisms has been proposed. No single defense has proven to be a silver bullet; instead, robust security often requires a multi-layered approach that combines different strategies. These defenses can be broadly categorized into proactive methods that aim to harden the model during training, reactive methods that process inputs at inference time, and certified defenses that provide formal security guarantees.
+
+\subsection{Proactive Defenses: Training for Robustness}
+The most fundamental approach to defense is to build models that are inherently less susceptible to adversarial perturbations from the outset. This is typically achieved by modifying the training process.
+
+\subsubsection{Adversarial Training}
+Adversarial training is the most widely adopted and empirically effective proactive defense strategy \cite{goodfellow2015explaining}. The core idea is to treat the training process as a min-max optimization problem. For each batch of training data, an "inner maximization" step generates adversarial examples by finding the perturbations that maximize the model's loss. Then, an "outer minimization" step updates the model's weights to minimize the loss on these newly created hard examples \cite{madry2018towardspgd}.
+
+By exposing the model to worst-case examples during training, it learns to be less sensitive to small input perturbations and develops more robust, generalizable features. Madry et al. demonstrated that training against a strong, multi-step adversary like Projected Gradient Descent (PGD) yields significantly more robustness than training against weaker, single-step attacks like FGSM \cite{madry2018towardspgd}. While highly effective, standard adversarial training can be computationally expensive. Recent advances have focused on improving its efficiency, for instance by reusing adversarial examples across epochs \cite{zheng2020efficientadversarialtrainingtransferable}. In this thesis, we leverage adversarial training as a foundational defense for our computer vision models.
+
+\subsubsection{Virtual Adversarial Training (VAT)}
+A powerful extension of this concept is Virtual Adversarial Training (VAT) \cite{miyato2017virtual}. VAT is a semi-supervised technique that does not require labeled adversarial data. Instead, for a given input, it finds the small perturbation that maximally changes the model's output distribution, measured by the Kullback-Leibler (KL) divergence. It then regularizes the model to produce similar outputs for the original and perturbed inputs, effectively smoothing the model's output manifold. Because it does not require labeled data for the perturbation-generation step, VAT is particularly well-suited for NLP tasks where labeled data can be scarce. We explore VAT as a core defense for sentiment analysis in Chapter \ref{chap:nlp}.
+
+\subsection{Reactive Defenses: Input Processing and Detection}
+Reactive defenses are model-agnostic and operate at inference time. They aim to either detect and reject adversarial inputs or to "purify" them by removing the malicious perturbation before it reaches the model.
+
+\subsubsection{Input Transformation and Purification}
+This strategy is based on the observation that many adversarial perturbations, while imperceptible to humans, have statistical properties that can be removed by certain transformations. The key is to apply a transformation that disrupts the adversarial noise more than the legitimate signal.
+\begin{itemize}
+    \item \textbf{In Vision:} A simple yet effective defense is to use lossy compression algorithms like \textbf{JPEG}, which are designed to discard high-frequency information where adversarial noise often resides \cite{das2017keepingbadguysout}.
+    \item \textbf{In Audio:} The same principle applies. \textbf{MP3 compression} can be used to diminish adversarial noise in audio signals \cite{andronic2020mp3}. More sophisticated signal processing techniques like \textbf{spectral gating} can identify and remove noise from specific frequency bands \cite{oreilly2022voiceblock}, while simple \textbf{input quantization} can disrupt finely-tuned adversarial perturbations \cite{li2024investigating}. We evaluate these extensively in Chapter \ref{chap:asr}.
+    \item \textbf{In Text:} For text-based attacks, \textbf{character-level purification} involves using heuristics to reverse common adversarial edits, such as correcting homoglyph substitutions ('o' for '0'), normalizing repeated characters, and fixing adjacent character swaps \cite{morris2020textattack, li2023textpurification}. We implement this as part of our hybrid NLP defense in Chapter \ref{chap:nlp}.
+\end{itemize}
+
+\subsubsection{Adversarial Detection}
+Instead of trying to fix a malicious input, another approach is to simply detect and reject it. This typically involves training a secondary, lightweight classifier to distinguish between benign and adversarial examples. This strategy is a core component of \textbf{multi-stage defensive pipelines}, where a fast detector first flags suspicious inputs, which are then passed to a more computationally expensive purification or robust processing stage. This optimizes the trade-off between security and efficiency, which is a central theme in the novel defensive systems we propose in Chapter \ref{chap:object_detection} and Chapter \ref{chap:llm}.
+
+\subsection{Certified Defenses: Providing Formal Guarantees}
+A fundamental limitation of empirical defenses like adversarial training and input purification is that they can often be broken by a sufficiently strong \textit{adaptive attack}—an attack specifically designed to circumvent the known defense mechanism. Certified defenses address this by providing a mathematical proof that no attack within a given perturbation bound (e.g., an $L_2$ norm ball) can cause a misclassification.
+
+The most scalable and popular certified defense is \textbf{Randomized Smoothing} \cite{cohen2019certified}. The process involves creating a new "smoothed" classifier, $g$, from a base classifier, $f$. The prediction of $g$ on an input $x$ is the class that $f$ is most likely to predict when its input is drawn from a Gaussian distribution centered at $x$. This aggregation over noisy inputs creates a smoother decision boundary. The radius of the perturbation ball for which robustness can be certified is directly related to the confidence of the base classifier's predictions and the variance of the smoothing noise. While powerful, certified defenses typically involve a trade-off with clean accuracy and are often limited to specific threat models (e.g., L2 norms). We implement and evaluate randomized smoothing for ASR in Chapter \ref{chap:asr}, building on work that has adapted it for sequential data \cite{olivier2022sequential}.
+
+These diverse defense strategies highlight the complexity of securing deep learning systems. An effective, practical defense often requires a hybrid approach, combining proactive model hardening with reactive input sanitization to create a robust, multi-layered security posture.
+\end{document}

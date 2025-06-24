@@ -82,7 +82,6 @@ We implemented two distinct approaches for adversarial suffix optimization:
     \item Optimizing an adversarial suffix for each individual harmful prompt.
     \item  Optimizing a single universal suffix for a set of prompts using a weighted loss function that prioritizes prompts with higher difficulty.
 \end{enumerate}
-The experiments were conducted using the AdvBench dataset. For the first approach, we sampled 50 harmful prompts to evaluate the effectiveness of individualized suffix optimization. For the second approach, we selected 10 prompts to assess the generalization of the universal suffix across multiple prompts. The Qwen-1.5-1.8B model was used as the target model for all experiments.
 
 The following pseudocode describes the implementation of the first approach for the Greedy Coordinate Gradient (GCG) attack.
 \begin{breakablealgorithm}{Greedy Coordinate Gradient (GCG) Attack for Single Prompt Processing}
@@ -197,6 +196,8 @@ The key objective in the two approaches is to minimize the adversarial loss func
 where \( p(t_i \mid \mathbf{x}_{1:n+i-1}) \) is the LM's next-token probability. For universal optimization, the loss is a weighted sum over \( m \) prompts: \(\sum_{j=1}^m w_j \mathcal{L}_j\), with weights \( w_j \) balancing contributions. GCG optimizes a single adversarial suffix per prompt by iteratively selecting a token position, computing gradients to identify \( k = 256 \) candidate token substitutions, evaluating \( B = 128 \) random substitutions, and updating with the substitution yielding the lowest loss. This process repeats for \( T = 50 \) iterations, targeting a 20-token suffix. 
 
 \paragraph{Results}\leavevmode\\
+The experiments were conducted using the AdvBench dataset. For the first approach, we sampled 50 harmful prompts to evaluate the effectiveness of individualized suffix optimization. For the second approach, we selected 10 prompts to assess the generalization of the universal suffix across multiple prompts. The Qwen-1.5-1.8B model was used as the target model for all experiments.
+
 The Attack Success Rate (ASR) was calculated by evaluating whether a large language model’s (LLM) response contains any predefined refusal phrases, such as "sorry," "I apologize," or "I can’t." An attack is considered successful if none of these phrases appear in the response. However, this approach has limitations. It may produce False Positives when the model generates irrelevant content instead of the targeted harmful response. Similarly, it may yield False Negatives when the model includes a refusal phrase but still produces the targeted response within the same output. To address these limitations, we reviewed responses manually, and calculated additional evaluation metrics, including Recall, Precision, and F1 Score.
 \begin{table}[H]
 \centering
@@ -224,7 +225,6 @@ optimizing the adversarial suffix with tunable hyperparameters to balance attack
 
 
 \paragraph{Methodology}\leavevmode\\
-The experiments were conducted using the AdvBench dataset. Using the same 50 sampled harmful prompts in the GCG Attack. The Qwen-1.5-1.8B model was used as the target model for all experiments.\\
 
 The following pseudocode describes the implementation of the Beam Search-based Adversarial Attack (BEAST).
 \begin{breakablealgorithm}{Beam Search-based Adversarial Attack (BEAST) for Jailbreaking}
@@ -272,6 +272,8 @@ The key objective is to minimize the adversarial objective function, defined as 
 where \( p(t_i \mid \mathbf{x} \oplus \mathbf{t}_{<i}) \) is the LM's next-token probability. BEAST aims to maximize the likelihood of generating \(\mathbf{t}\) by iteratively expanding a beam of \( k_1 \) candidates, sampling \( k_2 \) tokens per candidate, and selecting the top \( k_1 \) candidates with the lowest \(\mathcal{L}(\mathbf{x})\). The algorithm processes one prompt at a time, using parameters \( k_1 = 15 \), \( k_2 = 15 \), and \( L = 30 \) for a 30-token suffix.
 
 \paragraph{Results}\leavevmode\\
+The experiments were conducted using 25 sample of the AdvBench dataset. The Qwen-1.5-1.8B model was used as the target model for all experiments.
+
 The Attack Success Rate (ASR) was calculated using the same methodology as in the GCG attack (including the predefined refusal phrases), with identical evaluation metrics: Recall, Precision, and F1 Score.
 \begin{table}[H]
 \centering
@@ -279,10 +281,10 @@ The Attack Success Rate (ASR) was calculated using the same methodology as in th
 \label{tab:safe_eval}
 \begin{tabular}{lcccccc}
 \toprule
-\textbf{Method} & \textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
+\textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
 \midrule
-Individual Suffix   & 0 & 0  & 0  & 0.00  \\
-Universal Suffix  & 0 & 0  & 0  & 0.00  \\
+    88 & 1.0  & 0.68 & 0.81  \\
+
 \bottomrule
 \end{tabular}
 \end{table}

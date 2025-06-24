@@ -391,12 +391,11 @@ This loop continues until the image's predicted class changes or the maximum num
 \end{algorithmic}
 \end{breakablealgorithm}
 
-
 \subsubsection{Momentum Iterative Fast Gradient Sign Method(MI-FGSM)}
 \paragraph{Introduction}
 
 The Momentum Iterative Fast Gradient Sign Method (MI-FGSM) evolved to address the limitations of earlier gradient-based attack methods in crafting effective adversarial examples, particularly to improve their robustness and transferability across different model scenarios. The progression began with a single-step method that used gradient perturbations to mislead models, which, while simple and efficient, was constrained by its reliance on a linear decision boundary assumption, limiting its effectiveness for larger perturbations. This led to the development of an iterative approach that applied multiple small perturbations, enhancing white-box attack success by thoroughly exploring the loss landscape. However, this method often overfit to the target model, reducing its ability to transfer to other models, a critical drawback for black-box attacks. To overcome this, MI-FGSM was introduced, incorporating the momentum concept from optimization techniques. Momentum stabilizes update directions by accumulating gradient velocities across iterations, preventing the attack from getting trapped in local maxima and improving transferability, thus balancing attack potency across both white-box and black-box scenarios.
-\cite{dong2018momentum}
+
 \paragraph{Methodology}
 
 \subparagraph{Attack Type}
@@ -463,7 +462,7 @@ JSMA generates adversarial saliency maps that identify which features, when modi
 
 Unlike traditional gradient-based attacks that perturb inputs based on the overall loss function, JSMA provides fine-grained control over feature selection by focusing on the direct relationship between inputs and outputs. In practice, it has been shown to produce highly successful targeted attacks while maintaining a high level of visual similarity to the original input, as demonstrated on image classification tasks such as handwritten digit recognition.
 
-JSMA's strength lies in its interpretability and precision, making it a powerful tool for probing model weaknesses and for understanding how specific inputs drive model decisions. It also serves as a foundation for evaluating and improving the robustness of neural network architectures in adversarial settings \cite{papernot2016limitations}.
+JSMA's strength lies in its interpretability and precision, making it a powerful tool for probing model weaknesses and for understanding how specific inputs drive model decisions. It also serves as a foundation for evaluating and improving the robustness of neural network architectures in adversarial settings 
 
 
 \paragraph{Methodology}
@@ -598,17 +597,32 @@ Before the attack, Clean  image classified as "Vehicles over 3.5 tons prohibited
 
 \subparagraph{JSMA computed for whole Dataset}  
 
-Since JSMA is a targeted attack, a worst-case analysis was used for test set evaluation. In this evaluation, the goal is to assess the model’s vulnerability when an adversary attempts to misclassify all inputs into a single, fixed target class, regardless of their true labels. This scenario simulates a strong, highly constrained attack strategy and is commonly used to benchmark the effectiveness of targeted adversarial attacks.
+Since JSMA is a targeted attack, a worst-case analysis was employed to evaluate its impact on the test set. In this evaluation, the attacker attempts to misclassify each input into a single, fixed target class, regardless of the input’s true label. This setting reflects a highly constrained but severe adversarial scenario, commonly used to benchmark the effectiveness of targeted attacks.
 
-The attack was applied to a subset of samples, ensuring an equal number of samples per class. The most frequent class after the attack was Class 0 ``Speed Limit 20''.
+The attack was applied to a carefully balanced subset of the test set, containing \textbf{2 samples per class}, totaling \textbf{86 samples}. The fixed target class selected for this evaluation was \textbf{Class 0 (``Speed Limit 20'')}, which was the most frequently assigned class following the attack.
 
-The results of the test set evaluation are as follows:
-\begin{description}
-    \item[Attack Success Rate (ASR)] 52.38\%
-    \item[Average Distortion] 0.0011
-\end{description}
+\vspace{1em}
+\noindent The quantitative results of the JSMA attack are summarized in Table~\ref{tab:jsma-results}.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|}
+\hline
+\textbf{Metric} & \textbf{Value} \\
+\hline
+Post-Attack Test Accuracy & 34.52\% \\
+Attack Success Rate (to class 0) & 48.81\% \\
+Average Distortion & 0.26\% of pixels \\
+\hline
+\end{tabular}
+\caption{JSMA targeted attack results (fixed target: Class 0) on a balanced test subset (2 samples per class, 86 total).}
+\label{tab:jsma-results}
+\end{table}
 
 
+\vspace{1em}
+\noindent
+As shown in Table 6, The JSMA targeted attack was evaluated in a worst-case setting where all test samples were forced toward a fixed target class (Class 0). The attack achieved a \textbf{48.81\%} targeted success rate while preserving the original prediction in \textbf{34.52\%} of cases, all with minimal average distortion (\textbf{0.26\%}). These results confirm the effectiveness of JSMA as a precise and stealthy adversarial technique, even under severely constrained target conditions.
 \clearpage
 \clearpage
 \subsection{Black Box Attacks}
@@ -1047,11 +1061,323 @@ The vulnerability is not an isolated phenomenon but a systemic weakness. When ev
 
 \subsubsection{Simba}
 \paragraph{Introduction}
+
+
+The Simple Black-box Adversarial Attack (SimBA), introduced by Guo et al. (2019), is a pioneering approach to generating adversarial examples in the black-box setting, where attackers can only query the target model's outputs without insight into its internal structure or parameters. Renowned for its exceptional query efficiency and conceptual elegance, SimBA addresses the pressing challenge of crafting effective adversarial perturbations under stringent query constraints, making it highly relevant for real-world applications, such as probing machine learning APIs like Google Cloud Vision. By exploiting continuous-valued confidence scores, SimBA iteratively modifies an input image by sampling random directions from a predefined orthonormal basis, steering it toward misclassification with remarkable efficiency. The method’s adaptability is a key strength, as it operates in two distinct orthonormal bases: pixel space, which directly alters individual pixel values, and Discrete Cosine Transform (DCT) coefficients, which capitalize on low-frequency components to exploit model sensitivities more effectively. This dual-basis flexibility, paired with its robust performance in practical scenarios, establishes SimBA as a formidable tool for uncovering vulnerabilities in machine learning systems within high-dimensional spaces, setting a rigorous benchmark for future research into black-box adversarial attacks.
 \paragraph{Methodology}
-\paragraph{Resu}
+\subparagraph{Attack Type}
+
+The Simple Black-box Adversarial Attack (SimBA) implemented in its untargeted variant is a query-based black-box attack, designed to operate without access to the target model's internal parameters or gradients. In this approach, the adversary relies solely on querying the model's output probabilities to craft imperceptible perturbations, aiming to mislead the model into predicting any incorrect label. SimBA iteratively adjusts the input image along random directions from an orthonormal basis, using the confidence scores obtained from these queries to guide the perturbation process, making it highly efficient within the constraints of a limited query budget.
+\subparagraph{Parameters}
+\begin{itemize}
+    \item $x$ The clean input image to be perturbed.
+    \item $y$ The true label associated with $x$.
+    \item $f$ The parameters of the target neural network model, accessible only via black-box queries.
+    \item $\epsilon$ The step size for each perturbation update along the orthonormal basis vector.
+    \item $T$ The maximum number of iterations (steps) to apply the attack, bounding the query budget.
+    \item $Q$ The set of orthonormal basis vectors (standard basis for SimBA, DCT basis for SimBA-DCT).
+    \item $r$ The fraction of low-frequency DCT coefficients used in SimBA-DCT (e.g., initially set to $1/8$).
+    \item $p_h(y \mid x)$ The confidence score (probability) of label $y$ for input $x$, used as the loss function.
+\end{itemize}
+
+
+\subparagraph{Algorithm Overview}
+\begin{breakablealgorithm}{Simba Attack Algorithm}
+\begin{algorithmic}[1]
+\Require $\mathbf{x}$, $y$, $Q$, $\epsilon$, $T$
+\Ensure $\delta$
+\State Initialize $\delta \gets \mathbf{0}$, $\mathbf{p} \gets p_h(y \mid \mathbf{x})$, $\mathbf{Q}_{\text{avail}} \gets Q$
+\While{$\mathbf{p}_y = \max_{y'} p_h(y' \mid \mathbf{x} + \delta)$ and $t < T$}
+    \State Pick random vector without replacement: $\mathbf{q} \gets \text{random}(\mathbf{Q}_{\text{avail}})$
+    \State Remove $\mathbf{q}$ from $\mathbf{Q}_{\text{avail}}$
+    \For{$\alpha \in \{\epsilon, -\epsilon\}$}
+        \State Compute new probability: $\mathbf{p}' \gets p_h(y \mid \mathbf{x} + \delta + \alpha \mathbf{q})$
+        \If{$\mathbf{p}'_y < \mathbf{p}_y$}
+            \State Update perturbation: $\delta \gets \delta + \alpha \mathbf{q}$
+            \State Update probability: $\mathbf{p} \gets \mathbf{p}'$
+            \State \textbf{break}
+        \EndIf
+    \EndFor
+    \State Increment iteration: $t \gets t + 1$
+\EndWhile
+\State \Return $\mathbf{X}^*$
+\end{algorithmic}
+
+\end{breakablealgorithm}
+\paragraph{Results }
+In our evaluation, we implemented and compared both the original SimBA (pixel-space) and the SimBA-DCT (low-frequency DCT basis) variants across a standardized set of untargeted on GTSRB Dataset. By holding the step size and maximum number of queries constant, we directly measured convergence speed -the number of model queries required to flip the classifier’s label-.As we will show,The SimBA-DCT variant, which uses the Discrete Cosine Transform (DCT) basis, generally requires fewer queries compared to the SimBA variant operating in pixel space, highlighting the DCT variant's superior query efficiency due to its focus on low-frequency perturbations, as shown in the following frequency mask, that very small portion of Image DCT frequencies are exploited:
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[height=7cm,width=14cm,keepaspectratio]{images/CV/Classification/Low_freq_mask.png}
+    \caption{Low-Frequency Mask.}
+    \label{fig:dct_frequency_mask}
+\end{figure}
+\subparagraph{Simba on Single Samples}
+When Performing the Attack on the same sample using both Simba-Pixel Space and Simba-DCT using the following parameters to ensure a fair comparison:
+\begin{itemize}\itemsep0.5em
+    \item $\epsilon = 0.2$
+    \item $T = 2000$
+    \item $Q$: The set of orthonormal basis vectors (\text{standard basis for SimBA, DCT basis for SimBA-DCT})
+    \item $r = \frac{1}{8}$
+    \item $\text{maximum number of queries} = 5000$
+\end{itemize}
+
+\begin{figure}[ht!]
+    \centering
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/stop_simba_dct.png}
+        \caption{Simba DCT: 1550 iters, 2320 queries}
+        \label{fig:Simba_DCT_image}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/stop_simba_pixel.png}
+        \caption{Simba Pixel Space:1778 iters, 2656 queries}
+        \label{fig:adv_stopimage}
+    \end{subfigure}
+    \caption{Simba on Stop Image}
+    \label{fig:Simba_Pixel_image}
+\end{figure}
+
+As shown in Figure 12, Both images  were initially predicted as Class 14 (Stop), but after Simba Attack , They were predicted as Class 17 (No Entry) , but the adverserial example after Simba-DCT reached the adverserial prediction in lower number of queries ; as an indication for Simba-DCT Faster Convergence
+
+\begin{figure}[ht!]
+    \centering
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/speedlimit120_simba_dct.png}
+        \caption{Simba DCT: 175 iters, 264 queries.}
+        \label{fig:Simba_DCT_image}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/speedlimit120_simba_pixel.png}
+        \caption{Simba Pixel Space:286 iters, 440 queries}
+        \label{fig:adv_stopimage}
+    \end{subfigure}
+    \caption{Simba on Speed Limit 120}
+    \label{fig:Simba_Pixel_image}
+\end{figure}
+As shown in Figure 13, Both images  were initially predicted as Class 8 (Speed Limit 120) Class, but after Simba Attack , They were predicted as Class 7 (Speed Limit 100) , but the adverserial example after Simba-DCT reached the adverserial prediction in lower number of queries ; as an indication for Simba-DCT Faster Convergence
+
+\subparagraph{Simba on Test Set}
+\begin{table}[ht]
+\centering
+\caption{Test-set classification accuracies for the baseline and SimBA variants}
+\label{tab:simba-accuracy-comparison}
+\begin{tabular}{l c}
+\toprule
+\textbf{Model} & \textbf{Test Accuracy (\%)} \\
+\midrule
+Baseline Model         & 96.00 \\
+SimBA (pixel space)    & 62.79 \\
+SimBA-DCT              & 65.12 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\clearpage
 \section{Defenses}
+
+
 \subsection{Adverserial Training}
+\paragraph{Introduction}
+Adversarial training is a principled and widely adopted defense mechanism in the field of adversarial machine learning. It aims to improve the robustness of deep neural networks by explicitly incorporating adversarial examples—inputs intentionally perturbed to mislead the model—into the training process. The core idea is to expose the model to these adversarial inputs during training so that it learns to correctly classify both clean and perturbed data, thereby developing resistance to a wide range of potential attacks.
+
+From a mathematical perspective, adversarial training formulates the learning problem as a min-max optimization task. The inner maximization identifies the most damaging perturbation within a constrained set (usually defined by an ℓₚ-norm ball), while the outer minimization updates the model parameters to minimize the loss under these worst-case perturbations. This process effectively strengthens the decision boundaries of the model, making it less sensitive to small but malicious input variations.
+
+A key strength of adversarial training lies in its ability to instill intrinsic robustness into the model, as opposed to post hoc defenses that may be bypassed with adaptive attacks. Despite its computational intensity, adversarial training is considered one of the most effective defenses, especially against white-box attacks where the adversary has full knowledge of the model. Numerous empirical studies have demonstrated that models trained with adversarial examples outperform standard models in terms of adversarial robustness and generalization to unseen attack strategies.
+
+
+\paragraph{Methodology}
+
+\subparagraph{Ways of Adversarial Training} 
+
+ Adversarial training strategies differ significantly based on how adversarial examples are generated and incorporated during training. Two primary approaches are \textbf{fixed adversarial training} and \textbf{on-the-fly adversarial training}, each with distinct implications for robustness and efficiency.
+\begin{itemize}
+    \item \textbf{Fixed Adversarial Training}
+    \begin{itemize}
+        \item Adversarial examples are pre-computed before the training process begins and remain unchanged throughout training.
+        \item The same set of perturbed samples is reused across all training epochs.
+        \item As the model evolves, these fixed examples may no longer pose a challenge, reducing their effectiveness.
+        \item The model may overfit to specific perturbations in the fixed set, learning to resist only those patterns without achieving general robustness.
+        \item This often results in poor generalization to novel or adaptive adversarial attacks.
+    \end{itemize}
+
+    \item \textbf{On-the-Fly Adversarial Training}
+    \begin{itemize}
+        \item Adversarial examples are generated dynamically during each training iteration using the current state of the model.
+        \item The perturbations evolve alongside the model, ensuring that they remain challenging and relevant throughout training.
+        \item This method helps the model develop more general and adaptive robustness against a wide range of attacks.
+        \item It discourages memorization of specific attack patterns and promotes stronger decision boundaries.
+        \item Although computationally expensive (up to 7× to 100× more than standard training), techniques such as \textbf{DEAT} and \textbf{ATTA} reduce training costs while preserving robustness.
+    \end{itemize}
+\end{itemize}
+
+\subparagraph*{Fine-Tuning Phase}
+
+The defensive mechanism employed during the training phase is based on an adaptive adversarial training strategy. In each training step, the input batch is divided into two parts: a \textbf{clean portion} and an \textbf{adversarial portion}. The ratio between these portions gradually transitions from 75\% clean to 50\% clean as training progresses, allowing the model to be increasingly exposed to adversarial perturbations over time.
+
+Adversarial examples are generated \textbf{on-the-fly} using either the FGSM or PGD attack, selected probabilistically based on the training epoch. Early in training, the FGSM method is preferred due to its efficiency, while in later epochs, PGD becomes more likely to ensure stronger adversarial challenges. For each adversarial example, the perturbation magnitude $\epsilon$ is randomly selected from a predefined and epoch-scaled list. The PGD attack further adjusts the number of iterations dynamically based on the training progress.
+
+Once clean and adversarial examples are prepared, they are concatenated into a single batch. The model is then trained on this combined dataset in a single forward-backward pass, updating its parameters accordingly. This dynamic and progressively challenging training setup encourages the model to learn robust decision boundaries, providing effective defense against both weak and strong adversarial attacks.
+\subparagraph*{Evaluation Procedure During Test Phase}
+To evaluate the effectiveness of adversarial training, we assess model performance on adversarial examples generated from the test set, which contains 512 samples. Prior to applying adversarial training, test-time adversarial examples are crafted using the FGSM and PGD attack methods and evaluated against the baseline (undefended) model to measure initial vulnerability. Following the adversarial fine-tuning phase, the same attack algorithms are used again to generate new adversarial examples, this time targeting the fine-tuned (defended) model. This ensures a fair and consistent comparison. The accuracy on these post-defense adversarial examples is then reported, highlighting the improvement achieved through adversarial training as a defense mechanism.
+
+
+\clearpage
+\paragraph{Results}\mbox{}\\[1ex]
+\begin{table}[h!]
+\centering
+\caption{FGSM Accuracy Before and After Adversarial Training}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Epsilon ($\varepsilon$)} & \textbf{Before Adversarial Training (\%)} & \textbf{After Adversarial Training (\%)} \\
+\hline
+0.007 & 44.96 & 77.91 \\
+0.010 & 34.30 & 75.39 \\
+0.030 & 12.79 & 75.78 \\
+0.100 & 9.30 & 47.67 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{PGD Accuracy Before and After Adversarial Training}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Epsilon ($\varepsilon$)} & \textbf{Alpha ($\alpha$)} & \textbf{Before Adversarial Training (\%)} & \textbf{After Adversarial Training (\%)} \\
+\hline
+0.007 & 0.00175 & 36.43 & 68.60 \\
+0.010 & 0.00250 & 21.71 & 61.43 \\
+0.030 & 0.00750 & 2.71  & 42.83 \\
+0.100 & 0.02500 & 0.00  & 13.76 \\
+\hline
+\end{tabular}
+\end{table}
+\clearpage
 \subsection{Noise Fusion}
+\paragraph{Introduction}
+The Noise-Fusion Method (NFM) is a straightforward and robust defense mechanism crafted to safeguard deep neural network (DNN) image classification models against adversarial attacks. Adversarial attacks exploit DNN vulnerabilities by introducing subtle, often imperceptible, perturbations to input data, such as images, to induce misclassifications. Unlike many sophisticated defense strategies that demand detailed knowledge of the model architecture or specifics of the attack, NFM operates agnostically, requiring no such information, which enhances its versatility and applicability. The core of NFM lies in strategically adding controlled noise—specifically Uniform, Gaussian, or Poisson noise—to both the input data during runtime and the training data during model training. This dual noise injection serves a twofold purpose: it masks adversarial perturbations by "drowning" them within the added noise, rendering the attack less effective, and it bolsters the model’s resilience to noisy inputs, thereby improving overall robustness. NFM has been rigorously evaluated against prominent adversarial attacks, including the Fast Gradient Signed Method (FGSM), Projected Gradient Descent (PGD), and Sparse L1 Descent (SLD), demonstrating significant improvements in model accuracy under attack conditions. By perturbing attack gradients and stabilizing model performance through noise, NFM offers a generalized defense with potential applicability beyond image-based models to other data types, such as audio, making it a promising approach for securing DNNs against a wide range of adversarial threats without the need for attack-specific or model-specific tailoring.
+
+\paragraph{Methodology}
+
+
+
+\subparagraph{Noise Fusion Mechanism}
+
+Let $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ denote an input image and $\mathbf{n} \in \mathbb{R}^{H \times W \times C}$ a noise matrix sampled from a specific distribution. The fused input $\mathbf{x}_{\text{noise}}$ is computed as:
+
+\begin{equation}
+    \mathbf{x}_{\text{noise}} = (1 - \alpha) \cdot \mathbf{x} + \alpha \cdot \mathbf{n}, \quad \alpha \in [0, 1]
+\end{equation}
+
+Here, $\alpha$ is the noise amplitude, which controls the strength of the noise blended into the image.
+\subparagraph*{Noise Distributions}
+
+The following three noise distributions are used to evaluate and enhance model robustness:
+
+\begin{itemize}
+    \item \textbf{Uniform Noise}: Each pixel is sampled independently from a uniform distribution over the full intensity range:
+    \begin{equation}
+        \mathbf{n}_{i,j,c} \sim \mathcal{U}(0, 255)
+    \end{equation}
+    
+    \item \textbf{Gaussian Noise}: Each pixel is sampled from a Gaussian distribution centered at the midpoint of the valid pixel range:
+    \begin{equation}
+        \mathbf{n}_{i,j,c} \sim \mathcal{N}(\mu, \sigma^2), \quad \mu = 127.5,\ \sigma = 64
+    \end{equation}
+    
+    \item \textbf{Poisson Noise}: Poisson noise is signal-dependent and is drawn per pixel based on the input intensity:
+    \begin{equation}
+        \mathbf{n}_{i,j,c} \sim \text{Poisson}(\lambda = \mathbf{x}_{i,j,c})
+    \end{equation}
+\end{itemize}
+
+\subparagraph{Training and Inference Procedure}
+
+Noise fusion is applied in both training and evaluation as follows:
+
+\textbf{Training Phase:}
+\begin{enumerate}
+    \item Sample noise $\mathbf{n} \sim \mathcal{D} \in \{\text{Uniform}, \text{Gaussian}, \text{Poisson}\}$
+    \item Compute $\mathbf{x}_{\text{noise}} = (1 - \alpha) \cdot \mathbf{x} + \alpha \cdot \mathbf{n}$
+    \item Train the model using $(\mathbf{x}_{\text{noise}}, y)$
+\end{enumerate}
+
+\textbf{Inference Phase:}
+\begin{enumerate}
+    \item Sample noise $\mathbf{n} \sim \mathcal{D}$
+    \item Compute $\mathbf{x}_{\text{noise}} = (1 - \alpha) \cdot \mathbf{x} + \alpha \cdot \mathbf{n}$
+    \item Pass $\mathbf{x}_{\text{noise}}$ through the model to obtain predictions
+\end{enumerate}
+
+\textbf{Comparison Between Defense Phases}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|l|l|}
+\hline
+\textbf{Phase} & \textbf{Operation} & \textbf{Purpose} \\
+\hline
+Training  & Add noise to images & Improve robustness via augmentation \\
+Inference & Fuse noise into input & Suppress adversarial perturbations \\
+\hline
+\end{tabular}
+\caption{Noise Fusion Strategy Across Phases}
+\end{table}
+
+
+
+% Results section
+\paragraph{Results}\mbox{}\\[1ex]
+
+
+
+\begin{table}[ht]
+\centering
+\scriptsize
+\caption{Test-set accuracies before and after Noise Fusion, with absolute improvement}
+\label{tab:noise-fusion-accuracies}
+\renewcommand{\arraystretch}{1.5} % <-- Increases row height
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}l l c c c c c@{}}
+\toprule
+\textbf{Attack Type} & \textbf{Noise Distribution} & \boldmath$\epsilon$ & \textbf{Alpha} & \textbf{Test Accuracy after Attack (\%)} & \textbf{Test Accuracy after Noise Fusion (\%)} & \textbf{Improvement (\% )} \\
+\midrule
+FGSM & Gaussian & 0.007 & --      & 58.00 & 95.16 & 37.16 \\
+FGSM & Gaussian & 0.01  & --      & 44.00 & 93.41 & 49.41 \\
+FGSM & Gaussian & 0.03  & --      & 14.00 & 83.33 & 69.33 \\
+FGSM & Gaussian & 0.10  & --      &  6.00 & 48.64 & 42.64 \\
+PGD  & Gaussian & 0.007 & 0.00175 & 35.00 & 93.22 & 58.22 \\
+PGD  & Gaussian & 0.01  & 0.00250 &  7.00 & 80.23 & 73.23 \\
+PGD  & Gaussian & 0.03  & 0.00750 &  3.00 & 67.05 & 64.05 \\
+PGD  & Gaussian & 0.10  & 0.02500 &  0.00 & 42.83 & 42.83 \\
+\midrule
+FGSM & Uniform  & 0.007 & --      & 58.00 & 83.72 & 25.72 \\
+FGSM & Uniform  & 0.01  & --      & 44.00 & 81.59 & 37.59 \\
+FGSM & Uniform  & 0.03  & --      & 14.00 & 72.48 & 58.48 \\
+FGSM & Uniform  & 0.10  & --      &  6.00 & 42.64 & 36.64 \\
+PGD  & Uniform  & 0.007 & 0.00175 & 35.00 & 68.99 & 33.99 \\
+PGD  & Uniform  & 0.01  & 0.00250 &  7.00 & 39.92 & 32.92 \\
+PGD  & Uniform  & 0.03  & 0.00750 &  3.00 & 25.39 & 22.39 \\
+PGD  & Uniform  & 0.10  & 0.02500 &  0.00 & 10.66 & 10.66 \\
+\midrule
+FGSM & Poisson  & 0.007 & --      & 58.00 & 93.99 & 35.99 \\
+FGSM & Poisson  & 0.01  & --      & 44.00 & 92.44 & 48.44 \\
+FGSM & Poisson  & 0.03  & --      & 14.00 & 76.55 & 62.55 \\
+FGSM & Poisson  & 0.10  & --      &  6.00 & 42.83 & 36.83 \\
+PGD  & Poisson  & 0.007 & 0.00175 & 35.00 & 46.12 & 11.12 \\
+PGD  & Poisson  & 0.01  & 0.00250 &  7.00 &  7.36 &  0.36 \\
+PGD  & Poisson  & 0.03  & 0.00750 &  3.00 &  2.91 & -0.09 \\
+PGD  & Poisson  & 0.10  & 0.02500 &  0.00 &  0.97 &  0.97 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+\clearpage
+As shown in Table~\ref{tab:noise-fusion-accuracies}, the Noise Fusion Method significantly improves model robustness against adversarial attacks, with \textbf{Gaussian noise} demonstrating the strongest and most consistent defense across both FGSM and PGD attacks. Specifically, Gaussian noise restores accuracy by up to \textbf{+73.23\%} under PGD and \textbf{+69.33\%} under FGSM, outperforming Uniform and Poisson noise distributions. While Uniform noise offers moderate gains, especially under FGSM, its effectiveness diminishes with stronger attacks like PGD. Poisson noise shows good performance against FGSM but fails to defend against PGD, offering minimal or even negative improvements at higher $\epsilon$ values. Overall, Gaussian noise emerges as the most robust and reliable choice for noise fusion, particularly as attack intensity increases.
+
 
 \subsection{JPEG Compression Defense}
 \label{sec:jpeg_defense}

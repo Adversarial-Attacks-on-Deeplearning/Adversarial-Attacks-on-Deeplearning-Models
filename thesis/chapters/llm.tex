@@ -201,14 +201,14 @@ The experiments were conducted using the AdvBench dataset. For the first approac
 The Attack Success Rate (ASR) was calculated by evaluating whether a large language model’s (LLM) response contains any predefined refusal phrases, such as "sorry," "I apologize," or "I can’t." An attack is considered successful if none of these phrases appear in the response. However, this approach has limitations. It may produce False Positives when the model generates irrelevant content instead of the targeted harmful response. Similarly, it may yield False Negatives when the model includes a refusal phrase but still produces the targeted response within the same output. To address these limitations, we reviewed responses manually, and calculated additional evaluation metrics, including Recall, Precision, and F1 Score.
 \begin{table}[H]
 \centering
-\caption{Jailbreak Attack Success Rate (ASR) and Detection Metrics}
+\caption{Jailbreak Attack Success Metrics}
 \label{tab:safe_eval}
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{Method} & \textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
 \midrule
 Individual Suffix   & 84 & 0.92  & 0.83  & 0.87  \\
-Universal Suffix  & 0 & 0  & 0  & 0.00  \\
+Universal Suffix  & 75 & 0.93  & 0.94  & 0.93  \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -277,7 +277,7 @@ The experiments were conducted using 25 sample of the AdvBench dataset. The Qwen
 The Attack Success Rate (ASR) was calculated using the same methodology as in the GCG attack (including the predefined refusal phrases), with identical evaluation metrics: Recall, Precision, and F1 Score.
 \begin{table}[H]
 \centering
-\caption{Jailbreak Attack Success Rate (ASR) and Detection Metrics}
+\caption{Jailbreak Attack Success Metrics}
 \label{tab:safe_eval}
 \begin{tabular}{lcccccc}
 \toprule

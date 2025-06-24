@@ -170,7 +170,7 @@ The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial 
     \EndIf
     \State Update previous loss: $L_{prev} \gets L(x_{adv}, y_t)$
     \State Compute gradient: $g \gets \nabla_{\eta} L(x_{adv}, y_t) \in \mathbb{R}^T$ \Comment{Gradient w.r.t. perturbation}
-    \State Update perturbation: $\eta \gets \eta - \alpha \cdot \text{sign}(g)$
+    \State Update perturbation: $\eta \gets \eta + \alpha \cdot \text{sign}(g)$
     \State Project to $\ell_\infty$ ball: $\eta \gets \text{clip}(\eta, -\epsilon, \epsilon)$ \Comment{Ensure $||\eta||_\infty \leq \epsilon$}
 \EndFor
 \State Generate final adversarial waveform: $x_{adv} \gets x + \eta$

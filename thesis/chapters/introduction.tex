@@ -1,0 +1,44 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+
+
+Deep learning has become the cornerstone of modern artificial intelligence, driving unprecedented advancements in fields ranging from autonomous transportation and medical diagnostics to natural language understanding and human-computer interaction. These complex neural networks now possess the ability to see, hear, and reason with a proficiency that often meets or exceeds human capabilities. However, the rapid and widespread deployment of these models has outpaced our understanding of their fundamental security limitations. This progress rests on a fragile foundation, vulnerable to a subtle yet powerful class of exploits known as adversarial attacks.
+
+An adversarial attack involves making small, often human-imperceptible perturbations to a model's input data with the express purpose of inducing a specific, confident, and incorrect output. A carefully crafted noisy pattern, invisible to the naked eye, can cause a state-of-the-art image classifier to mistake a stop sign for a speed-limit sign, with potentially catastrophic consequences in an autonomous vehicle. Similarly, minor alterations to an audio command or a sentence's phrasing can deceive speech recognition systems or manipulate the sentiment of powerful language models. These vulnerabilities are not theoretical edge cases; they represent a systemic security risk that threatens the safe and reliable deployment of AI in critical systems.
+
+\section{Problem Statement}
+\label{sec:problem_statement}
+
+The central problem this project addresses is the systemic vulnerability of deep learning models across disparate domains---specifically computer vision and natural language processing---to adversarial attacks. While many studies focus on a single task or model, a comprehensive understanding of how these threats manifest, scale, and can be mitigated across different data modalities and model architectures is lacking. This work aims to bridge that gap through a large-scale empirical investigation, providing a comparative analysis of the adversarial threat landscape and the effectiveness of corresponding defenses.
+
+\section{Scope and Objectives}
+\label{sec:scope_objectives}
+
+To conduct this investigation, the following specific objectives were established for this project:
+\begin{itemize}
+    \item To systematically investigate the impact of adversarial attacks on state-of-the-art models for core computer vision tasks, including \textbf{Image Classification} (EfficientNet-B1), \textbf{Image Segmentation} (U-Net), and \textbf{Object Detection} (YOLOv8n).
+    \item To extend this investigation to the language domain, evaluating vulnerabilities in \textbf{Large Language Models} (Qwen-1.5), traditional \textbf{Natural Language Processing} for sentiment analysis (BiLSTM-GloVe), and \textbf{Automatic Speech Recognition} systems (Wav2Vec 2.0).
+    \item To implement and benchmark a diverse suite of both white-box attacks (e.g., PGD, C\&W, GCG) and black-box attacks (e.g., HopSkipJump, Square Attack) to establish performance degradation baselines across all tasks.
+    \item To design, implement, and rigorously evaluate the efficacy of corresponding defense mechanisms, including adversarial training and the development of novel, task-specific defensive pipelines.
+    \item To analyze the critical trade-offs between adversarial robustness, model performance on clean data, and the computational latency introduced by each defensive strategy.
+\end{itemize}
+
+
+\section{Key Contributions}
+\label{sec:key_contributions}
+
+The primary contributions of this graduation project are:
+\begin{itemize}
+    \item \textbf{A Broad, Cross-Domain Empirical Analysis:} This work provides a comprehensive and comparative study of adversarial phenomena across six distinct tasks in vision and language, offering a unified baseline for evaluating model robustness.
+    \item \textbf{Design of a Novel Dynamic Defensive Pipeline:} For object detection, we designed and implemented a dynamic two-stage defensive pipeline that uses a lightweight adversarial detector to trigger input purification, demonstrating superior robustness against adaptive attacks compared to standard adversarial training.
+    \item \textbf{Development of a Hybrid NLP Defense:} For sentiment analysis, we developed a hybrid defense combining Virtual Adversarial Training (VAT) with character-level purification, showing its synergistic effect in mitigating both semantic and character-based attacks.
+    \item \textbf{Critical Re-evaluation of ASR Attack Transferability:} Our black-box attack experiments on ASR models provide new evidence that qualifies existing claims in the literature, demonstrating that Self-Supervised Learning (SSL) objective mismatch is a primary barrier to attack transferability.
+\end{itemize}
+
+\section{Thesis Structure}
+\label{sec:thesis_structure}
+
+The remainder of this report is organized into two main parts. Following a comprehensive literature review of the field in Chapter 2, \textbf{Part I} focuses on Computer Vision. This part contains dedicated chapters on Image Classification (Chapter \ref{chap:classification}), Image Segmentation (Chapter \ref{chap:segmentation}), and Object Detection (Chapter \ref{chap:object_detection}). \textbf{Part II} shifts to Language Models, with chapters covering Large Language Models (LLMs) (Chapter \ref{chap:llm}), Natural Language Processing (NLP) (Chapter \ref{chap:nlp}), and Automatic Speech Recognition (ASR) (Chapter \ref{chap:asr}). Finally, Chapter \ref{chap:conclusion} concludes the report with a summary of our findings, a discussion of their implications, and an outline of promising directions for future research.
+
+\end{document}

@@ -163,7 +163,7 @@ The Fast Gradient Sign Method (FGSM) attack is applied to UNet model to evaluate
 \end{breakablealgorithm}
 \paragraph{Results}\leavevmode\\
 
-The FGSM attack was applied with perturbation magnitudes $\epsilon=0.031$ and $0.063$. Figure~\ref{fig:fgsm_example_unet} illustrates the effect of the attack on image example from the caravana dataset, showing the original image, the adversarial image for \epsilon=0.031$ and $0.063$.
+The FGSM attack was applied with perturbation magnitudes $\epsilon$=0.031 and 0.063. Figure \ref{fig:fgsm_example_unet} illustrates the effect of the attack on image example from the caravana dataset, showing the original image, the adversarial image for $\epsilon$=0.031 and 0.063.
 
 % Figure: FGSM Example Image
 
@@ -200,7 +200,8 @@ The FGSM attack was applied with perturbation magnitudes $\epsilon=0.031$ and $0
         \includegraphics[width=\textwidth]{images/CV/Segmentation/pred_fgsm_unet_eps=0.062.jpg}
         \caption{Prediction. $\epsilon$ = 0.062}
     \end{subfigure}
-    \label{fgsm_example_unet}
+    \label{fig:fgsm_example_unet}
+    \caption{Example on FGSM adversarial image}
 \end{figure}
 
 
@@ -223,7 +224,7 @@ The following table ~\ref{tab:unet_fgsm_overall_performance} presents the overal
         \bottomrule
     \end{tabular}
 \end{table}
-Under clean conditions, the model achieves a high accuracy of 99.31\% and a Dice score of 0.98, reflecting excellent detection performance. With the FGSM attack at $\epsilon$ = 0.031, accuracy drops to 39.55\% and the Dice score decreases to 0.406, showing a notable degradation. The effect is even more pronounced at $\epsilon$ = 0.062, where accuracy falls to 24.89\% and the Dice score drops to 0.36, indicating severe disruption in detection capability. The visual comparison in Figure~\ref{fig:fgsm_example_unet} further supports this, with increasing ε values leading to poorer prediction masks, highlighting the vulnerability of the model to adversarial perturbations.
+Under clean conditions, the model achieves a high accuracy of 99.31\% and a Dice score of 0.98, reflecting excellent detection performance. With the FGSM attack at $\epsilon$ = 0.031, accuracy drops to 39.55\% and the Dice score decreases to 0.406, showing a notable degradation. The effect is even more pronounced at $\epsilon$ = 0.062, where accuracy falls to 24.89\% and the Dice score drops to 0.36, indicating severe disruption in detection capability. The visual comparison in Figure~\ref{fig:fgsm_example_unet} further supports this, with increasing $\epsilon$ values leading to poorer prediction masks, highlighting the vulnerability of the model to adversarial perturbations.
 
 \subsubsection{PGD Attack on UNet}
 
@@ -294,18 +295,19 @@ The PGD attack was applied with the maximum allowable perturbation  $\epsilon$=0
         \includegraphics[width=\textwidth]{images/CV/Segmentation/pred_pgd_unet_eps=0.062.jpg}
         \caption{Prediction. $\epsilon$ = 0.062, $\alpha$ = 2/255}
     \end{subfigure}
-    \label{pgd_example_unet}
+    \label{fig:pgd_example_unet}
+    \caption{Example on PGD adversarial image}
 \end{figure}
 
 
-The following table ~\ref{tab:unet_fgsm_overall_performance} presents the overall performance metrics (e.g., accuracy and Dice score) on the Caravana validation set for  $\epsilon$=0.031 and 0.062 with $\alpha$=2/255 for 10 iterations, highlighting the impact of PGD attack on detection performance.
+The following table ~\ref{tab:unet_pgd_overall_performance} presents the overall performance metrics (e.g., accuracy and Dice score) on the Caravana validation set for  $\epsilon$=0.031 and 0.062 with $\alpha$=2/255 for 10 iterations, highlighting the impact of PGD attack on detection performance.
 
 
 
 % Table 1: Overall Performance
 \begin{table}[H]
 \caption{Overall Performance of UNet under Clean and PGD Attacks}
-    \label{tab:unet_fgsm_overall_performance}
+    \label{tab:unet_pgd_overall_performance}
     \centering
     \footnotesize
     \begin{tabular}{@{\hspace{0.3cm}}lS[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.3cm}}}
@@ -322,7 +324,7 @@ The PGD attack results on the Caravana validation set, as shown in Table 2, reve
 
 \subsubsection{MI-FGSM Attack on UNet}
 \paragraph{Introduction}\leavevmode\\
-Momenum Iterative Fast Gradient Signed Method (MI-FGSM) \cite{dong2018boostingadversarialattacksmomentum} is a technique for accelerating gradient descent algorithms by accumulating a velocity vector in the gradient direction of the loss function across iterations. The memorization of previous gradients helps to barrel through narrow valleys, small humps and poor local minima or maxima. The momentum method also shows its effectiveness in stochastic gradient descent to stabilize the updates. For UNet, this method can systematically introduce small, human-imperceptible perturbations to input images, to assess how these alterations affect segmentation accuracy and Dice scores. By integrating momentum with a decay factor, MI-FGSM can effectively target UNet's decision boundaries, providing insights into its robustness attack scenarios.
+Momenum Iterative Fast Gradient Signed Method (MI-FGSM) \cite{dong2018momentum} is a technique for accelerating gradient descent algorithms by accumulating a velocity vector in the gradient direction of the loss function across iterations. The memorization of previous gradients helps to barrel through narrow valleys, small humps and poor local minima or maxima. The momentum method also shows its effectiveness in stochastic gradient descent to stabilize the updates. For UNet, this method can systematically introduce small, human-imperceptible perturbations to input images, to assess how these alterations affect segmentation accuracy and Dice scores. By integrating momentum with a decay factor, MI-FGSM can effectively target UNet's decision boundaries, providing insights into its robustness attack scenarios.
 
 \paragraph{Methodology}\leavevmode\\
 
@@ -389,11 +391,12 @@ The MI-FGSM attack was applied with the maximum allowable perturbation  $\epsilo
         \includegraphics[width=\textwidth]{images/CV/Segmentation/pred_mi_fgsm_unet_eps=0.062.jpg}
         \caption{Prediction. $\epsilon$ = 0.062, $\mu$ = 1}
     \end{subfigure}
-    \label{mi_fgsm_example_unet}
+    \label{fig:mi_fgsm_example_unet}
+    \caption{Example on MI-FGSM adversarial image.}
 \end{figure}
 
 
-The following table ~\ref{tab:unet_mi_fgsm_overall_performance} presents the overall performance metrics (e.g., accuracy and Dice score) on the Caravana validation set for  $\epsilon$=0.031 and 0.062 with 10 iterations, highlighting the impact of MI-FGSM attack on detection performance. despite the seemingly high accuracy at ε = 0.031, the visual results reveal that the object isn’t clear, which is why we rely on the Dice score for a more accurate measure of performance.
+The following table ~\ref{tab:unet_mi_fgsm_overall_performance} presents the overall performance metrics (e.g., accuracy and Dice score) on the Caravana validation set for  $\epsilon$=0.031 and 0.062 with 10 iterations, highlighting the impact of MI-FGSM attack on detection performance. despite the seemingly high accuracy at $\epsilon$ = 0.031, the visual results reveal that the object isn’t clear, which is why we rely on the Dice score for a more accurate measure of performance.
 
 
 

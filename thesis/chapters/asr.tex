@@ -790,7 +790,7 @@ We evaluate black-box transfer attacks against the \textbf{target model} \texttt
    \end{table}
 \end{enumerate}
 
-\paragraph{Conclusion}\leavevmode\\
+\paragraph{Black-Box Transfer Attacks Conclusion}\leavevmode\\
 \label{subsec:transfer_attacks_conclusion}
 The black-box transfer attack experiments reveal critical insights into the transferability of adversarial perturbations across diverse surrogate models targeting the \texttt{wav2vec2-base-960h} model (\num{94400000} parameters, fine-tuned) on the LibriSpeech dataset. The significantly smaller \texttt{distil-wav2vec2} (\num{51900000} parameters) achieved the highest target degradation (max WER \SI{31.38}{\percent} at \(\epsilon=0.20\)), demonstrating that compact models can effectively generate transferable perturbations despite reduced capacity. In contrast, the identical architecture \texttt{wav2vec2-base} (non-fine-tuned, \num{94400000} parameters) yielded minimal target impact (max WER \SI{9.26}{\percent}), underscoring the robustness induced by fine-tuning. The architecturally distinct HuBERT models (\texttt{HuBERT-Base-LS960} and \texttt{HuBERT-Large-LS960-FT}) exhibited even lower transfer success (max WER \SI{7.16}{\percent} and \SI{8.99}{\percent}, respectively), highlighting barriers due to self-supervised learning (SSL) objective mismatches and transformer variations. Across all configurations, SNR decreased with increasing perturbation magnitude (\(\epsilon\)), indicating a trade-off between attack effectiveness and audio quality. These findings emphasize that fine-tuning and architectural alignment are pivotal in mitigating transfer attacks, necessitating robust defense strategies for ASR systems in black-box scenarios~\cite{gao2024transferable,olivier2023transferable}. This work establishes that SSL pretraining enables transferability \textit{only} within architecturally homogeneous models (e.g., wav2vec2$\to$wav2vec2), while cross-architecture transfers (HuBERT$\to$wav2vec2) consistently fail due to:
 \begin{enumerate}
@@ -801,7 +801,7 @@ The black-box transfer attack experiments reveal critical insights into the tran
 These boundary conditions qualify universal transferability claims in prior literature.
 
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \small
 \caption{Summary of Black-Box Transfer Attack Performance at \(\epsilon=0.20\)}
@@ -819,7 +819,7 @@ HuBERT-Large-LS960-FT & 300000000 & 3.19 & 8.99 & {Moderate (CER \SI{29.55}{\per
 \end{tabular}}
 \end{table}
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \small
 \caption{Reconciling Transferability Claims with Boundary Conditions}
@@ -991,7 +991,7 @@ The MP3 compression defense is implemented with the following components:
 
 
 \subsubsection{Results}
-On the clean dataset The WER slightly rises to be 3.21\% with a +0.20\% rise.
+On the clean dataset The WER slightly rises to be 4.49\% with a +1.66\% rise.
 Table ~\ref{mp3_results} MP3 Compression defense results are summarized with PDG attack.
 \begin{table}[H]
 \caption{Defense Effectiveness Against PGD Attacks with MP3 Compression}
@@ -1137,8 +1137,8 @@ The spectral gating defense is implemented with the following components:
     \end{breakablealgorithm}
 \end{enumerate}
 
-\subsubsection{Results with PGD Attacks}
-
+\subsubsection{Results}
+On the clean dataset The WER slightly rises to be 5.67\% with a +2.84\% rise.
 The spectral gating defense was evaluated on 100 adversarial audio samples across five epsilon values (0.01 to 0.2) and corresponding alpha values (0.001 to 0.02). The character error rate (CER) and word error rate (WER) were computed for the original (undefended) and defended audio using five defense configurations:
 \begin{itemize}
     \item Non-stationary, 80\% noise reduction, 500 Hz/50 ms smoothing (\texttt{nonstat\_p80\_f500\_t50}).
@@ -1229,7 +1229,9 @@ The pseudocode for the input quantization defense:
 \end{breakablealgorithm}
 
 
-\subsubsection{Results with PGD Attacks}
+\subsubsection{Results}
+ 
+On the clean dataset The WER slightly rises to be 4.28\% with a +1.45\% rise.
 ~\ref{quantization_results} summarizes the results for $\epsilon=0.1, \alpha=0.01$, showing CER, WER, and their reductions ($\Delta$CER, $\Delta$WER) compared to the undefended case. Results for other epsilon values are available in the supplemental material.
 
 \begin{table}[H]
@@ -1272,7 +1274,7 @@ $\epsilon$ & $\alpha$ & {O-CER (\%)} & {O-WER (\%)} & {D-CER (\%)} & {D-WER (\%)
 
 Table~\ref{tab:pipeline_summary} summarizes the performance of various pipeline configurations for defending against PGD adversarial attack with $\epsilon = 0.1$ on the target model, evaluated using Character Error Rate (CER), Word Error Rate (WER), change in CER relative to the baseline (\(\Delta\)CER), and average processing time per sample.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \small
 \caption{Comprehensive Pipeline Evaluation Summary}
@@ -1319,7 +1321,7 @@ The clean-data WER increase is the cost of robustness—defenses must distort in
 This section evaluates the effectiveness of defense pipelines against adversarial attacks on Wav2Vec 2.0, including the Fast Gradient Sign Method (FGSM), Cramér Integral Probability Metric (IPM) attack, and imperceptible attacks (Stage 1 and Stage 2). The results, summarized in Tables~\ref{tab:fgsm} to~\ref{tab:imp_s2}, report Character Error Rate (CER), Word Error Rate (WER), change in CER ($\Delta$CER), and average processing time per sample. The pipelines include Baseline (no defense), Spectral Gating (SG), and SG followed by MP3 compression (SG$\to$MP3).
 
 % FGSM results table
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{Performance under FGSM attack}
 \label{tab:fgsm}

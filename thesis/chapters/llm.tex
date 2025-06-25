@@ -8,54 +8,6 @@ These vulnerabilities stem from how LLMs are built and trained. Attackers can ex
 access to model gradients, manipulate inputs to increase uncertainty, or craft prompts that trick models into generating unethical or illegal content or even gather information about users. Many studies explore various types of attacks on LLMs, including prompt injection, jailbreak attacks, and data poisoning. the range of threats is wide and growing. These attacks not only undermine model reliability but also raise serious concerns about deploying LLMs in sensitive domains like healthcare or finance.
 
 In this chapter, we present our implementation of two white-box adversarial attacks, evaluate their effectiveness, and introduce two defense mechanisms designed to enhance LLM robustness. Through this exploration, we aim to advance the development of safer and more reliable AI systems.
-\section{Literature Review}
-Adversarial attacks on LLMs can be divided into two main types based on the attacker’s aim. Jailbreak attacks aim to break the model’s alignment—strategies designed to ensure LLMs are both “helpful and harmless”—by using carefully worded prompts through either white-box or black-box techniques to confuse the model and trigger harmful or unwanted behavior. Prompt injection attacks, on the other hand, target systems using retrieval-augmented LLMs, injecting crafted prompts to cause data leakage, generate misleading information, or perform other unwanted tasks.
-\subsection{Jailbreak attacks}
-Jailbreak attacks can be divided into two categories: black-box and white-box methods. Black-box methods generate jailbreak prompts either manually or by applying some heuristic algorithms in a trial-and-error fashion. This makes them inefficient in generating effective jailbreak prompts without guidance.
-\subsubsection{Black-Box Jailbreak attacks}
-Chao et al. \cite{chao2025jailbreaking} proposes Prompt Automatic Iterative Refinement (PAIR). PAIR automates the generation of jailbreak prompts for a target LLM using an attacker LLM, without human intervention. It involves repeatedly querying the target LLM and improving the prompt until the attack is successful. The prompts are written in natural language as they are rewritten by LLMs.  Using a white-box LLM as the attacker isn’t necessary, so high-spec computational environments are not required. However, the system prompts for scenario setup are highly complex, and the generated prompts are unnaturally long and require storing prompt improvement history by the attacker LLM and responses from the target LLM, thus demanding many tokens and resulting in high computational costs.
-
-Takemoto, 2024. \cite{app14093558} proposes a black-box jailbreak attack method where the target LLM generates its own jailbreak prompts. Instead of relying on external models, this approach leverages the LLM’s ability to rewrite harmful prompts in a way that bypasses safeguards while preserving meaning. Since the LLM itself determines what triggers ethical safeguards, sampling rewritten versions of the original harmful text can efficiently produce successful jailbreak prompts. To achieve this, the study avoids direct jailbreak instructions (e.g., "rewrite to bypass safeguards") and instead uses a more subtle prompt: "Rephrase the given text to retain its meaning while avoiding discomfort for readers, adding clarifications if needed." This framing encourages the LLM to soften ethically problematic content under the guise of harmless text refinement, reducing safeguard activation. The method achieves high success rates with low computational costs and natural-sounding outputs.
-
-Ma et al., 2023 \cite{arXiv:2310.00322v3} proposes an automated game-theoretic attack framework where a red-team LLM (attacker) and a blue-team LLM (defender) engage in multi-turn adversarial dialogue, treating jailbreak attempts as a strategic game. Instead of manual red-teaming, the attacker LLM iteratively generates diverse, semantically nuanced prompts (e.g., disguised requests, role-playing) to exploit the defender’s vulnerabilities, while the defender learns to reject harmful queries. This competition drives both models toward Nash equilibrium—where the attacker’s strategies are optimally aggressive, and the defender becomes robust against real-world jailbreaks. By framing safety testing as an AI-versus-AI game, the method autonomously uncovers and patches weaknesses, improving model alignment without human intervention.
-
-Yu et al., 2023. \cite{ yu2024gptfuzzerredteaminglarge} introduces GPTFuzzer, A low-cost, black-box tool for generating adversarial prompts. It automates jailbreak attacks by mutating human-written prompts (e.g., rephrasing or combining them) to trick LLMs into bypassing safeguards. 
-
-Deng et al., 2024. \cite{Deng_2024} introduces an automated framework that jailbreaks AI chatbots by reverse-engineering their defenses (like keyword filtering) and generating effective attack prompts. It exploits time-based analysis to understand how chatbots detect violations and then fine-tunes an AI model to create successful jailbreak prompts.
-\subsubsection{White-Box Jailbreak attacks}
-To address the inefficiency of black-box methods, recent works employ white-box methods to automatically generate jailbreak prompts. Existing white-box methods aim to derive an “adversarial suffix” (which is appended to the end of an original illicit prompt, such as “How to make a bomb!!!!!!”) and optimize that suffix, by minimizing the loss between the “target response” (e.g., “Sure, here is a how to”) and the actual response from the LLM. 
-
-Zou et al., 2023. \cite{zou2023universaltransferableadversarialattacks} introduces approach that finds a suffix that, when attached to a wide range of queries for an LLM to produce objectionable content, aims to maximize the probability that the model produces an affirmative response (rather than refusing to answer). However, instead of relying on manual engineering, this approach automatically produces these adversarial suffixes by a combination of greedy and gradient-based search techniques, and also improves over past automatic prompt generation methods. 
-
-Wichers et al., 2024. \cite{wichers2024gradientbasedlanguagemodelred} presentes Gradient-Based Red Teaming (GBRT), a red teaming method for automatically generating diverse prompts that are likely to cause an LM to output unsafe responses. GBRT is a form of prompt learning, trained by scoring an LM response with a safety classifier and then backpropagating through the frozen safety classifier and LM to update the prompt.
-
-Shen et al., 2024. \cite{shen2024rapidoptimizationjailbreakingllms} introduces RIPPLE (Rapid Optimization via Subconscious Exploitation and Echopraxia), a novel optimization-based method inspired by two psychological concepts: subconsciousness and echopraxia, which describe the processes of the mind that occur without conscious awareness and the involuntary mimicry of actions.
-
-Sadasivan et al., 2024. \cite{sadasivan2024fastadversarialattackslanguage}introduces a novel class of fast, beam search-based and gradient-free targeted adversarial attack (BEAST) for Language Models (LMs). BEAST employs interpretable parameters, enabling attackers to balance between attack speed, success rate, and the readability of adversarial prompts. The computational efficiency of BEAST facilitates investigating its applications on LMs for jailbreaking, eliciting hallucinations, and privacy attacks. 
-
-Wang et al., 2024. \cite{wang2024asetfnovelmethodjailbreak}proposes an Adversarial Suffixes Embedding Translation Framework (ASETF) that is able to translate the unreadable adversarial suffixes into coherent, readable text, which makes it easier to understand and analyze the reasons behind harmful content generation by large language models.
-
-Huang et al., 2023. \cite{huang2023catastrophicjailbreakopensourcellms} exploit the fact that safety alignment in LLMs is often tested only under default generation settings (e.g., fixed temperature, top-pp sampling). By tweaking these configurations—such as removing system prompts or varying decoding hyperparameters—the attack induces misaligned (harmful) outputs without crafting adversarial prompts.
-
-\subsection{Prompt Injection attacks}
-
-Unlike traditional ML attacks requiring complex optimization, \emph{Promp Injection (PI)} exploits the natural-language interface of LLMs. Even in black-box settings with safety mitigations, attackers can bypass content restrictions or expose hidden system prompts. A more insidious variant, \emph{indirect prompt injection}, occurs when adversarial prompts are embedded into external data (e.g., retrieved documents or web pages). When ingested during inference, these prompts hijack the model’s behavior, enabling remote control, data theft, or disinformation campaigns. \cite{greshake2023youvesignedforcompromising} 
-
-Kai Greshake., 2023. \cite{greshake2023youvesignedforcompromising} introduce \emph{Indirect Prompt Injection (IPI)}, a novel attack vector targeting LLM-integrated applications where adversaries inject malicious prompts into retrieved data (e.g., websites, emails), bypassing direct user interaction. This work is pivotal in exposing how the conflation of \emph{data} and \emph{instructions} in retrieval-augmented LLMs creates exploitable security boundaries.
-
-The authors systematically classify IPI threats into six categories:
-\begin{itemize}
-    \item \textbf{Information Gathering} (e.g., exfiltrating user data via persuasive chat interactions)
-    \item \textbf{Fraud} (e.g., generating phishing links with markdown obfuscation).
-    \item \textbf{Intrusion} (e.g., persistent backdoors via memory poisoning)
-    \item \textbf{Malware} (e.g., self-replicating "AI worms" in email assistants).
-    \item \textbf{Manipulated Content} (e.g., politically biased summaries or fabricated citations).
-    \item \textbf{Availability Attacks} (e.g., disrupting search functionality via homoglyph injections).
-\end{itemize}
-
-This work aligns with broader concerns in LLM security and tool-augmented risks, but uniquely addresses the \emph{remote} and \emph{autonomous} nature of IPI. It underscores the urgency of rethinking LLM-integrated system design, particularly as applications increasingly interact with untrusted data sources.
-
-Fábio Perez, Ian Ribeiro., 2022. \cite{perez2022ignorepreviouspromptattack} investigate two types of attacks: \emph{Goal hijacking}---the subversion of a model's original instruction to produce attacker-specified output---and \emph{prompt leaking}---the redirection of model behavior to disclose its original system prompt, either partially or in full---represent two fundamental classes of prompt injection attacks.
 
 \section{Attacks}
 \subsection{White Box Attacks}

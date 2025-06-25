@@ -350,11 +350,12 @@ Each prompt was tokenized to a maximum of 512 tokens using the DistilBERT tokeni
 After training, the model achieved 99.95\% accuracy on the training set and 98.5\% on the validation set, indicating strong generalization.
 \clearpage
 
+\paragraph{APS Flowchart:}
 \paragraph{Multi-Stage APS Defense Pipeline}
 The final input filter system, illustrated in Figure~1, is described in Algorithm~\ref{alg:pipeline}.
 
-\begin{breakablealgorithm}
-\caption{Multi-Stage APS Defense Pipeline}
+\begin{breakablealgorithm}{Multi-Stage APS Defense Pipeline Algorithm}
+
 \label{alg:pipeline}
 \begin{algorithmic}[1]
 \Require $x$: input prompt, $M_d$: Detoxify model, $M_c$: fine-tuned DistilBERT classifier, $M_t$: TinyLlama-1.1B model, $\lambda_t=0.6$: toxicity threshold, $\lambda_j=0.6$: jailbreak threshold, $\tau=512$: max tokens, $L=200$: max response length
@@ -406,20 +407,23 @@ To evaluate both the robustness and usability of the pipeline, we test it on two
 These datasets provide a comprehensive benchmark to assess how well the input filter defends against a range of jailbreak strategies while maintaining minimal disruption to benign user inputs.
 \begin{table}[H]
 \centering
+\hspace*{-10pt} % Slight left shift
 \small
-\setlength{\tabcolsep}{4pt} % Further reduce horizontal padding
-\renewcommand{\arraystretch}{0.8} % Tighten row spacing
+\setlength{\tabcolsep}{4pt} % Tight horizontal spacing
+\renewcommand{\arraystretch}{0.8} % Tight vertical spacing
 \caption{Jailbreak Attack Success Rate (ASR) and Detection Metrics Before and After Defense}
-\begin{tabular}{|p{2.5cm}|c|c|c|c|c|c|}
-\hline
+\label{tab:asr_detection}
+\begin{tabular}{p{2.5cm}cccccc}
+\toprule
 \textbf{Dataset} & \textbf{ASR Before (\%)} & \textbf{ASR After (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score} & \textbf{Improvement (\%)} \\
-\hline
+\midrule
 AdvBench         & 87.00                    & 0.00                    & 1.00            & 1.00               & 1.00              & 87.00 \\
 JailbreakBench   & 52.00                    & 6.00                    & 0.94            & 1.00               & 0.97              & 46.00 \\
 HarmBench        & 82.00                    & 16.00                   & 0.84            & 1.00               & 0.91              & 66.00 \\
-\hline
+\bottomrule
 \end{tabular}
 \end{table}
+
 
 \begin{center}
 As shown in Table 4.1; The defense pipeline demonstrates substantial effectiveness across all datasets, with the ASR dropping from 87\% to 0\% on AdvBench, 52\% to 6\% on JailbreakBench, and 82\% to 16\% on HarmBench. High recall and perfect precision confirm the defense's ability to block harmful prompts without overblocking.
@@ -427,17 +431,18 @@ As shown in Table 4.1; The defense pipeline demonstrates substantial effectivene
 
 \begin{table}[H]
 \centering
-\caption{Evaluation Results on Jailbreak Datasets before and after Defense}
-\begin{tabular}{|l|c|c|}
-\hline
+\hspace*{-10pt} % Slight left shift for alignment
+\caption{Evaluation Results on Jailbreak Datasets Before and After Defense}
+\label{tab:jailbreak_eval}
+\begin{tabular}{lcc}
+\toprule
 \textbf{Dataset} & \textbf{ASR (\%)} & \textbf{Blocked (\%)} \\
-\hline
+\midrule
 AdvBench         & 0.77             & 99.23                 \\
 JailbreakBench   & 6.00             & 94.00                 \\
 HarmBench        & 16.00            & 84.00                 \\
-\hline
+\bottomrule
 \end{tabular}
-\label{tab:jailbreak_eval}
 \end{table}
 
 \begin{center}
@@ -465,10 +470,7 @@ As shown in Table 4.2; False positive rates remained low on clean prompt dataset
 
 \clearpage
 
-\subsection{RAIN}
-\subsubsection{Introduction}
-\subsubsection{Methodology}
-\subsubsection{Results}
+
 \subsection{LLM Self Defense}
 \subsubsection{Introduction}
 
@@ -546,9 +548,9 @@ The LLM Self Defense system is a post-hoc output filtering mechanism designed to
 \subsubsection{Results}
 
 
-\paragraph*{Self-Reflection Defense Results \\ }
+\paragraph*{Self-Reflection Defense Results  }
 
-\subparagraph*{ Aligned Models with Self-Defensive Mechanism with no Prompting Techniques \\}
+\subparagraph*{ Aligned Models with Self-Defensive Mechanism with no Prompting Techniques }
 As known, Defenses are usually a challenge for unaligned models, but they can also be used in aligned LLMs, as they have vulnerabilities that make them prone to jailbreak prompts cleverly modified by prompt engineering techniques.
 
 Here, We conducted two experiments to demonstrate that aligned models could also be defended using a self-defensive mechanism. When using 50 prompts from AdvBench (unmodified) and 50 safe/harmless prompts from Quora, this pipeline had a very low TPR, which was expected because GPT3.5 is one of the stronger aligned models, and breaking its safety rules is not easy. Here are the results:
@@ -576,7 +578,7 @@ Weighted Avg & 0.79 & 0.63 & 0.57\\
     \item \textbf{FPR (False Positive Rate)}: 0.00
 \end{itemize}
 
-\subparagraph*{ Aligned Models with Self-Defensive Mechanism with Clever Prompting Techniques \\}
+\subparagraph*{ Aligned Models with Self-Defensive Mechanism with Clever Prompting Techniques }
 To increase the chance of GPT-3.5 generating harmful responses (despite alignment), We modified 50 AdvBench prompts using 4 clever prompting strategies:
 
 \textbf{Prompt Modification Techniques Used:}
@@ -613,7 +615,7 @@ Weighted Avg & 0.84 & 0.77 & 0.76  \\
 \end{itemize}
 
 
-\subparagraph*{Comparison between two Approaches of External Harmful Filter: \\}
+\subparagraph*{Comparison between two Approaches of Self-Reflection Defense:}
 \vspace{1cm}
 \begin{table}[h]
 \centering
@@ -637,7 +639,7 @@ Metric & Unmodified Prompts & Modified Prompts \\
     \item The self-defensive mechanism is effective for aligned models but relies on harmful outputs being produced, highlighting the importance of prompt design in testing model vulnerabilities.
 \end{itemize}
 \newpage
-\paragraph*{ External Harm Filter Results \\}  
+\paragraph*{ External Harm Filter Results}  
 Unalligned TinyLlama1.1B was used as a response generator and GPT3.5 harm filter with 50 jailbreak prompts from AdvBench (These prompts are evaluted in an unmodified manner; because it is already an unalligned model that will be fooled by Jailbreak Prompts , that encounters lack of safety training  and 50 safe prompts  were used from the Quora Questions Dataset. Here are the results:
 
 \begin{table}[h]

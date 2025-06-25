@@ -205,6 +205,242 @@ $\epsilon=0.10$, $\alpha=0.0250$  & 0.00  & 96.00 & 4 \\
 \bottomrule
 \end{tabular}
 \end{table}
+\clearpage
+\subsubsection{Momentum Iterative Fast Gradient Sign Method(MI-FGSM)}
+\paragraph{Introduction}
+
+The Momentum Iterative Fast Gradient Sign Method (MI-FGSM) evolved to address the limitations of earlier gradient-based attack methods in crafting effective adversarial examples, particularly to improve their robustness and transferability across different model scenarios. The progression began with a single-step method that used gradient perturbations to mislead models, which, while simple and efficient, was constrained by its reliance on a linear decision boundary assumption, limiting its effectiveness for larger perturbations. This led to the development of an iterative approach that applied multiple small perturbations, enhancing white-box attack success by thoroughly exploring the loss landscape. However, this method often overfit to the target model, reducing its ability to transfer to other models, a critical drawback for black-box attacks. To overcome this, MI-FGSM was introduced, incorporating the momentum concept from optimization techniques. Momentum stabilizes update directions by accumulating gradient velocities across iterations, preventing the attack from getting trapped in local maxima and improving transferability, thus balancing attack potency across both white-box and black-box scenarios.
+\cite{dong2018boosting}
+\paragraph{Methodology}
+
+\subparagraph{Attack Type}
+The Momentum Iterative Fast Gradient Sign Method (MI-FGSM) is a white-box adversarial attack, requiring full access to the target model's parameters and gradients for precise perturbation crafting. It is an iterative method, applying multiple small perturbation steps to refine the adversarial example, which enhances its ability to explore the loss landscape effectively. MI-FGSM operates as an untargeted attack, aiming to maximize the loss function to induce any misclassification. During its iterations, MI-FGSM updates the input by adding perturbations proportional to the sign of an accumulated momentum term, which integrates past gradients to stabilize the direction and prevent entrapment in local maxima, thereby improving attack success and transferability across models.
+
+\subparagraph{Parameters}
+\begin{itemize}
+    \item $x$ The clean input image to be perturbed.
+    \item $y$ The true label associated with $x$.
+    \item $f$ The parameters of the target neural network model.
+    \item $\epsilon$ The maximum allowable perturbation (controls the size of the $L_\infty$ ball).
+    \item $T$ The number of iterations (steps) to apply the attack.
+    \item $\alpha$ The step size used for each gradient update.
+    \item $\mu$ The decay factor controlling the influence of past gradients (e.g., typically set to 1.0).
+    \item $J(f, x, y)$ The loss function used during training (e.g., cross-entropy).
+\end{itemize}
+\subparagraph{Algorithm Overview}
+
+The Momentum Iterative Fast Gradient Sign Method (MI-FGSM) is an advanced algorithm designed to generate adversarial examples by iteratively perturbing input data to maximize the loss function of a deep neural network, thereby inducing misclassification. Building on the iterative gradient-based approach, MI-FGSM enhances attack effectiveness by incorporating a momentum term that accumulates gradient information across iterations. This momentum stabilizes the perturbation direction, preventing the algorithm from being trapped in poor local maxima and improving the transferability of adversarial examples to other models. The process involves initializing the perturbation, computing gradients at each step, updating the momentum, and adjusting the input with a controlled step size, all while adhering to a predefined perturbation bound. The following pseudocode outlines the implementation.
+\begin{breakablealgorithm}{Momentum Iterative Fast Gradient Sign Method (MI-FGSM)}
+
+\begin{algorithmic}[1]
+\Require $\mathbf{x}$, $y$, $f$, $\epsilon$, $\alpha$, $T$, $\mu$
+\Ensure $\mathbf{x}^*$
+\State Initialize $\mathbf{g}_0 \gets 0$, $\mathbf{x}_0^* \gets \mathbf{x}$
+\State Set $\alpha \gets \epsilon / T$
+\For{$t = 0$ to $T-1$}
+    \State Compute gradient: $\nabla_{\mathbf{x}} J(\mathbf{x}_t^*, y) \gets \nabla_{\mathbf{x}} J(f(\mathbf{x}_t^*), y)$
+    \State Update momentum: $\mathbf{g}_{t+1} \gets \mu \cdot \mathbf{g}_t + \frac{\nabla_{\mathbf{x}} J(\mathbf{x}_t^*, y)}{||\nabla_{\mathbf{x}} J(\mathbf{x}_t^*, y)||_1}$
+    \State Update adversarial example: $\mathbf{x}_{t+1}^* \gets \mathbf{x}_t^* + \alpha \cdot \text{sign}(\mathbf{g}_{t+1})$
+\EndFor
+\State \Return $\mathbf{x}^* \gets \mathbf{x}_T^*$
+\end{algorithmic}
+\end{breakablealgorithm}
+
+
+
+\paragraph{Results}
+
+The model test accuracy before the attack is 96.31\%.
+
+\begin{table}[h]
+\centering
+\caption{MI-FGSM Parameters}
+\begin{tabular}{cccc}
+\toprule
+\textbf{MI-FGSM Parameters} & \textbf{Accuracy (\%)} & \textbf{Accuracy Drop (\%)} & \textbf{Iterations} \\
+\midrule
+$\epsilon = 0.03$, $\mu = 0.5$ & 2.52 & 93.79 & 10 \\
+$\epsilon = 0.03$, $\mu = 1.0$ & 2.71 & 93.60 & 10 \\
+$\epsilon = 0.01$, $\mu = 0.5$ & 20.54 & 75.77 & 10 \\
+$\epsilon = 0.01$, $\mu = 1.0$ & 24.03 & 72.28 & 10 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The results reveal that test accuracy is highly sensitive to the perturbation size $\epsilon$. A larger $\epsilon = 0.03$ leads to a severe accuracy drop (2.52\%–2.71\%), indicating greater attack efficacy, with a marginal increase in accuracy (0.19\%) when $\mu$ rises from 0.5 to 1.0, suggesting a stabilizing effect of momentum. Conversely, a smaller $\epsilon = 0.01$ yields higher accuracies (20.54\%–24.03\%), with an increase of 3.49\% as $\mu$ increases from 0.5 to 1.0, highlighting improved model resilience and momentum’s role in enhancing transferability. The fixed iteration count (10) ensures consistent attack strength across configurations.
+\clearpage
+
+\subsubsection{Jacobian-based Saliency Map (JSMA) }
+\paragraph{Introduction} 
+The Jacobian-based Saliency Map Attack (JSMA) is a targeted adversarial attack method that exposes the vulnerability of neural networks to subtle, intentional perturbations. It operates by analyzing how changes in individual input features influence the model's output, using a construct known as the forward derivative or Jacobian. This derivative captures the sensitivity of each output class to changes in input features.
+
+JSMA generates adversarial saliency maps that identify which features, when modified, are most likely to increase the model's confidence in a specific target class while reducing confidence in all other classes. The attack modifies only a small subset of input features, typically through a greedy search strategy guided by the saliency map, making the changes both minimal and highly effective.
+
+Unlike traditional gradient-based attacks that perturb inputs based on the overall loss function, JSMA provides fine-grained control over feature selection by focusing on the direct relationship between inputs and outputs. In practice, it has been shown to produce highly successful targeted attacks while maintaining a high level of visual similarity to the original input, as demonstrated on image classification tasks such as handwritten digit recognition.
+
+JSMA's strength lies in its interpretability and precision, making it a powerful tool for probing model weaknesses and for understanding how specific inputs drive model decisions. It also serves as a foundation for evaluating and improving the robustness of neural network architectures in adversarial settings 
+\cite{papernot2016limitations}
+
+\paragraph{Methodology}
+\subparagraph{Attack Type}
+
+
+
+The Jacobian-based Saliency Map Attack (JSMA) is a targeted, white-box adversarial attack designed to manipulate the output of deep neural networks (DNNs) by crafting adversarial samples that induce specific misclassifications. Unlike untargeted attacks that aim to cause any misclassification, JSMA focuses on forcing a DNN to classify an input into a predefined target class chosen by the adversary. This targeted approach makes JSMA particularly effective in scenarios where specific misclassification outcomes are desired, such as bypassing security systems or altering the behavior of autonomous systems. JSMA operates in a white-box setting, requiring full knowledge of the DNN’s architecture, including its layers, activation functions, and trained parameters. By leveraging the Jacobian matrix of the DNN, JSMA constructs adversarial saliency maps that identify the input features most likely to influence the network’s output when perturbed. These maps guide the selective modification of input features, ensuring minimal changes to the original input while achieving the desired misclassification. This precision distinguishes JSMA from other adversarial attacks, such as gradient-based methods that apply broader perturbations, making it a powerful tool for exploiting DNN vulnerabilities with subtle alterations.
+
+
+\subparagraph{Parameters}
+
+\begin{itemize}
+    \item $X$ The clean input sample to be perturbed.
+    \item $Y^*$ The target adversarial output class chosen by the adversary.
+    \item $F$ The function learned by the target neural network during training.
+    \item $\gamma$ The maximum allowable distortion (controls the fraction of features perturbed, e.g., 10\% of input features).
+    \item $T$ The maximum number of iterations for the perturbation process.
+    \item $\theta$ The feature variation parameter (step size for perturbing selected input features).
+    \item $S(X, Y^*)$ The adversarial saliency map computed using the forward derivative $J_F(X)$.
+    \item $J_F(X)$ The Jacobian matrix of the function $F$ with respect to input $X$ (forward derivative).
+    \item $N$ Number of Pixels to perturb at each iteration
+\end{itemize}
+
+
+These parameters enable JSMA to balance effectiveness and stealth, with $\theta$ and $\gamma$ ensuring minimal perturbations and $t$ directing the attack’s outcome. Proper tuning, as demonstrated in the paper’s experiments, allows JSMA to craft adversarial samples that are both highly successful and difficult to detect.
+
+
+\subparagraph{Algorithm Overview}
+\begin{breakablealgorithm}{Jacobian-based Saliency Map Attack (JSMA)}
+\begin{algorithmic}[1]
+\Require $\mathbf{X}$, $\mathbf{Y}^*$, $\mathbf{F}$, $\gamma$, $\theta$
+\Ensure $\mathbf{X}^*$
+\State Initialize $\mathbf{X}^* \gets \mathbf{X}$, $\delta_{\mathbf{X}} \gets \mathbf{0}$, $\mathbf{I} \gets \{1, \ldots, |\mathbf{X}|\}$
+\While{$\mathbf{F}(\mathbf{X}^*) \neq \mathbf{Y}^*$ and $||\delta_{\mathbf{X}}||_0 < \gamma \cdot |\mathbf{X}|$}
+    \State Compute forward derivative: $J_{\mathbf{F}}(\mathbf{X}^*) \gets \frac{\partial \mathbf{F}(\mathbf{X}^*)}{\partial \mathbf{X}^*}$
+    \State Compute saliency map: $S(\mathbf{X}, \mathbf{Y}^*) \gets \text{saliency\_map}(J_{\mathbf{F}}(\mathbf{X}^*), \mathbf{I}, \mathbf{Y}^*)$
+    \State Select feature: $i_{\max} \gets \arg \max_i S(\mathbf{X}, \mathbf{Y}^*)[i]$
+    \State Update feature: $\mathbf{X}^*_{i_{\max}} \gets \mathbf{X}^*_{i_{\max}} + \theta$
+    \State Update perturbation: $\delta_{\mathbf{X}} \gets \mathbf{X}^* - \mathbf{X}$
+\EndWhile
+\State \Return $\mathbf{X}^*$
+\end{algorithmic}
+
+\end{breakablealgorithm}
+\paragraph{Results}
+\subparagraph{Stop Sign Sample}
+The following parameters were used for the attack on the Stop Sign sample(ground truth label: Class 14):
+\begin{itemize}
+    \item $T$: Maximum number of iterations = 15
+    \item $Y^*$: Target adversarial output class = Class 17 ``No Entry''
+    \item $\theta$: Feature variation parameter = 255 (unnormalized images were used)
+    \item $\gamma$: Maximum allowable distortion = 20\%
+    \item $N$: Number of pixels to perturb at each iteration = 50
+\end{itemize}
+
+Before the attack, the clean Stop Sign image was classified as ``Stop'' with a confidence of 92.36\%. After the attack, the adversarial Stop Sign image, generated using JSMA with minimal perturbation, was misclassified as ``No Entry'' with a confidence of 70.18\%.
+
+\begin{figure}[ht!]
+    \centering
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/clean_stopimage_jsma_1.png}
+        \caption{Clean Stop Sign image}
+        \label{fig:clean_stopimage}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/adv_stopimage_jsma_1.png}
+        \caption{Adversarial Stop Sign image generated using JSMA}
+        \label{fig:adv_stopimage}
+    \end{subfigure}
+    \caption{Comparison of clean and adversarial Stop Sign images generated using the Jacobian-based Saliency Map Attack (JSMA)}
+    \label{fig:stopimage_comparison}
+\end{figure}
+
+\subparagraph{Speed Limit 80 Sign Sample}
+The following parameters were used for the attack on the Speed Limit 80 Sign sample (ground truth label: Class 5):
+\begin{itemize}
+    \item $T$: Maximum number of iterations = 15
+    \item $Y^*$: Target adversarial output class = Class 2 ``Speed Limit 50''
+    \item $\theta$: Feature variation parameter = 255 (unnormalized images were used)
+    \item $\gamma$: Maximum allowable distortion = 10\%
+    \item $N$: Number of pixels to perturb at each iteration = 100
+\end{itemize}
+
+Before the attack, the clean Speed Limit 80 Sign image was classified as ``Speed Limit 80'' with a confidence of 95.54\%. After the attack, the adversarial Speed Limit 80 Sign image, generated using JSMA with minimal perturbation, was misclassified as ``Speed Limit 50'' with a confidence of 84.07\%.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/clean_speed80_jsma_2.png}
+        \caption{Clean Speed Limit 80 Sign image}
+        \label{fig:clean_speed80}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/adv_speed80_jsma_2.png}
+        \caption{Adversarial Speed Limit 80 Sign image generated using JSMA}
+        \label{fig:adv_speed80}
+    \end{subfigure}
+    \caption{Comparison of clean and adversarial Speed Limit 80 Sign images generated using the Jacobian-based Saliency Map Attack (JSMA)}
+    \label{fig:speed80_comparison}
+\end{figure}
+\clearpage
+\subparagraph{Vechiles over 3.5 tons prohibited}
+The following parameters were used for the attack on the Speed Limit 80 Sign sample (ground truth label: Class 16):
+\begin{itemize}
+    \item $T$: Maximum number of iterations = 15
+    \item $Y^*$: Target adversarial output class = Class 10 ``No passing for vehicles over 3.5 tons''
+    \item $\theta$: Feature variation parameter = 255 (unnormalized images were used)
+    \item $\gamma$: Maximum allowable distortion = 10\%
+    \item $N$: Number of pixels to perturb at each iteration = 100
+\end{itemize}
+
+Before the attack, Clean  image classified as "Vehicles over 3.5 tons prohibited" with confidence 89.57\%. After the attack, Adversarial image generated using JSMA with minimal perturbation, misclassified as "No passing for vehicles over 3.5 tons" with confidence 87.21\%
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/clean_vehicleover3.5tons_jsma_3.png}
+        \caption{Clean  image classified as "Vehicles over 3.5 tons prohibited" }
+        \label{fig:adv_stopimage_2}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/adv_vehicleover3.5tons_jsma_3.png}
+        \caption{Adversarial image generated using JSMA }
+        \label{fig:adv_stopimage_1}
+    \end{subfigure}
+    \caption{Comparison of clean and adversarial example of Class Vechiles over 3.5 Tons images generated using the Jacobian-based Saliency Map Attack (JSMA) }
+    \label{fig:stopimage_comparison}
+\end{figure}
+
+\subparagraph{JSMA computed for whole Dataset}  
+
+Since JSMA is a targeted attack, a worst-case analysis was employed to evaluate its impact on the test set. In this evaluation, the attacker attempts to misclassify each input into a single, fixed target class, regardless of the input’s true label. This setting reflects a highly constrained but severe adversarial scenario, commonly used to benchmark the effectiveness of targeted attacks.
+
+The attack was applied to a carefully balanced subset of the test set, containing \textbf{2 samples per class}, totaling \textbf{86 samples}. The fixed target class selected for this evaluation was \textbf{Class 0 (``Speed Limit 20'')}, which was the most frequently assigned class following the attack.
+
+\vspace{1em}
+\noindent The quantitative results of the JSMA attack are summarized in Table~\ref{tab:jsma-results}.
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Post-Attack Test Accuracy & 34.52\% \\
+Attack Success Rate (to class 0) & 48.81\% \\
+Average Distortion & 0.26\% of pixels \\
+\bottomrule
+\end{tabular}
+\caption{JSMA targeted attack results (fixed target: Class 0) on a balanced test subset (2 samples per class, 86 total).}
+\label{tab:jsma-results}
+\end{table}
+
+
+
+\vspace{1em}
+\noindent
+As shown in Table 6, The JSMA targeted attack was evaluated in a worst-case setting where all test samples were forced toward a fixed target class (Class 0). The attack achieved a \textbf{48.81\%} targeted success rate while preserving the original prediction in \textbf{34.52\%} of cases, all with minimal average distortion (\textbf{0.26\%}). These results confirm the effectiveness of JSMA as a precise and stealthy adversarial technique, even under severely constrained target conditions.
+
+
 \subsubsection{Universal Adversarial Perturbations (UAP)}
 
 \paragraph{Introduction}
@@ -275,62 +511,6 @@ At an $\epsilon$ of 10.0, a key benchmark used in the original paper, our attack
 \end{table}
 \clearpage
 
-\subsubsection{Carlini \& Wagner (C\&W) Attack}
-
-\paragraph{Introduction}
-The Carlini \& Wagner (C\&W) attack, introduced by Carlini and Wagner in their seminal 2017 paper `Towards Evaluating the Robustness of Neural Networks` \cite{carlini2017evaluatingrobustnessneuralnetworks}, represents a landmark advancement in adversarial example generation. It moved beyond the heuristic, single-step approaches like FGSM by framing the creation of an adversarial example as a formal, constrained optimization problem. The attack's primary objective is to find a perturbation with the minimum possible magnitude—measured by a chosen distance metric (typically L2)—that is still sufficient to cause a high-confidence misclassification. This is achieved by using a novel loss function that operates directly on the model's logits, encouraging the logit of the target class to surpass all others by a specified margin. Due to its remarkable effectiveness in producing visually imperceptible yet potent adversarial examples, the C\&W attack is widely considered a benchmark for evaluating the true robustness of a model and its defenses, making it an essential tool for any serious security analysis.
-
-\paragraph{Methodology}
-
-\subparagraph{Attack Type}
-The Carlini \& Wagner (C\&W) attack is a \textbf{white-box}, \textbf{iterative}, and \textbf{optimization-based} attack. As a quintessential white-box method, it requires full knowledge of the model, including its architecture, parameters, and logits (pre-softmax outputs). Its primary strength lies in its optimization framework, which allows it to find a near-optimal trade-off between perturbation size and attack success. The attack can be performed in both \textbf{untargeted} and \textbf{targeted} modes.
-
-\subparagraph{Parameters}
-\begin{description}
-  \item[$x$] The original clean input image.
-  \item[$y$] The true label for an untargeted attack, or the target label for a targeted attack.
-  \item[$\theta$] The parameters of the target neural network model.
-  \item[$c$] A constant that balances the two components of the loss function. A smaller $c$ prioritizes low distortion, while a larger $c$ prioritizes attack success.
-  \item[$\kappa$] A confidence parameter. The attack aims to make the logit of the target class at least $\kappa$ greater than the next highest logit, ensuring a high-confidence misclassification.
-  \item[\texttt{max\_iterations}] The number of optimization steps to perform.
-  \item[\texttt{learning\_rate}] The learning rate for the Adam optimizer.
-\end{description}
-
-\subparagraph{Algorithm Overview}
-The C\&W attack finds an adversarial example by solving an optimization problem designed to minimize the L2 distortion while forcing a misclassification. A key challenge in generating adversarial images is ensuring that pixel values remain within a valid range (e.g., [0, 1]). Instead of clipping values after each step, which can hinder optimization, this implementation employs a "change of variables" trick. The optimization is performed on an unconstrained variable $w$, which is then mapped to the valid image space using the transformation $x' = \frac{1}{2}(\tanh(w) + 1)$. This ensures that the generated image $x'$ is always valid by construction.
-
-The attack minimizes a composite loss function: $L = \|\frac{1}{2}(\tanh(w) + 1) - x\|_2^2 + c \cdot f(\frac{1}{2}(\tanh(w) + 1))$. The first term is the squared L2 distance, which encourages perceptual similarity to the original image $x$. The second term, $f(x')$, is the classification loss, defined on the model's logits $Z(x')$ as:
-$f(x') = \max(\max_{i \ne t}\{Z(x')_i\} - Z(x')_t, -\kappa)$.
-This loss becomes negative only when the logit for the target class $t$, $Z(x')_t$, surpasses the highest non-target logit by a margin of at least $\kappa$. The constant $c$ balances these two objectives. An Adam optimizer is used to iteratively update the variable $w$ to minimize the total loss $L$, effectively crafting an adversarial example with minimal distortion.
-
-\begin{breakablealgorithm}{Carlini \& Wagner L2 Attack}
-\begin{algorithmic}[1]
-\Require Clean image $x$, Label $y$, Target model $\mathcal{M}$, Parameters $c, \kappa, \text{lr}, \text{max\_iter}$
-\State Initialize $w \gets 0$ as a trainable variable
-\State Initialize an Adam optimizer with learning rate $\text{lr}$
-\Function{LossFunc}{$x', y$}
-    \State $Z \gets \mathcal{M}(x')$ \Comment{Get logits from the model}
-    \State $Z_y \gets \text{logit of class } y$
-    \State $Z_{\text{other}} \gets \max_{i \ne y}\{Z_i\}$
-    \If{targeted attack}
-        \State \Return $\max(Z_{\text{other}} - Z_y, -\kappa)$
-    \Else
-        \State \Return $\max(Z_y - Z_{\text{other}}, -\kappa)$
-    \EndIf
-\EndFunction
-\For{$i = 1$ to \texttt{max\_iterations}}
-    \State $x' \gets \frac{1}{2}(\tanh(w) + 1)$ \Comment{Change of variables}
-    \State $\text{loss}_{\text{dist}} \gets \|x' - x\|_2^2$
-    \State $\text{loss}_{\text{class}} \gets \text{LossFunc}(x', y)$
-    \State $L \gets \text{loss}_{\text{dist}} + c \cdot \text{loss}_{\text{class}}$
-    \State Compute gradient: $g \gets \nabla_w L$
-    \State Update $w$ using the optimizer: $w \gets \text{AdamUpdate}(w, g)$
-\EndFor
-\State $x_{\text{adv}} \gets \frac{1}{2}(\tanh(w) + 1)$
-\State \Return $x_{\text{adv}}$
-\end{algorithmic}
-\end{breakablealgorithm}
-
 \subsubsection{DeepFool}
 
 \paragraph{Introduction}
@@ -390,241 +570,23 @@ This loop continues until the image's predicted class changes or the maximum num
 \State \Return $x_{\text{adv}}$
 \end{algorithmic}
 \end{breakablealgorithm}
-
-\subsubsection{Momentum Iterative Fast Gradient Sign Method(MI-FGSM)}
-\paragraph{Introduction}
-
-The Momentum Iterative Fast Gradient Sign Method (MI-FGSM) evolved to address the limitations of earlier gradient-based attack methods in crafting effective adversarial examples, particularly to improve their robustness and transferability across different model scenarios. The progression began with a single-step method that used gradient perturbations to mislead models, which, while simple and efficient, was constrained by its reliance on a linear decision boundary assumption, limiting its effectiveness for larger perturbations. This led to the development of an iterative approach that applied multiple small perturbations, enhancing white-box attack success by thoroughly exploring the loss landscape. However, this method often overfit to the target model, reducing its ability to transfer to other models, a critical drawback for black-box attacks. To overcome this, MI-FGSM was introduced, incorporating the momentum concept from optimization techniques. Momentum stabilizes update directions by accumulating gradient velocities across iterations, preventing the attack from getting trapped in local maxima and improving transferability, thus balancing attack potency across both white-box and black-box scenarios.
-
-\paragraph{Methodology}
-
-\subparagraph{Attack Type}
-The Momentum Iterative Fast Gradient Sign Method (MI-FGSM) is a white-box adversarial attack, requiring full access to the target model's parameters and gradients for precise perturbation crafting. It is an iterative method, applying multiple small perturbation steps to refine the adversarial example, which enhances its ability to explore the loss landscape effectively. MI-FGSM operates as an untargeted attack, aiming to maximize the loss function to induce any misclassification. During its iterations, MI-FGSM updates the input by adding perturbations proportional to the sign of an accumulated momentum term, which integrates past gradients to stabilize the direction and prevent entrapment in local maxima, thereby improving attack success and transferability across models.
-
-\subparagraph{Parameters}
-\begin{itemize}
-    \item $x$ The clean input image to be perturbed.
-    \item $y$ The true label associated with $x$.
-    \item $f$ The parameters of the target neural network model.
-    \item $\epsilon$ The maximum allowable perturbation (controls the size of the $L_\infty$ ball).
-    \item $T$ The number of iterations (steps) to apply the attack.
-    \item $\alpha$ The step size used for each gradient update.
-    \item $\mu$ The decay factor controlling the influence of past gradients (e.g., typically set to 1.0).
-    \item $J(f, x, y)$ The loss function used during training (e.g., cross-entropy).
-\end{itemize}
-\subparagraph{Algorithm Overview}
-
-The Momentum Iterative Fast Gradient Sign Method (MI-FGSM) is an advanced algorithm designed to generate adversarial examples by iteratively perturbing input data to maximize the loss function of a deep neural network, thereby inducing misclassification. Building on the iterative gradient-based approach, MI-FGSM enhances attack effectiveness by incorporating a momentum term that accumulates gradient information across iterations. This momentum stabilizes the perturbation direction, preventing the algorithm from being trapped in poor local maxima and improving the transferability of adversarial examples to other models. The process involves initializing the perturbation, computing gradients at each step, updating the momentum, and adjusting the input with a controlled step size, all while adhering to a predefined perturbation bound. The following pseudocode outlines the implementation.
-\begin{breakablealgorithm}{Momentum Iterative Fast Gradient Sign Method (MI-FGSM)}
-
-\begin{algorithmic}[1]
-\Require $\mathbf{x}$, $y$, $f$, $\epsilon$, $\alpha$, $T$, $\mu$
-\Ensure $\mathbf{x}^*$
-\State Initialize $\mathbf{g}_0 \gets 0$, $\mathbf{x}_0^* \gets \mathbf{x}$
-\State Set $\alpha \gets \epsilon / T$
-\For{$t = 0$ to $T-1$}
-    \State Compute gradient: $\nabla_{\mathbf{x}} J(\mathbf{x}_t^*, y) \gets \nabla_{\mathbf{x}} J(f(\mathbf{x}_t^*), y)$
-    \State Update momentum: $\mathbf{g}_{t+1} \gets \mu \cdot \mathbf{g}_t + \frac{\nabla_{\mathbf{x}} J(\mathbf{x}_t^*, y)}{||\nabla_{\mathbf{x}} J(\mathbf{x}_t^*, y)||_1}$
-    \State Update adversarial example: $\mathbf{x}_{t+1}^* \gets \mathbf{x}_t^* + \alpha \cdot \text{sign}(\mathbf{g}_{t+1})$
-\EndFor
-\State \Return $\mathbf{x}^* \gets \mathbf{x}_T^*$
-\end{algorithmic}
-\end{breakablealgorithm}
-
-
-
 \paragraph{Results}
-
-The model test accuracy before the attack is 96.31\%.
-
-\begin{table}[h]
-\centering
-\caption{MI-FGSM Parameters}
-\begin{tabular}{cccc}
-\toprule
-\textbf{MI-FGSM Parameters} & \textbf{Accuracy (\%)} & \textbf{Accuracy Drop (\%)} & \textbf{Iterations} \\
-\midrule
-$\epsilon = 0.03$, $\mu = 0.5$ & 2.52 & 93.79 & 10 \\
-$\epsilon = 0.03$, $\mu = 1.0$ & 2.71 & 93.60 & 10 \\
-$\epsilon = 0.01$, $\mu = 0.5$ & 20.54 & 75.77 & 10 \\
-$\epsilon = 0.01$, $\mu = 1.0$ & 24.03 & 72.28 & 10 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The results reveal that test accuracy is highly sensitive to the perturbation size $\epsilon$. A larger $\epsilon = 0.03$ leads to a severe accuracy drop (2.52\%–2.71\%), indicating greater attack efficacy, with a marginal increase in accuracy (0.19\%) when $\mu$ rises from 0.5 to 1.0, suggesting a stabilizing effect of momentum. Conversely, a smaller $\epsilon = 0.01$ yields higher accuracies (20.54\%–24.03\%), with an increase of 3.49\% as $\mu$ increases from 0.5 to 1.0, highlighting improved model resilience and momentum’s role in enhancing transferability. The fixed iteration count (10) ensures consistent attack strength across configurations.
-\clearpage
-\subsubsection{JSMA}
-\paragraph{Introduction} 
-The Jacobian-based Saliency Map Attack (JSMA) is a targeted adversarial attack method that exposes the vulnerability of neural networks to subtle, intentional perturbations. It operates by analyzing how changes in individual input features influence the model's output, using a construct known as the forward derivative or Jacobian. This derivative captures the sensitivity of each output class to changes in input features.
-
-JSMA generates adversarial saliency maps that identify which features, when modified, are most likely to increase the model's confidence in a specific target class while reducing confidence in all other classes. The attack modifies only a small subset of input features, typically through a greedy search strategy guided by the saliency map, making the changes both minimal and highly effective.
-
-Unlike traditional gradient-based attacks that perturb inputs based on the overall loss function, JSMA provides fine-grained control over feature selection by focusing on the direct relationship between inputs and outputs. In practice, it has been shown to produce highly successful targeted attacks while maintaining a high level of visual similarity to the original input, as demonstrated on image classification tasks such as handwritten digit recognition.
-
-JSMA's strength lies in its interpretability and precision, making it a powerful tool for probing model weaknesses and for understanding how specific inputs drive model decisions. It also serves as a foundation for evaluating and improving the robustness of neural network architectures in adversarial settings 
-
-
-\paragraph{Methodology}
-\subparagraph{Attack Type}
-
-
-
-The Jacobian-based Saliency Map Attack (JSMA) is a targeted, white-box adversarial attack designed to manipulate the output of deep neural networks (DNNs) by crafting adversarial samples that induce specific misclassifications. Unlike untargeted attacks that aim to cause any misclassification, JSMA focuses on forcing a DNN to classify an input into a predefined target class chosen by the adversary. This targeted approach makes JSMA particularly effective in scenarios where specific misclassification outcomes are desired, such as bypassing security systems or altering the behavior of autonomous systems. JSMA operates in a white-box setting, requiring full knowledge of the DNN’s architecture, including its layers, activation functions, and trained parameters. By leveraging the Jacobian matrix of the DNN, JSMA constructs adversarial saliency maps that identify the input features most likely to influence the network’s output when perturbed. These maps guide the selective modification of input features, ensuring minimal changes to the original input while achieving the desired misclassification. This precision distinguishes JSMA from other adversarial attacks, such as gradient-based methods that apply broader perturbations, making it a powerful tool for exploiting DNN vulnerabilities with subtle alterations.
-
-
-\subparagraph{Parameters}
-
-\begin{itemize}
-    \item $X$ The clean input sample to be perturbed.
-    \item $Y^*$ The target adversarial output class chosen by the adversary.
-    \item $F$ The function learned by the target neural network during training.
-    \item $\gamma$ The maximum allowable distortion (controls the fraction of features perturbed, e.g., 10\% of input features).
-    \item $T$ The maximum number of iterations for the perturbation process.
-    \item $\theta$ The feature variation parameter (step size for perturbing selected input features).
-    \item $S(X, Y^*)$ The adversarial saliency map computed using the forward derivative $J_F(X)$.
-    \item $J_F(X)$ The Jacobian matrix of the function $F$ with respect to input $X$ (forward derivative).
-    \item $N$ Number of Pixels to perturb at each iteration
-\end{itemize}
-
-
-These parameters enable JSMA to balance effectiveness and stealth, with $\theta$ and $\gamma$ ensuring minimal perturbations and $t$ directing the attack’s outcome. Proper tuning, as demonstrated in the paper’s experiments, allows JSMA to craft adversarial samples that are both highly successful and difficult to detect.
-
-
-\subparagraph{Algorithm Overview}
-\begin{breakablealgorithm}{Jacobian-based Saliency Map Attack (JSMA)}
-\begin{algorithmic}[1]
-\Require $\mathbf{X}$, $\mathbf{Y}^*$, $\mathbf{F}$, $\gamma$, $\theta$
-\Ensure $\mathbf{X}^*$
-\State Initialize $\mathbf{X}^* \gets \mathbf{X}$, $\delta_{\mathbf{X}} \gets \mathbf{0}$, $\mathbf{I} \gets \{1, \ldots, |\mathbf{X}|\}$
-\While{$\mathbf{F}(\mathbf{X}^*) \neq \mathbf{Y}^*$ and $||\delta_{\mathbf{X}}||_0 < \gamma \cdot |\mathbf{X}|$}
-    \State Compute forward derivative: $J_{\mathbf{F}}(\mathbf{X}^*) \gets \frac{\partial \mathbf{F}(\mathbf{X}^*)}{\partial \mathbf{X}^*}$
-    \State Compute saliency map: $S(\mathbf{X}, \mathbf{Y}^*) \gets \text{saliency\_map}(J_{\mathbf{F}}(\mathbf{X}^*), \mathbf{I}, \mathbf{Y}^*)$
-    \State Select feature: $i_{\max} \gets \arg \max_i S(\mathbf{X}, \mathbf{Y}^*)[i]$
-    \State Update feature: $\mathbf{X}^*_{i_{\max}} \gets \mathbf{X}^*_{i_{\max}} + \theta$
-    \State Update perturbation: $\delta_{\mathbf{X}} \gets \mathbf{X}^* - \mathbf{X}$
-\EndWhile
-\State \Return $\mathbf{X}^*$
-\end{algorithmic}
-
-\end{breakablealgorithm}
-\paragraph{Results}
-\subparagraph{Stop Sign Sample}
-The following parameters were used for the attack on the Stop Sign sample:
-\begin{itemize}
-    \item $T$: Maximum number of iterations = 15
-    \item $Y^*$: Target adversarial output class = Class 17 ``No Entry''
-    \item $\theta$: Feature variation parameter = 255 (unnormalized images were used)
-    \item $\gamma$: Maximum allowable distortion = 20\%
-    \item $N$: Number of pixels to perturb at each iteration = 50
-\end{itemize}
-
-Before the attack, the clean Stop Sign image was classified as ``Stop'' with a confidence of 92.36\%. After the attack, the adversarial Stop Sign image, generated using JSMA with minimal perturbation, was misclassified as ``No Entry'' with a confidence of 70.18\%.
-
-\begin{figure}[ht!]
-    \centering
-    \begin{subfigure}[t]{0.45\textwidth}
-        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/clean_stopimage_jsma_1.png}
-        \caption{Clean Stop Sign image}
-        \label{fig:clean_stopimage}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[t]{0.45\textwidth}
-        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/adv_stopimage_jsma_1.png}
-        \caption{Adversarial Stop Sign image generated using JSMA}
-        \label{fig:adv_stopimage}
-    \end{subfigure}
-    \caption{Comparison of clean and adversarial Stop Sign images generated using the Jacobian-based Saliency Map Attack (JSMA)}
-    \label{fig:stopimage_comparison}
-\end{figure}
-
-\subparagraph{Speed Limit 80 Sign Sample}
-The following parameters were used for the attack on the Speed Limit 80 Sign sample (ground truth label: Class 5):
-\begin{itemize}
-    \item $T$: Maximum number of iterations = 15
-    \item $Y^*$: Target adversarial output class = Class 2 ``Speed Limit 50''
-    \item $\theta$: Feature variation parameter = 255 (unnormalized images were used)
-    \item $\gamma$: Maximum allowable distortion = 10\%
-    \item $N$: Number of pixels to perturb at each iteration = 100
-\end{itemize}
-
-Before the attack, the clean Speed Limit 80 Sign image was classified as ``Speed Limit 80'' with a confidence of 95.54\%. After the attack, the adversarial Speed Limit 80 Sign image, generated using JSMA with minimal perturbation, was misclassified as ``Speed Limit 50'' with a confidence of 84.07\%.
-
-\begin{figure}[htbp]
-    \centering
-    \begin{subfigure}[t]{0.45\textwidth}
-        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/clean_speed80_jsma_2.png}
-        \caption{Clean Speed Limit 80 Sign image}
-        \label{fig:clean_speed80}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[t]{0.45\textwidth}
-        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/adv_speed80_jsma_2.png}
-        \caption{Adversarial Speed Limit 80 Sign image generated using JSMA}
-        \label{fig:adv_speed80}
-    \end{subfigure}
-    \caption{Comparison of clean and adversarial Speed Limit 80 Sign images generated using the Jacobian-based Saliency Map Attack (JSMA)}
-    \label{fig:speed80_comparison}
-\end{figure}
-\clearpage
-\subparagraph{Vechiles over 3.5 tons prohibited}
-The following parameters were used for the attack on the Speed Limit 80 Sign sample (ground truth label: Class 5):
-\begin{itemize}
-    \item $T$: Maximum number of iterations = 15
-    \item $Y^*$: Target adversarial output class = Class 10 ``No passing for vehicles over 3.5 tons''
-    \item $\theta$: Feature variation parameter = 255 (unnormalized images were used)
-    \item $\gamma$: Maximum allowable distortion = 10\%
-    \item $N$: Number of pixels to perturb at each iteration = 100
-\end{itemize}
-
-Before the attack, Clean  image classified as "Vehicles over 3.5 tons prohibited" with confidence 89.57\%. After the attack, Adversarial image generated using JSMA with minimal perturbation, misclassified as "No passing for vehicles over 3.5 tons" with confidence 87.21\%
-\begin{figure}[htbp]
-    \centering
-    \begin{subfigure}[t]{0.45\textwidth}
-        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/clean_vehicleover3.5tons_jsma_3.png}
-        \caption{Clean  image classified as "Vehicles over 3.5 tons prohibited" }
-        \label{fig:adv_stopimage_2}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[t]{0.45\textwidth}
-        \includegraphics[height=5.5cm]{images/CV/Classification/JSMA/adv_vehicleover3.5tons_jsma_3.png}
-        \caption{Adversarial image generated using JSMA }
-        \label{fig:adv_stopimage_1}
-    \end{subfigure}
-    \caption{Comparison of clean and adversarial Class of Vechiles over 3.5 Tons images generated using the Jacobian-based Saliency Map Attack (JSMA) }
-    \label{fig:stopimage_comparison}
-\end{figure}
-
-\subparagraph{JSMA computed for whole Dataset}  
-
-Since JSMA is a targeted attack, a worst-case analysis was employed to evaluate its impact on the test set. In this evaluation, the attacker attempts to misclassify each input into a single, fixed target class, regardless of the input’s true label. This setting reflects a highly constrained but severe adversarial scenario, commonly used to benchmark the effectiveness of targeted attacks.
-
-The attack was applied to a carefully balanced subset of the test set, containing \textbf{2 samples per class}, totaling \textbf{86 samples}. The fixed target class selected for this evaluation was \textbf{Class 0 (``Speed Limit 20'')}, which was the most frequently assigned class following the attack.
-
-\vspace{1em}
-\noindent The quantitative results of the JSMA attack are summarized in Table~\ref{tab:jsma-results}.
 
 \begin{table}[H]
-\centering
-\begin{tabular}{|l|c|}
-\hline
-\textbf{Metric} & \textbf{Value} \\
-\hline
-Post-Attack Test Accuracy & 34.52\% \\
-Attack Success Rate (to class 0) & 48.81\% \\
-Average Distortion & 0.26\% of pixels \\
-\hline
-\end{tabular}
-\caption{JSMA targeted attack results (fixed target: Class 0) on a balanced test subset (2 samples per class, 86 total).}
-\label{tab:jsma-results}
+    \centering
+    \caption{Model accuracy before and after the DeepFool Attack.}
+    \label{tab:deep_fool_accuracy}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Attack Method} & \textbf{Baseline Accuracy (\%)} & \textbf{Accuracy after Attack (\%)} \\
+        \midrule
+        DeepFool & 96.0 & 52.71 \\
+        \bottomrule
+    \end{tabular}
 \end{table}
 
+\noindent The DeepFool attack significantly reduced the model's accuracy from 96.0\% to 52.71\%, highlighting the model's vulnerability to minimal perturbations. This demonstrates the effectiveness of DeepFool in finding decision boundary-crossing adversarial examples with high success, even on a well-performing classifier.
 
-\vspace{1em}
-\noindent
-As shown in Table 6, The JSMA targeted attack was evaluated in a worst-case setting where all test samples were forced toward a fixed target class (Class 0). The attack achieved a \textbf{48.81\%} targeted success rate while preserving the original prediction in \textbf{34.52\%} of cases, all with minimal average distortion (\textbf{0.26\%}). These results confirm the effectiveness of JSMA as a precise and stealthy adversarial technique, even under severely constrained target conditions.
-\clearpage
-\clearpage
 \subsection{Black Box Attacks}
 \subsubsection{Boundary Attack}
 
@@ -962,11 +924,11 @@ The One-Pixel Attack, introduced by Su et al.~\cite{Su_2019}, represents an extr
 
 \paragraph{Methodology}
 
-\paragraph{Attack Type} 
+\subparagraph{Attack Type} 
 
 The One-Pixel Attack is a \textbf{black-box} attack, requiring no information about the model's architecture, parameters, or gradients. It only needs access to the model's output probabilities (logits or confidence scores), making it applicable to a wide range of non-differentiable or otherwise protected systems. It can be executed in both \textbf{untargeted} (cause any misclassification) and \textbf{targeted} (cause a specific misclassification) modes.
 
-\paragraph{Parameters}
+\subparagraph{Parameters}
 \begin{description}
     \item[$x$] The clean input image to be perturbed.
     \item[$y_{\mathrm{true}}$] The true label of the clean image (used for untargeted attacks).
@@ -976,7 +938,7 @@ The One-Pixel Attack is a \textbf{black-box} attack, requiring no information ab
     \item[\texttt{max\_generations}] The maximum number of iterations for the evolutionary algorithm to run.
 \end{description}
 
-\paragraph{Algorithm Overview}
+\subparagraph{Algorithm Overview}
 The One-Pixel Attack formulates the search for an adversarial pixel as an optimization problem. To solve this, it employs a powerful black-box optimization method called \textbf{Differential Evolution (DE)}~\cite{Storn1997}. DE is an evolutionary algorithm that is particularly effective at finding a global optimum in a complex search space without needing gradient information.
 
 At its core, DE works by maintaining a "population" of candidate solutions—in this case, different single-pixel modifications $(x, y, R, G, B)$. In each generation, it creates new "trial" solutions by combining existing ones. The key idea is its mutation strategy: a new solution is generated by taking one candidate and adding a scaled version of the \textit{difference} between two other candidates. This allows the search to be guided by the diversity of the current population. Each new trial solution is then compared to its "parent," and the one that is "fitter" (i.e., brings the model's output closer to the desired outcome) survives into the next generation.
@@ -1059,11 +1021,12 @@ The vulnerability is not an isolated phenomenon but a systemic weakness. When ev
     \end{tabular}
 \end{table}
 
-\subsubsection{Simba}
+\subsubsection{Simba Attack}
 \paragraph{Introduction}
 
 
-The Simple Black-box Adversarial Attack (SimBA), introduced by Guo et al. (2019), is a pioneering approach to generating adversarial examples in the black-box setting, where attackers can only query the target model's outputs without insight into its internal structure or parameters. Renowned for its exceptional query efficiency and conceptual elegance, SimBA addresses the pressing challenge of crafting effective adversarial perturbations under stringent query constraints, making it highly relevant for real-world applications, such as probing machine learning APIs like Google Cloud Vision. By exploiting continuous-valued confidence scores, SimBA iteratively modifies an input image by sampling random directions from a predefined orthonormal basis, steering it toward misclassification with remarkable efficiency. The method’s adaptability is a key strength, as it operates in two distinct orthonormal bases: pixel space, which directly alters individual pixel values, and Discrete Cosine Transform (DCT) coefficients, which capitalize on low-frequency components to exploit model sensitivities more effectively. This dual-basis flexibility, paired with its robust performance in practical scenarios, establishes SimBA as a formidable tool for uncovering vulnerabilities in machine learning systems within high-dimensional spaces, setting a rigorous benchmark for future research into black-box adversarial attacks.
+The Simple Black-box Adversarial Attack (SimBA), introduced by Guo et al. (2019), is a pioneering approach to generating adversarial examples in the black-box setting, where attackers can only query the target model's outputs without insight into its internal structure or parameters. Renowned for its exceptional query efficiency and conceptual elegance, SimBA addresses the pressing challenge of crafting effective adversarial perturbations under strict query constraints, making it highly relevant for real-world applications, such as probing machine learning APIs like Google Cloud Vision.\cite{guo2019simple} By exploiting continuous-valued confidence scores, SimBA iteratively modifies an input image by sampling random directions from a predefined orthonormal basis, steering it toward misclassification with remarkable efficiency. The method’s adaptability is a key strength, as it operates in two distinct orthonormal bases: pixel space, which directly alters individual pixel values, and Discrete Cosine Transform (DCT) coefficients, which capitalize on low-frequency components to exploit model sensitivities more effectively. This dual-basis flexibility, paired with its robust performance in practical scenarios, establishes SimBA as a formidable tool for uncovering vulnerabilities in machine learning systems within high-dimensional spaces, setting a rigorous benchmark for future research into black-box adversarial attacks.
+\cite{kumar2020black}
 \paragraph{Methodology}
 \subparagraph{Attack Type}
 
@@ -1104,63 +1067,74 @@ The Simple Black-box Adversarial Attack (SimBA) implemented in its untargeted va
 \end{algorithmic}
 
 \end{breakablealgorithm}
-\paragraph{Results }
-In our evaluation, we implemented and compared both the original SimBA (pixel-space) and the SimBA-DCT (low-frequency DCT basis) variants across a standardized set of untargeted on GTSRB Dataset. By holding the step size and maximum number of queries constant, we directly measured convergence speed -the number of model queries required to flip the classifier’s label-.As we will show,The SimBA-DCT variant, which uses the Discrete Cosine Transform (DCT) basis, generally requires fewer queries compared to the SimBA variant operating in pixel space, highlighting the DCT variant's superior query efficiency due to its focus on low-frequency perturbations, as shown in the following frequency mask, that very small portion of Image DCT frequencies are exploited:
+\subparagraph{Results}
+% Paragraph and image (non-floating)
+\noindent
+We conducted a comparative evaluation of the original SimBA algorithm in pixel space and its frequency-domain variant, SimBA-DCT, using the GTSRB dataset under untargeted attack settings. To ensure a fair comparison, we fixed both the step size and the maximum number of allowed queries across all experiments. The primary evaluation metric was convergence speed, defined as the number of queries required to induce a misclassification. Our results demonstrate that SimBA-DCT—leveraging the Discrete Cosine Transform (DCT) basis—achieves superior query efficiency relative to the pixel-space SimBA. This improvement is attributed to SimBA-DCT’s targeted perturbations within the low-frequency components of the input, which are shown to be highly effective despite involving only a small subset of the DCT frequency spectrum, as illustrated in the following frequency mask:
 
-\begin{figure}[h]
-    \centering
-    \includegraphics[height=7cm,width=14cm,keepaspectratio]{images/CV/Classification/Low_freq_mask.png}
-    \caption{Low-Frequency Mask.}
+\vspace{0.5em}
+\begin{center}
+    \includegraphics[height=7cm, width=14cm, keepaspectratio]{images/CV/Classification/Low_freq_mask.png}
+    \captionsetup{type=figure}
+    \captionof{figure}{Low-Frequency Mask.}
     \label{fig:dct_frequency_mask}
-\end{figure}
-\subparagraph{Simba on Single Samples}
-When Performing the Attack on the same sample using both Simba-Pixel Space and Simba-DCT using the following parameters to ensure a fair comparison:
+\end{center}
+
+\subparagraph{SimBA on Single Samples}
+To illustrate the practical difference in query efficiency between SimBA-Pixel and SimBA-DCT, we present qualitative examples of both attack variants applied to the same input samples from the GTSRB dataset. The attacks were performed under identical hyperparameter settings to ensure a fair comparison:
 \begin{itemize}\itemsep0.5em
     \item $\epsilon = 0.2$
     \item $T = 2000$
-    \item $Q$: The set of orthonormal basis vectors (\text{standard basis for SimBA, DCT basis for SimBA-DCT})
+    \item $Q$: Set of orthonormal basis vectors (standard basis for SimBA-Pixel, DCT basis for SimBA-DCT)
     \item $r = \frac{1}{8}$
-    \item $\text{maximum number of queries} = 5000$
+    \item Maximum number of queries = 5000
 \end{itemize}
+The goal in each case is to flip the model's prediction to a different (incorrect) class using the fewest possible model queries. The resulting adversarial examples are shown below.
 
 \begin{figure}[ht!]
     \centering
     \begin{subfigure}[t]{0.45\textwidth}
         \includegraphics[height=5.5cm]{images/CV/Classification/stop_simba_dct.png}
-        \caption{Simba DCT: 1550 iters, 2320 queries}
-        \label{fig:Simba_DCT_image}
+        \caption{SimBA-DCT: 1550 iterations, 2320 queries}
+        \label{fig:simba_dct_stop}
     \end{subfigure}
     \hfill
     \begin{subfigure}[t]{0.45\textwidth}
         \includegraphics[height=5.5cm]{images/CV/Classification/stop_simba_pixel.png}
-        \caption{Simba Pixel Space:1778 iters, 2656 queries}
-        \label{fig:adv_stopimage}
+        \caption{SimBA-Pixel:1778 iterations, 2656 queries}
+        \label{fig:simba_pixel_stop}
     \end{subfigure}
-    \caption{Simba on Stop Image}
-    \label{fig:Simba_Pixel_image}
+    \caption{SimBA attacks on a "Stop" sign image.}
+    \label{fig:simba_stop_comparison}
 \end{figure}
 
-As shown in Figure 12, Both images  were initially predicted as Class 14 (Stop), but after Simba Attack , They were predicted as Class 17 (No Entry) , but the adverserial example after Simba-DCT reached the adverserial prediction in lower number of queries ; as an indication for Simba-DCT Faster Convergence
+As shown in Figure~\ref{fig:simba_stop_comparison}, both adversarial examples were originally predicted as Class 14 (Stop). After the attack, the predictions flipped to Class 17 (No Entry). Notably, SimBA-DCT achieved the misclassification with fewer queries, demonstrating faster convergence.
 
 \begin{figure}[ht!]
     \centering
     \begin{subfigure}[t]{0.45\textwidth}
         \includegraphics[height=5.5cm]{images/CV/Classification/speedlimit120_simba_dct.png}
-        \caption{Simba DCT: 175 iters, 264 queries.}
-        \label{fig:Simba_DCT_image}
+        \caption{SimBA-DCT: 175 iterations, 264 queries}
+        \label{fig:simba_dct_speed}
     \end{subfigure}
     \hfill
     \begin{subfigure}[t]{0.45\textwidth}
         \includegraphics[height=5.5cm]{images/CV/Classification/speedlimit120_simba_pixel.png}
-        \caption{Simba Pixel Space:286 iters, 440 queries}
-        \label{fig:adv_stopimage}
+        \caption{SimBA-Pixel: 286 iterations, 440 queries}
+        \label{fig:simba_pixel_speed}
     \end{subfigure}
-    \caption{Simba on Speed Limit 120}
-    \label{fig:Simba_Pixel_image}
+    \caption{SimBA attacks on a "Speed Limit 120" sign image.}
+    \label{fig:simba_speed_comparison}
 \end{figure}
-As shown in Figure 13, Both images  were initially predicted as Class 8 (Speed Limit 120) Class, but after Simba Attack , They were predicted as Class 7 (Speed Limit 100) , but the adverserial example after Simba-DCT reached the adverserial prediction in lower number of queries ; as an indication for Simba-DCT Faster Convergence
 
-\subparagraph{Simba on Test Set}
+Similarly, in Figure~\ref{fig:simba_speed_comparison}, both variants successfully changed the model's prediction from Class 8 (Speed Limit 120) to Class 7 (Speed Limit 100). Again, the DCT-based version required significantly fewer queries, further emphasizing its improved query efficiency in practice.
+
+% Creating the subparagraph for SimBA results
+\subparagraph{SimBA on Test Set}
+
+Due to the long running time and the high number of iterations required for a single sample, we evaluated the test accuracy using 86 samples from the test set. The results are presented in Table~\ref{tab:simba-accuracy-comparison}.
+
+% Creating the table
 \begin{table}[ht]
 \centering
 \caption{Test-set classification accuracies for the baseline and SimBA variants}
@@ -1175,6 +1149,11 @@ SimBA-DCT              & 65.12 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+% Adding a comment on the results
+The results in Table~\ref{tab:simba-accuracy-comparison} demonstrate the effectiveness of both SimBA variants in reducing the test accuracy of the baseline model, which achieves a high accuracy of 96.00\%. SimBA in pixel space reduces the test accuracy to 62.79\%, indicating a significant degradation of 33.21 percentage points. SimBA-DCT, while also effective, results in a slightly higher test accuracy of 65.12\%, corresponding to a reduction of 30.88 percentage points. The lower accuracy for SimBA in pixel space aligns with its higher success rate (98.6\% for untargeted attacks) reported in the original paper, suggesting it successfully perturbs more images to cause misclassifications compared to SimBA-DCT (97.8\% success rate). However, SimBA-DCT's slightly better test accuracy may reflect its lower success rate and occasional failures to find adversarial perturbations in the restricted low-frequency DCT basis, as noted in the paper. The trade-off between query efficiency (favoring SimBA-DCT) and attack success (favoring SimBA in pixel space) is evident, and these results highlight the need for further investigation into optimizing the orthonormal basis selection to balance success rate and model robustness.
+
+% Clearing the page
 \clearpage
 \section{Defenses}
 
@@ -1186,7 +1165,7 @@ Adversarial training is a principled and widely adopted defense mechanism in the
 From a mathematical perspective, adversarial training formulates the learning problem as a min-max optimization task. The inner maximization identifies the most damaging perturbation within a constrained set (usually defined by an ℓₚ-norm ball), while the outer minimization updates the model parameters to minimize the loss under these worst-case perturbations. This process effectively strengthens the decision boundaries of the model, making it less sensitive to small but malicious input variations.
 
 A key strength of adversarial training lies in its ability to instill intrinsic robustness into the model, as opposed to post hoc defenses that may be bypassed with adaptive attacks. Despite its computational intensity, adversarial training is considered one of the most effective defenses, especially against white-box attacks where the adversary has full knowledge of the model. Numerous empirical studies have demonstrated that models trained with adversarial examples outperform standard models in terms of adversarial robustness and generalization to unseen attack strategies.
-
+\cite{zheng2020efficientadversarialtrainingtransferable}
 
 \paragraph{Methodology}
 
@@ -1209,7 +1188,7 @@ A key strength of adversarial training lies in its ability to instill intrinsic 
         \item The perturbations evolve alongside the model, ensuring that they remain challenging and relevant throughout training.
         \item This method helps the model develop more general and adaptive robustness against a wide range of attacks.
         \item It discourages memorization of specific attack patterns and promotes stronger decision boundaries.
-        \item Although computationally expensive (up to 7× to 100× more than standard training), techniques such as \textbf{DEAT} and \textbf{ATTA} reduce training costs while preserving robustness.
+        \item Although computationally expensive (up to 7× to 100× more than standard training), techniques such as \textbf{DEAT}(Dynamic Efficient Adversarial Training) and \textbf{ATTA} (Adversarial Training with Transferable Adversarial Examples) reduce training costs while preserving robustness.
     \end{itemize}
 \end{itemize}
 
@@ -1226,40 +1205,52 @@ To evaluate the effectiveness of adversarial training, we assess model performan
 
 \clearpage
 \paragraph{Results}\mbox{}\\[1ex]
-\begin{table}[h!]
+
+\begin{table}[H]
 \centering
 \caption{FGSM Accuracy Before and After Adversarial Training}
-\begin{tabular}{|c|c|c|}
-\hline
+\begin{tabular}{ccc}
+\toprule
 \textbf{Epsilon ($\varepsilon$)} & \textbf{Before Adversarial Training (\%)} & \textbf{After Adversarial Training (\%)} \\
-\hline
+\midrule
 0.007 & 44.96 & 77.91 \\
 0.010 & 34.30 & 75.39 \\
 0.030 & 12.79 & 75.78 \\
-0.100 & 9.30 & 47.67 \\
-\hline
+0.100 & 9.30  & 47.67 \\
+\bottomrule
 \end{tabular}
+\label{tab:fgsm-training-results}
 \end{table}
-
-\begin{table}[h!]
-\centering
+\begin{table}[H]
 \caption{PGD Accuracy Before and After Adversarial Training}
-\begin{tabular}{|c|c|c|c|}
-\hline
+\hspace*{-1cm}% Adds a negative shift to move left
+\makebox[0.8\textwidth][l]{ % Reduced width to 0.8\textwidth
+\begin{tabular}{cccc}
+\toprule
 \textbf{Epsilon ($\varepsilon$)} & \textbf{Alpha ($\alpha$)} & \textbf{Before Adversarial Training (\%)} & \textbf{After Adversarial Training (\%)} \\
-\hline
-0.007 & 0.00175 & 36.43 & 68.60 \\
-0.010 & 0.00250 & 21.71 & 61.43 \\
-0.030 & 0.00750 & 2.71  & 42.83 \\
-0.100 & 0.02500 & 0.00  & 13.76 \\
-\hline
+\midrule
+0.007  & 0.00175 & 36.43 & 68.60 \\
+0.010  & 0.00250 & 21.71 & 61.43 \\
+0.030  & 0.00750 & 2.71  & 42.83 \\
+0.100  & 0.02500 & 0.00  & 13.76 \\
+\bottomrule
 \end{tabular}
+}
+\label{tab:pgd-training-results}
 \end{table}
+\paragraph{Discussion of Results}\mbox{}\\[1ex]
+The results in Tables~\ref{tab:fgsm-training-results} and~\ref{tab:pgd-training-results} clearly demonstrate the efficacy of the adaptive adversarial training strategy. Across all tested perturbation levels, substantial improvements in model robustness are observed post-training. For FGSM attacks, the defended model maintains accuracy above 75\% for $\varepsilon \leq 0.03$, compared to severe degradation in the undefended baseline (as low as 12.79\%). Even under stronger perturbations ($\varepsilon = 0.1$), the adversarial training yields a notable 38.37 percentage point improvement.
+
+Similarly, under PGD attacks---which are more challenging due to their iterative nature---the trained model shows significant resilience. Notably, at $\varepsilon = 0.03$, accuracy improves from  2.71\% to 42.83\%, a nearly \textbf{16-fold relative increase}. While performance under the strongest PGD setting ($\varepsilon = 0.1$) remains modest (13.76\%), the improvement from 0\% baseline confirms that the defense still imparts non-trivial robustness in extreme cases.
+
+These gains validate the effectiveness of gradually intensifying exposure to adversarial perturbations during training. By shifting from FGSM to PGD and adjusting the clean-to-adversarial ratio over time, the model successfully learns more robust feature representations capable of resisting both single-step and iterative attacks.
+
 \clearpage
+
 \subsection{Noise Fusion}
 \paragraph{Introduction}
 The Noise-Fusion Method (NFM) is a straightforward and robust defense mechanism crafted to safeguard deep neural network (DNN) image classification models against adversarial attacks. Adversarial attacks exploit DNN vulnerabilities by introducing subtle, often imperceptible, perturbations to input data, such as images, to induce misclassifications. Unlike many sophisticated defense strategies that demand detailed knowledge of the model architecture or specifics of the attack, NFM operates agnostically, requiring no such information, which enhances its versatility and applicability. The core of NFM lies in strategically adding controlled noise—specifically Uniform, Gaussian, or Poisson noise—to both the input data during runtime and the training data during model training. This dual noise injection serves a twofold purpose: it masks adversarial perturbations by "drowning" them within the added noise, rendering the attack less effective, and it bolsters the model’s resilience to noisy inputs, thereby improving overall robustness. NFM has been rigorously evaluated against prominent adversarial attacks, including the Fast Gradient Signed Method (FGSM), Projected Gradient Descent (PGD), and Sparse L1 Descent (SLD), demonstrating significant improvements in model accuracy under attack conditions. By perturbing attack gradients and stabilizing model performance through noise, NFM offers a generalized defense with potential applicability beyond image-based models to other data types, such as audio, making it a promising approach for securing DNNs against a wide range of adversarial threats without the need for attack-specific or model-specific tailoring.
-
+\cite{shi2022noisefusion}
 \paragraph{Methodology}
 
 

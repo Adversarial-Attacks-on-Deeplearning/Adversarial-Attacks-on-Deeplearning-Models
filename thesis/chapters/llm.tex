@@ -202,7 +202,7 @@ The Attack Success Rate (ASR) was calculated by evaluating whether a large langu
 \begin{table}[H]
 \centering
 \caption{Jailbreak Attack Success Metrics}
-\label{tab:safe_eval}
+\label{tab:GCG Attack success metrics}
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{Method} & \textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
@@ -278,7 +278,7 @@ The Attack Success Rate (ASR) was calculated using the same methodology as in th
 \begin{table}[H]
 \centering
 \caption{Jailbreak Attack Success Metrics}
-\label{tab:safe_eval}
+\label{tab:BEAST Attack success metrics}
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
@@ -288,7 +288,8 @@ The Attack Success Rate (ASR) was calculated using the same methodology as in th
 \bottomrule
 \end{tabular}
 \end{table}
-\subsection{Black Box Attacks}
+
+The results in Table \ref{tab:BEAST Attack success metrics} show an ASR of 88\%, Recall of 1.0, Precision of 0.68, and an F1 Score of 0.81, which are comparable to those achieved by GCG. Notably, this approach is computationally efficient and produces a readable suffix. However, it required a longer suffix of 30 tokens to achieve these outcomes.
 \section{Defenses}
 \clearpage
 \subsubsection{LLM Defenses Introduction}

@@ -130,11 +130,34 @@ For audio, perturbations must be imperceptible to the human ear.
 \end{itemize}
 
 \subsubsection{Attacks on Large Language Models}
-LLMs introduce a new paradigm of attack that targets their reasoning and instruction-following capabilities.
-\begin{itemize}
-    \item \textbf{Jailbreaking:} This aims to bypass safety alignments. White-box methods like \textbf{GCG} optimize an "adversarial suffix" to append to a malicious prompt \cite{zou2023universaltransferableadversarialattacks}. Black-box methods use techniques like automated prompt rewriting with another LLM (\textbf{PAIR} \cite{chao2025jailbreaking}) or game-theoretic red-teaming \cite{ma2024evolvingdiverseredteamlanguage}.
-    \item \textbf{Prompt Injection:} This attack hijacks the model's behavior by embedding hidden commands in its input. \textbf{Indirect Prompt Injection (IPI)} is particularly dangerous, as the malicious instruction can be hidden in external data that the LLM processes, enabling remote and autonomous exploitation \cite{greshake2023youvesignedforcompromising}.
+LLMs introduce a new paradigm of attacks that fall into two main categories based on the attacker’s intent. Jailbreak attacks seek to override the model’s alignment safeguards—measures that make LLMs “helpful and harmless”—by crafting prompts that confuse the model and elicit harmful or undesired outputs, using either white-box or black-box methods. Prompt injection attacks, in contrast, exploit retrieval-augmented systems by embedding malicious prompts that lead the model to leak sensitive data, produce misleading responses, or execute unintended actions.
+\subsection{Jailbreaking Attacks}
+Jailbreak attacks aims to bypass safety alignments through either black-box or white-box methods.
+ \begin{itemize}
+        \item \textbf{Black-box Attacks:} Prompt Automatic Iterative Refinement (PAIR) \cite{chao2025jailbreaking}: Automates jailbreak prompt generation via iterative refinement using an attacker LLM. Self-Jailbreaking \cite{app14093558}: Tricks the target LLM into rewriting its own harmful prompts under guise of "avoiding discomfort. Game-theoretic red-teaming \cite{ma2024evolvingdiverseredteamlanguage}: Pitches attacker and defender LLMs in adversarial dialogue to reach Nash equilibrium.
+         GPTFuzzer \cite{yu2024gptfuzzerredteaminglarge}: Mutates human-written prompts (e.g., rephrasing) to evade safeguards. Reverse-engineering defenses \cite{Deng_2024} Analyzes chatbot filtering mechanisms to craft optimized jailbreak prompts.
+         \item \textbf{White-box Attacks:} Address the inefficiency of black-box methods by leveraging model internals to optimize adversarial prompts. Greedy Coordinate Gradient (GCG) \cite{zou2023universaltransferableadversarialattacks}: Automatically generates adversarial suffixes via greedy and gradient search to maximize affirmative responses to harmful queries. Gradient-Based Red Teaming (GBRT) \cite{wichers2024gradientbasedlanguagemodelred}: Trains prompts by backpropagating through a safety classifier and frozen LLM to elicit unsafe responses. RIPPLE \cite{shen2024rapidoptimizationjailbreakingllms}: Uses psychological-inspired optimization (subconsciousness/echopraxia) to rapidly generate jailbreak prompts. BEAST \cite{sadasivan2024fastadversarialattackslanguage}: Gradient-free beam search attack with tunable speed/success/readability trade-offs for jailbreaking and privacy attacks. ASETF \cite{wang2024asetfnovelmethodjailbreak}: Translates unreadable adversarial suffixes into coherent text for interpretable jailbreaking. Generation-Config Exploits \cite{huang2023catastrophicjailbreakopensourcellms}: Bypasses alignment by tweaking decoding hyperparameters (e.g., temperature) rather than crafting prompts.
+    \end{itemize}
 \end{itemize}
+
+\subsection{Prompt Injection Attacks}
+Unlike traditional ML attacks requiring complex optimization, \emph{Promp Injection (PI)} exploits the natural-language interface of LLMs. Even in black-box settings with safety mitigations, attackers can bypass content restrictions or expose hidden system prompts. A more insidious variant, \emph{indirect prompt injection}, occurs when adversarial prompts are embedded into external data (e.g., retrieved documents or web pages). When ingested during inference, these prompts hijack the model’s behavior, enabling remote control, data theft, or disinformation campaigns. \cite{greshake2023youvesignedforcompromising} 
+
+Kai Greshake., 2023. \cite{greshake2023youvesignedforcompromising} introduce \emph{Indirect Prompt Injection (IPI)}, a novel attack vector targeting LLM-integrated applications where adversaries inject malicious prompts into retrieved data (e.g., websites, emails), bypassing direct user interaction. This work is pivotal in exposing how the conflation of \emph{data} and \emph{instructions} in retrieval-augmented LLMs creates exploitable security boundaries.
+
+The authors systematically classify IPI threats into six categories:
+\begin{itemize}
+    \item \textbf{Information Gathering} (e.g., exfiltrating user data via persuasive chat interactions)
+    \item \textbf{Fraud} (e.g., generating phishing links with markdown obfuscation).
+    \item \textbf{Intrusion} (e.g., persistent backdoors via memory poisoning)
+    \item \textbf{Malware} (e.g., self-replicating "AI worms" in email assistants).
+    \item \textbf{Manipulated Content} (e.g., politically biased summaries or fabricated citations).
+    \item \textbf{Availability Attacks} (e.g., disrupting search functionality via homoglyph injections).
+\end{itemize}
+
+This work aligns with broader concerns in LLM security and tool-augmented risks, but uniquely addresses the \emph{remote} and \emph{autonomous} nature of IPI. It underscores the urgency of rethinking LLM-integrated system design, particularly as applications increasingly interact with untrusted data sources.
+
+Fábio Perez, Ian Ribeiro., 2022. \cite{perez2022ignorepreviouspromptattack} investigate two types of attacks: \emph{Goal hijacking}---the subversion of a model's original instruction to produce attacker-specified output---and \emph{prompt leaking}---the redirection of model behavior to disclose its original system prompt, either partially or in full---represent two fundamental classes of prompt injection attacks.
 
 This survey of core methodologies highlights the creativity and adaptability of adversarial research. While the underlying principles are often shared, their manifestation is deeply tied to the specific nature of the data and the model being attacked, necessitating the broad, multi-domain investigation undertaken in this thesis.
 

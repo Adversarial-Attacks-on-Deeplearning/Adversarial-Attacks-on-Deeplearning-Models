@@ -11,12 +11,13 @@
 
 \subsection{Transferability}
 \begin{itemize}
-    \item \textbf{Bounding-box-constrained perturbations}: Developing attack methods that restrict perturbations to object bounding boxes (e.g., using RCEN or logit loss optimization), minimizing background noise while maintaining high attack success rates ($>$80\% transferability) \cite{bounding_box_attacks}.
+
     \item \textbf{Cross-architectural transferability}: Investigating adaptive noise patterns exploiting shared backbone vulnerabilities (e.g., YOLO$\to$Faster R-CNN) using randomized scaling/offsets \cite{cross_model_transfer}.
 \end{itemize}
 
-\subsection{Video and Physical-World Robustness}
+\subsection{Object Detectors and Physical-World Robustness}
 \begin{itemize}
+    \item \textbf{Bounding-box-constrained perturbations}: Developing attack methods that restrict perturbations to object bounding boxes (e.g., using RCEN or logit loss optimization), minimizing background noise while maintaining high attack success rates ($>$80\% transferability) \cite{bounding_box_attacks}.
     \item \textbf{Temporal attack consistency}: Extending adversarial attacks to video segmentation/tracking systems by integrating hard-region discovery with temporal perturbation constraints \cite{video_attacks}.
     \item \textbf{Physical-world validation}: Testing 3D-printed adversarial objects under occlusion/lighting variations using multiview rendering pipelines \cite{3d_physical_attacks}.
 \end{itemize}
@@ -41,11 +42,7 @@
     \item \textbf{Physical ASR robustness}: Designing over-air audio attacks using expectation-over-transformation (EoT) methods simulating real-world distortions \cite{eot_methods}.
 \end{itemize}
 
-\subsection{Cross-Cutting Priorities}
-\begin{itemize}
-    \item \textbf{Sparsity optimization}: Limiting perturbations to 5\% pixel/text modification using reinforcement learning \cite{sparsity_opt}.
-    \item \textbf{Ethical benchmarking}: Curating unified evaluation standards for adversarial robustness across vision, NLP, and ASR tasks \cite{ethical_benchmarking}.
-\end{itemize}
+
 
 These directions address critical gaps in attack transferability, real-world applicability, and defense interoperability, advancing toward secure, attack-resistant AI systems in critical applications.
 

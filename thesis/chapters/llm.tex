@@ -17,7 +17,15 @@ The Greedy Coordinate Gradient (GCG) \cite{zou2023universaltransferableadversari
 aligned language models to produce virtually any objectionable content. Specifically, given a (po-
 tentially harmful) user query, the attack appends an adversarial suffix to the query that attempts
 to induce negative behavior. that is, the user’s original query is left intact, but additional
-tokens are added to attack the model. To choose these adversarial suffix tokens, the attack consists of three
+tokens are added to attack the model as shown in Figure ~\ref{fig:Adversarial_suffix_example}. 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{images/LM/LLM/GCG_example.png}
+    \caption{Adversarial suffix example.}
+    \label{fig:Adversarial_suffix_example}
+\end{figure}
+
+To choose these adversarial suffix tokens, the attack consists of three
 key elements; these elements have indeed existed in very similar forms in the literature, but it's found that their careful combination leads to reliably successful attacks in practice.
 \begin{enumerate}
     \item \textbf{Initial affirmative responses:}

@@ -14,7 +14,7 @@
 \usepackage{tcolorbox} % For breakable algorithm and table
 \usepackage{multirow}
 \usepackage{subfiles}
-\usepackage[backend=biber]{biblatex}
+\usepackage[backend=biber,sorting=none]{biblatex}  % Added sorting=none for citation order
 \usepackage{xcolor}
 \usepackage{titling}
 \usepackage{setspace}
@@ -67,6 +67,7 @@
 \large \textbf{Electronics \& Electrical Communication} \\
 \large \textbf{Engineering Department}
 \end{center} & 
+
 \includegraphics[width=2.5cm]{images/eng.png}
 \end{tabular}
 
@@ -135,7 +136,11 @@
 \vspace{1cm}
 
 \end{center}
+
 \end{titlepage}
+
+% Switch to roman numbering for front matter
+\pagenumbering{Roman}
 
 % Acknowledgment Page
 \chapter*{Acknowledgment}
@@ -175,6 +180,9 @@ In parallel, we generate a diverse set of adversarial samples to characterize ho
 % \newpage
 
 % Main Content
+% Switch to arabic numbering starting from 1
+\pagenumbering{arabic}
+
 \chapter{Introduction}
 \label{chap:introduction}
 \subfile{chapters/introduction} % This will insert the content from the subfile
@@ -200,13 +208,15 @@ In parallel, we generate a diverse set of adversarial samples to characterize ho
 \part{Language Models}
 \subfile{chapters/lm_intro}
 
+\chapter{NLP}
+\subfile{chapters/nlp}
+\label{chap:nlp}
+
+
 \chapter{LLMs}
 \label{chap:llm}
 \subfile{chapters/llm}
 
-\chapter{NLP}
-\subfile{chapters/nlp}
-\label{chap:nlp}
 
 \chapter{Automatic Speech Recognition}
 \label{chap:asr}
@@ -220,9 +230,8 @@ In parallel, we generate a diverse set of adversarial samples to characterize ho
 \label{chap:future_work}
 \subfile{chapters/future_work}
 
-% Bibliography
-\bibliographystyle{unsrt}
-\bibliography{references}
-\printbibliography
+
+% References - using only biblatex commands
+\printbibliography[title=References]
 
 \end{document}

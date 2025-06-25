@@ -359,9 +359,15 @@ After training, the model achieved 99.95\% accuracy on the training set and 98.5
 \clearpage
 
 \paragraph{APS Flowchart:}
-\paragraph{Multi-Stage APS Defense Pipeline}
-The final input filter system, illustrated in Figure~1, is described in Algorithm~\ref{alg:pipeline}.
+The workflow of our proposed Adversarial Prompt Shield (APS) is illustrated in Figure \ref{fig:aps_flowchart}. The system intercepts incoming prompts and analyzes them for malicious characteristics before they reach the language model.
 
+% Now, place the figure environment.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/LM/LLM/flowchartamer.pdf}
+    \caption{Adversarial Prompt Shield (APS) flowchart.}
+    \label{fig:aps_flowchart}
+\end{figure}
 \begin{breakablealgorithm}{Multi-Stage APS Defense Pipeline Algorithm}
 
 \label{alg:pipeline}

@@ -357,39 +357,25 @@ Each prompt was tokenized to a maximum of 512 tokens using the DistilBERT tokeni
     \item Evaluation metric: F1 score (computed each epoch)
 \end{itemize}
 After training, the model achieved 99.95\% accuracy on the training set and 98.5\% on the validation set, indicating strong generalization.
-\clearpage
-
-\paragraph{APS Flowchart:}
+ Introducing the APS Flowchart
+\paragraph{APS Flowchart}
 The workflow of our proposed Adversarial Prompt Shield (APS) is illustrated in Figure \ref{fig:aps_flowchart}. The system intercepts incoming prompts and analyzes them for malicious characteristics before they reach the language model.
 
-% Now, place the figure environment.
+% Placing the figure
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.7\textwidth]{images/LM/LLM/flowchartamer.pdf}
     \caption{Adversarial Prompt Shield (APS) flowchart.}
     \label{fig:aps_flowchart}
 \end{figure}
-\begin{breakablealgorithm}{Multi-Stage APS Defense Pipeline Algorithm}
 
-\label{alg:pipeline}
-\begin{algorithmic}[1]
-\Require $x$: input prompt, $M_d$: Detoxify model, $M_c$: fine-tuned DistilBERT classifier, $M_t$: TinyLlama-1.1B model, $\lambda_t=0.6$: toxicity threshold, $\lambda_j=0.6$: jailbreak threshold, $\tau=512$: max tokens, $L=200$: max response length
-\Ensure $\mathcal{R}$: response dictionary with status, reason, and output
-\State Compute toxicity score: $t \gets M_d(x)$ \Comment{Detoxify model}
-\If{$t > \lambda_t$}
-    \State \Return $\mathcal{R} \gets \{ \text{status}: \text{``blocked''}, \text{reason}: \text{``Toxic prompt detected (toxicity=$t$)''}, \text{output}: \text{None} \}$
-\EndIf
-\State Tokenize $x$ to $\leq \tau$ tokens using DistilBERT tokenizer
-\State Compute jailbreak probabilities: $p \gets M_c(x)$ \Comment{Logits from DistilBERT classifier}
-\State Extract jailbreak probability: $p_j \gets \text{softmax}(p)[1]$
-\If{$p_j > \lambda_j$}
-    \State \Return $\mathcal{R} \gets \{ \text{status}: \text{``blocked''}, \text{reason}: \text{``Unsafe/jailbreak prompt detected''}, \text{output}: \text{None} \}$
-\EndIf
-\State Format $x$ as chat-style input: $x_c \gets \text{apply\_chat\_template}(\{ \text{system}: \text{``You are a helpful assistant.''}, \text{user}: x \})$ \Comment{TinyLlama tokenizer}
-\State Generate response: $r \gets M_t(x_c, \text{max\_length}=L)$ \Comment{TinyLlama-1.1B with sampling}
-\State \Return $\mathcal{R} \gets \{ \text{status}: \text{``safe''}, \text{reason}: \text{None}, \text{output}: r \}$
-\end{algorithmic}
-\end{breakablealgorithm}
+% Explaining the flowchart
+\paragraph{Flowchart Explanation}
+The flowchart in Figure~\ref{fig:aps_flowchart} illustrates the pipeline of the proposed Adversarial Prompt Shield (APS) system. The process begins with an input prompt submitted by the user. In the first stage, the prompt is passed through a toxicity detection model (Detoxify). If the predicted toxicity score is greater than or equal to 0.6, the prompt is blocked. Otherwise, it proceeds to the second stage for jailbreak detection.
+
+In the second stage, a lightweight DistilBERT classifier, fine-tuned using LoRA on a set of jailbreak and safe prompts, evaluates whether the prompt is adversarially crafted (i.e., a jailbreak attempt). If the jailbreak probability is greater than or equal to 0.6, the prompt is blocked. Prompts that pass both the toxicity and jailbreak checks are forwarded to the TinyLlama-1.1B model for response generation.
+
+The DistilBERT classifier was trained using a dataset of 3,000 labeled prompts. Safe prompts were sourced from Dolly and OpenOrca, while jailbreak examples were obtained from JailbreakHub and JailbreakBench. This dual-stage filtering mechanism ensures that harmful or adversarial prompts are intercepted before reaching the language model, thus strengthening its safety and robustness.
 
 
 \subsubsection{Results}
@@ -653,7 +639,7 @@ Metric & Unmodified Prompts & Modified Prompts \\
     \item The GPT-3.5 harm filter maintained perfect precision (1.00) and zero false positives, demonstrating robust detection of harmful outputs when generated.
     \item The self-defensive mechanism is effective for aligned models but relies on harmful outputs being produced, highlighting the importance of prompt design in testing model vulnerabilities.
 \end{itemize}
-\newpage
+
 \paragraph*{ External Harm Filter Results}  
 Unalligned TinyLlama1.1B was used as a response generator and GPT3.5 harm filter with 50 jailbreak prompts from AdvBench (These prompts are evaluted in an unmodified manner; because it is already an unalligned model that will be fooled by Jailbreak Prompts , that encounters lack of safety training  and 50 safe prompts  were used from the Quora Questions Dataset. Here are the results:
 

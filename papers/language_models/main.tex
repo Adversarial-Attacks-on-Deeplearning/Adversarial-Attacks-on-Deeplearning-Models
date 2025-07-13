@@ -9,36 +9,42 @@
 \usepackage{arabtex}
 \usepackage{utf8}
 \usepackage{multirow}
-\usepackage{biblatex}
-\addbibresource{references.bib}
-
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{tcolorbox}
+\usepackage{siunitx} % Added for S column type in tables
 
 \begin{document}
 
-\title{Adversarial Attacks On Language Models}
+\title{Adversarial Attacks on Language Models}
 
 \author{
-    \IEEEauthorblockN{Ahmed Tamer Samir Mohamed, Salma Mohamed Hamed Mostafa, Saad Ahmed Saad Ali}
-    \IEEEauthorblockN{Omar Khaled Abdel Aleem Ali, Fatma Hussein Abdel Wahed Zaher, Youssef Hesham Abdel Fattah Mohamed}
+    \IEEEauthorblockN{
+        \IEEEauthor{Ahmed Tamer Samir Mohamed},
+        \IEEEauthor{Salma Mohamed Hamed Mostafa},
+        \IEEEauthor{Saad Ahmed Saad Ali}
+    }
+    \IEEEauthorblockN{
+        \IEEEauthor{Omar Khaled Abdel Aleem Ali},
+        \IEEEauthor{Fatma Hussein Abdel Wahed Zaher},
+        \IEEEauthor{Youssef Hesham Abdel Fattah Mohamed}
+    }
     \IEEEauthorblockA{
         Department of Electronics and Electrical Communications Engineering \\
         Cairo University \\
         Supervised by: Prof. Dr. Hanan Ahmed Kamal and Dr. Mohamed Abdo Tolba\thanks{This work was supervised by Prof. Dr. Hanan Ahmed Kamal and Dr. Mohamed Abdo Tolba.}
     }
+
 }
+
 \maketitle
 
 \begin{abstract}
-
+This paper presents a comprehensive investigation into the adversarial vulnerabilities of deep learning models deployed in natural language processing (NLP), large language models (LLMs), and automatic speech recognition (ASR). We systematically evaluate the impact of state-of-the-art adversarial attacks on representative architectures such as BiLSTM-GloVe for sentiment analysis, Qwen-1.5 for LLMs, and Wav2Vec 2.0 for ASR. Our study implements and benchmarks a diverse suite of attack algorithms. In addition, we design and implement a range of defense mechanisms. Experimental results reveal the nuanced interaction between attack granularity and defense effectiveness, demonstrating that hybrid and layered defenses can significantly reduce attack success. Our findings highlight critical trade-offs between robustness, clean-data performance, and computational overhead, and provide insights for deploying resilient, trustworthy language AI systems in safety-critical and real-world environments. This work establishes unified benchmarks and defense blueprints, advancing the secure adoption of language models across various domains.
 \end{abstract}
 
-This paper presents a comprehensive investigation into the adversarial vulnerabilities of deep learning models deployed in natural language processing (NLP), large language models (LLMs), and automatic speech recognition (ASR). We systematically evaluate the impact of state-of-the-art adversarial attacks on representative architectures such as BiLSTM-GloVe for sentiment analysis, Qwen-1.5 for LLMs, and Wav2Vec 2.0 for ASR. Our study implements and benchmarks a diverse suite of attack algorithms.
-
-In addition, we design and implement a range of defense mechanisms. Experimental results reveal the nuanced interaction between attack granularity and defense effectiveness, demonstrating that hybrid and layered defenses can significantly reduce attack success.
-
-Our findings highlight critical trade-offs between robustness, clean-data performance, and computational overhead, and provide insights for deploying resilient, trustworthy language AI systems in safety-critical and real-world environments. This work establishes unified benchmarks and defense blueprints, advancing the secure adoption of language models across various domains.
 \begin{IEEEkeywords}
-Adversarial Attacks, Deep Learning, Large Language Models (LLMs), Natural Language Processing (NLP), Automatic Speech Recognition (ASR), Model Robustness, Defense Mechanisms, White-Box Attacks, Black-Box, Security of AI Systems
+Adversarial Attacks, Deep Learning, Large Language Models, Natural Language Processing, Automatic Speech Recognition, Model Robustness, Defense Mechanisms, White-Box Attacks, Black-Box Attacks, Security of AI Systems
 \end{IEEEkeywords}
 
 \section{Introduction}
@@ -46,48 +52,204 @@ Language models have become a cornerstone of artificial intelligence, enabling m
 
 This paper investigates the adversarial vulnerabilities of language models across three major domains:
 \begin{itemize}
-   
     \item \textbf{Traditional Natural Language Processing (NLP):} Models focused on tasks like sentiment analysis and text classification, often using architectures such as RNNs or early Transformers.
-
     \item \textbf{Large Language Models (LLMs):} Powerful, pre-trained models capable of advanced reasoning and generation, but with an expanded attack surface.
-
-     \item \textbf{Automatic Speech Recognition (ASR):} Systems that convert spoken language into text, serving as the first step for many language-based applications.
+    \item \textbf{Automatic Speech Recognition (ASR):} Systems that convert spoken language into text, serving as the first step for many language-based applications.
 \end{itemize}
 
 Across these domains, we demonstrate that language models—regardless of their complexity—are susceptible to adversarial attacks. Small, carefully crafted perturbations in input data can cause significant failures, highlighting critical security challenges for real-world AI deployments. This work provides a concise overview of these vulnerabilities and sets the stage for a deeper exploration of attack strategies and defense mechanisms in subsequent sections.
 
 \section{Related Work}
 
-Adversarial attacks on language models have become a major concern as these models are increasingly integrated into real-world systems. While early research centered on adversarial vulnerabilities in computer vision, recent studies have systematically exposed similar threats in natural language processing (NLP), large language models (LLMs), and automatic speech recognition (ASR)~\cite{goodfellow2015explaining, jin2019textfooler, li2018textbugger, qin2019imperceptible, zou2023universaltransferableadversarialattacks}.
+Adversarial attacks on language models have become a major concern as these models are increasingly integrated into real-world systems. While early research centered Aynı zamanda adversarial vulnerabilities in computer vision, recent studies have systematically exposed similar threats in natural language processing (NLP), large language models (LLMs), and automatic speech recognition (ASR)~\cite{goodfellow2015explaining, jin2019textfooler, li2018textbugger, qin2019imperceptible, zou2023universaltransferableadversarialattacks}.
 
 \subsection{Adversarial Attacks on NLP Models}
-
 Text-based adversarial attacks exploit the discrete and semantic structure of language. Word-level attacks such as TextFooler~\cite{jin2019textfooler} replace important words with semantically similar alternatives, maintaining grammaticality while causing model misclassification. Character-level attacks like TextBugger~\cite{li2018textbugger} and DeepWordBug~\cite{gao2018deepwordbug} introduce small character manipulations (insertions, deletions, swaps), which are often imperceptible to humans but highly effective against NLP models. These attacks are commonly evaluated in black-box settings, using frameworks like TextAttack~\cite{morris2020textattack} for standardized benchmarking.
 
 \subsection{Adversarial Attacks on Large Language Models}
-
-LLMs present a broader attack surface, with jailbreak and prompt injection attacks posing new risks. Jailbreak attacks craft adversarial prompts to bypass safety and alignment mechanisms, eliciting undesired or harmful outputs~\cite{perez2022ignorepreviouspromptattack, zou2023universaltransferableadversarialattacks}. Prompt injection attacks exploit retrieval-augmented or tool-integrated systems by embedding malicious instructions in external data, hijacking model behavior during inference~\cite{greshake2023youvesignedforcompromising}. Automated and transferable adversarial suffix generation~\cite{zou2023universaltransferableadversarialattacks}.
+LLMs present a broader attack surface, with jailbreak and prompt injection attacks posing new risks. Jailbreak attacks craft adversarial prompts to bypass safety and alignment mechanisms, eliciting undesired or harmful outputs~\cite{perez2022ignorepreviouspromptattack, zou2023universaltransferableadversarialattacks}. Prompt injection attacks exploit retrieval-augmented or tool-integrated systems by embedding malicious instructions in external data, hijacking model behavior during inference~\cite{greshake2023youvesignedfor compromising}. Automated and transferable adversarial suffix generation~\cite{zou2023universaltransferableadversarialattacks}.
 
 \subsection{Adversarial Attacks on Audio and ASR Models}
-
 Adversarial attacks on ASR systems have revealed that even state-of-the-art speech recognition models are susceptible to carefully crafted audio perturbations. Early work demonstrated that adding imperceptible noise can cause ASR systems to transcribe incorrect or attacker-specified text~\cite{qin2019imperceptible}. Attacks such as the Fast Gradient Sign Method (FGSM) and Projected Gradient Descent (PGD), originally developed for vision, have been adapted to the audio domain, generating adversarial waveforms that remain intelligible to humans but deceive ASR models~\cite{qin2019imperceptible, esmaeilpour2021towards}.
 
 More advanced methods leverage psychoacoustic principles, hiding perturbations beneath the auditory masking threshold to ensure imperceptibility~\cite{qin2019imperceptible}. Optimization-based attacks, such as those using the Cramér Integral Probability Metric (Cramér-IPM), jointly optimize for transcription loss and perceptual similarity, achieving high attack success rates while preserving audio quality~\cite{esmaeilpour2021towards}. Transfer-based black-box attacks exploit the transferability of adversarial examples between different ASR architectures, but recent work has shown that architectural and training objective mismatches can significantly reduce transfer success~\cite{gao2024transferable}.
 
 \subsection{Defense Mechanisms}
-
 Defenses against adversarial attacks on language and ASR models combine proactive and reactive techniques. Virtual Adversarial Training (VAT)~\cite{miyato2017virtual} regularizes models by smoothing output distributions around perturbed inputs, improving robustness without requiring labeled adversarial examples. Character-level purification heuristics correct common adversarial text manipulations~\cite{morris2020textattack, li2023textpurification}. For LLMs, multi-stage input filtering systems, such as Adversarial Prompt Shield (APS), detect and block toxic or adversarial prompts~\cite{zou2023universaltransferableadversarialattacks}. In ASR, signal processing defenses like spectral gating, MP3 compression, and input quantization can remove or disrupt adversarial noise~\cite{oreilly2022voiceblock, andronic2020mp3, li2024investigating}.
 
-
-
 \section{Natural Language Processing}
+% Placeholder content
+This section will analyze adversarial attacks on traditional NLP models, such as BiLSTM-GloVe, focusing on sentiment analysis and text classification tasks. Detailed experiments and results will be provided in the final manuscript.
 
 \section{Large Language Models}
+% Placeholder content
+This section will explore adversarial vulnerabilities in large language models, such as Qwen-1.5, including jailbreak and prompt injection attacks. Experimental results and defense strategies will be detailed in the final manuscript.
 
 \section{Automatic Speech Recognition}
+\subsection{Experimental Setup}
+\subsubsection{Model}
+Pre-trained Wav2Vec 2.0, a state-of-the-art self-supervised Transformer-based ASR model.
 
-\printbibliography[title=References]
+\subsubsection{Dataset}
+LibriSpeech test-clean subset (100 samples). LibriSpeech is a standard benchmark for ASR, ensuring reproducibility and comparability.
+
+\subsubsection{Metrics}
+\begin{itemize}
+    \item \textbf{Character Error Rate (CER):} Measures the percentage of characters incorrectly predicted.
+    \item \textbf{Word Error Rate (WER):} Measures the percentage of words incorrectly predicted.
+    \item \textbf{Signal-to-Noise Ratio (SNR):} Ensures adversarial audio remains intelligible to humans, with SNR thresholds referenced from auditory science~\cite{MaLoizou2011} (greater than or equal to 7 dB for 100\% intelligibility in complex noise).
+\end{itemize}
+
+\subsection{Attacks}
+\subsubsection{Tested Attacks}
+\begin{enumerate}
+    \item \textbf{Fast Gradient Sign Method (FGSM):} The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack technique designed to generate adversarial examples by introducing imperceptible perturbations to input data, thereby misleading machine learning models~\cite{goodfellow2015explaining}. Specifically, FGSM crafts adversarial examples using the equation \( x_{adv} = x + \epsilon \cdot \text{sign}(\nabla_x L(x, y_t)) \), where \( x_{adv} \) is the adversarial input, \( x \) is the original input, \( \epsilon \) controls the perturbation magnitude, and \( \nabla_x L(x, y_t) \) is the gradient of the loss function with respect to the input for a target transcription \( y_t \). In the context of automatic speech recognition (ASR), this attack crafts adversarial audio samples that force the model to produce a specified target transcription~\cite{zelasko2021adversarial}.
+
+    \item \textbf{Projected Gradient Descent (PGD):} The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial attack method that builds upon the principles of the Fast Gradient Sign Method (FGSM) by applying multiple small perturbations to optimize the adversarial example within an \(\ell_\infty\) norm constraint~\cite{madry2018towardspgd}. PGD iteratively updates the perturbation using \(\eta = \eta + \alpha \cdot \text{sign}(\nabla_{\eta} L(x + \eta, y_t))\), where \(\eta\) is the perturbation, \(\alpha\) is the step size, and \(\nabla_{\eta} L(x + \eta, y_t)\) is the gradient of the loss function with respect to the perturbation for a target transcription \(y_t\). The adversarial example is then computed as \(x_{adv} = x + \eta\), where \(x_{adv}\) is the adversarial input and \(x\) is the original input. In automatic speech recognition (ASR) systems, PGD generates adversarial audio samples by iteratively adjusting the input waveform to maximize the loss function, aiming to force the model to produce a specified target transcription~\cite{zelasko2021adversarial}.
+
+    \item \textbf{Cramér Integral Probability Metric (IPM):} The Cramér Integral Probability Metric (IPM) attack is an advanced adversarial method designed to generate robust adversarial audio signals for automatic speech recognition (ASR) systems~\cite{esmaeilpour2021towards}. The method employs an iterative update process defined by the equations:
+  \[
+  L = L_{CTC} + \lambda \cdot \text{mean}(\ell_{\text{Cramér}})
+  \]
+  \[
+  \delta \leftarrow \text{AdamUpdate}(\delta, \nabla_\delta L)
+  \]
+  where \(\ell_{\text{Cramér}} = \sum_{j=1}^m (F_{\text{org}}(t_j) - F_{\text{adv}}(t_j))^2 \cdot \Delta t\), with \(L_{CTC}\) being the Connectionist Temporal Classification loss, \(\lambda\) a weighting factor, \(\ell_{\text{Cramér}}\) the Cramér loss measuring distribution discrepancy, \(\delta\) the perturbation, and \(\text{AdamUpdate}\) the optimization step using the gradient \(\nabla_\delta L\). By leveraging the Cramér-IPM, this attack minimizes the discrepancy between the distributions of original and adversarial audio samples, ensuring the adversarial signals remain close to the legitimate speech manifold. Unlike traditional attacks like FGSM or PGD, the Cramér-IPM approach combines the CTC loss with a statistical distance metric, enhancing robustness against over-the-air playback without relying on costly Expectation Over Transformation (EOT) operations~\cite{esmaeilpour2021towards}. This method optimizes perturbations to maximize transcription errors while maintaining perceptual similarity, making it effective for both targeted and non-targeted attacks.
+
+  
+    \item \textbf{Imperceptible, Robust, and Targeted Attack:} The Imperceptible, Robust, and Targeted Attack algorithm~\cite{qin2019imperceptible} is designed to generate adversarial audio examples that force automatic speech recognition (ASR) systems to transcribe a specific target phrase, while ensuring the perturbations remain inaudible to human listeners using psychoacoustic principles. The algorithm operates through two stages with key equations:
+  \[
+  x_{adv} = x + \delta
+  \]
+  \[
+  l = l_{Net} + \alpha \cdot l_{Psd}
+  \]
+  where \(x_{adv}\) is the adversarial input, \(x\) is the original audio, \(\delta\) is the perturbation updated iteratively in Stage 1 using CTC loss optimization and clipped within an adaptive \(\epsilon\) constraint, \(l_{Net}\) is the CTC loss, \(l_{Psd}\) is the psychoacoustic loss based on the masking threshold, and \(\alpha\) is a weighting factor. It operates in two stages: Stage 1 generates an initial perturbation using CTC loss optimization with an adaptive \(\epsilon\) constraint, and Stage 2 refines this perturbation to stay below the psychoacoustic masking threshold. This ensures the adversarial audio is imperceptible while achieving targeted transcription errors, leveraging psychoacoustic principles for stealth.
+\end{enumerate}
+
+\subsubsection{Results}\leavevmode\\
+Original CER: 0.9\% --- Original WER: 2.84\%.
+
+\begin{table}[H]
+\caption{Attack Effectiveness of FGSM}
+\label{fgsm_wav2vec2}
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{cS[table-format=1.3]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]}
+\toprule
+$\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER} \\
+\midrule
+0.001 & 1.72 & 5.07 & 57.56 & 0.82 & 3.87 \\
+0.005 & 2.83 & 7.16 & 43.58 & 1.93 & 4.33 \\
+0.01  & 1.73 & 5.89 & 37.56 & 0.83 & 3.05 \\
+0.02  & 2.42 & 7.60 & 31.54 & 1.52 & 4.76 \\
+0.05  & 2.85 & 7.83 & 23.58 & 1.95 & 4.99 \\
+0.10  & 3.57 & 9.68 & 17.56 & 2.67 & 6.84 \\
+0.20  & 7.60 & 15.16 & 11.54 & 6.70 & 12.32 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[H]
+\caption{Attack Effectiveness of PGD}
+\label{pgd_wav2vec2}
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{cS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]}
+\toprule
+$\epsilon$, $\alpha$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER} \\
+\midrule
+0.001, 0.0001 & 4.00 & 9.00 & 62.48 & 2.90 & 6.76 \\
+0.005, 0.0005 & 4.50 & 11.00 & 50.05 & 3.40 & 8.76 \\
+0.01, 0.001   & 5.34 & 14.70 & 37.56 & 4.44 & 11.86 \\
+0.02, 0.002   & 9.80 & 22.72 & 31.54 & 8.90 & 19.88 \\
+0.05, 0.005   & 24.21 & 44.36 & 23.58 & 23.31 & 41.52 \\
+0.10, 0.01    & 37.90 & 61.98 & 17.56 & 37.00 & 59.14 \\
+0.20, 0.02    & 58.39 & 81.44 & 11.54 & 57.49 & 78.60 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[H]
+\caption{Attack Effectiveness of Cramér-IPM}
+\label{cramer_ipm_results}
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{cS[table-format=2.1]S[table-format=2.1]S[table-format=2.2]S[table-format=2.1]S[table-format=2.1]}
+\toprule
+$\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER (\%)} & {$\Delta$WER (\%)} \\
+\midrule
+0.001 & 20.5 & 26.1 & 18.39 & 19.6 & 23.3 \\
+0.005 & 18.8 & 32.1 & 16.17 & 17.9 & 29.3 \\
+0.010 & 40.8 & 59.6 & 14.27 & 39.9 & 56.8 \\
+0.020 & 61.8 & 81.1 & 12.08 & 60.9 & 78.3 \\
+0.050 & 93.4 & 99.0 & 9.42  & 92.5 & 96.2 \\
+0.100 & 95.5 & 98.9 & 8.19  & 94.6 & 96.1 \\
+0.200 & 92.9 & 98.4 & 8.05  & 92.0 & 95.6 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[H]
+\caption{Attack Effectiveness of Imperceptible Attack}
+\label{Im_table}
+\centering
+\footnotesize
+\resizebox{0.8\columnwidth}{!}{%
+\begin{tabular}{lS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]}
+\toprule
+\textbf{Stage} & {WER (\%)} & {CER (\%)} & {SNR (dB)} & {$\Delta$WER (\%)} & {$\Delta$CER (\%)} \\
+\midrule
+Stage 1 & 75.88 & 75.88 & 40.48 & 73.04 & 74.98 \\
+Stage 2 & 100.00 & 100.00 & 30.39 & 97.16 & 99.10 \\
+\bottomrule
+\end{tabular}}
+\end{table}
 
 
+
+\begin{table}[H]
+\caption{Comparison of Attack Effectiveness: Wav2vec2 vs. Original Papers}
+\label{attack_comparison}
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+\textbf{Attack} & \textbf{Model} & \textbf{Condition} & \textbf{WER (\%)} \\
+\midrule
+FGSM & Wav2vec2 (This Work) & \(\epsilon = 0.01\) & 5.89 \\
+     & Wav2vec2 (This Work) & \(\epsilon = 0.2\) & 15.16 \\
+     & DeepSpeech 2~\cite{zelasko2021adversarial} & \(\epsilon = 0.01\) & 77.9 \\
+     & DeepSpeech 2~\cite{zelasko2021adversarial} & \(\epsilon = 0.2\) & 100 \\
+     & Espresso~\cite{zelasko2021adversarial} & \(\epsilon = 0.01\) & 65.3 \\
+     & Espresso~\cite{zelasko2021adversarial} & \(\epsilon = 0.2\) & 108 \\
+\midrule
+PGD & Wav2vec2 (This Work) & \(\epsilon = 0.01\) & 14.70 \\
+    & Wav2vec2 (This Work) & \(\epsilon = 0.2\) & 81.44 \\
+    & DeepSpeech~\cite{zelasko2021adversarial} & \(\epsilon = 0.01\) & 97.5 \\
+    & Espresso~\cite{zelasko2021adversarial} & \(\epsilon = 0.2\) & 139.3 \\
+\midrule
+Cramér-IPM & Wav2vec2 (This Work)~\ref{cramer_ipm_results} & \(\epsilon = 0.05\) & 99.0 \\
+           & DeepSpeech~\cite{esmaeilpour2021towards} & Average & 88.19 \\
+\midrule
+Two-Stage (Stage 1) & Wav2vec2 (This Work) & - & 75.88 \\
+                   & Lingvo~\cite{qin2019imperceptible} & - & 100 (100\% success) \\
+                   & Wav2vec2 (This Work) (Stage 2) & - & 100 \\
+                   & Lingvo~\cite{qin2019imperceptible} (Stage 2) & - & 100 (100\% success) \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+
+
+These results highlight the robustness of wav2vec2 against FGSM and PGD at lower \(\epsilon\) values, with WER significantly increasing only at higher perturbations. The Cramér-IPM attack proves highly effective, achieving near-perfect error rates, while the two-stage attack successfully refines perturbations for imperceptibility. Future work could explore optimizing SNR at higher \(\epsilon\) values to balance attack success and audio quality, especially for real-world applications.
+
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
 
 \end{document}

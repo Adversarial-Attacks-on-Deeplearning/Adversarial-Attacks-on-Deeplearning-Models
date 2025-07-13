@@ -1,0 +1,93 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{cite}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{url}
+\usepackage{arabtex}
+\usepackage{utf8}
+\usepackage{multirow}
+\usepackage{biblatex}
+\addbibresource{references.bib}
+
+
+\begin{document}
+
+\title{Adversarial Attacks On Language Models}
+
+\author{
+    \IEEEauthorblockN{Ahmed Tamer Samir Mohamed, Salma Mohamed Hamed Mostafa, Saad Ahmed Saad Ali}
+    \IEEEauthorblockN{Omar Khaled Abdel Aleem Ali, Fatma Hussein Abdel Wahed Zaher, Youssef Hesham Abdel Fattah Mohamed}
+    \IEEEauthorblockA{
+        Department of Electronics and Electrical Communications Engineering \\
+        Cairo University \\
+        Supervised by: Prof. Dr. Hanan Ahmed Kamal and Dr. Mohamed Abdo Tolba\thanks{This work was supervised by Prof. Dr. Hanan Ahmed Kamal and Dr. Mohamed Abdo Tolba.}
+    }
+}
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
+
+This paper presents a comprehensive investigation into the adversarial vulnerabilities of deep learning models deployed in natural language processing (NLP), large language models (LLMs), and automatic speech recognition (ASR). We systematically evaluate the impact of state-of-the-art adversarial attacks on representative architectures such as BiLSTM-GloVe for sentiment analysis, Qwen-1.5 for LLMs, and Wav2Vec 2.0 for ASR. Our study implements and benchmarks a diverse suite of attack algorithms.
+
+In addition, we design and implement a range of defense mechanisms. Experimental results reveal the nuanced interaction between attack granularity and defense effectiveness, demonstrating that hybrid and layered defenses can significantly reduce attack success.
+
+Our findings highlight critical trade-offs between robustness, clean-data performance, and computational overhead, and provide insights for deploying resilient, trustworthy language AI systems in safety-critical and real-world environments. This work establishes unified benchmarks and defense blueprints, advancing the secure adoption of language models across various domains.
+\begin{IEEEkeywords}
+Adversarial Attacks, Deep Learning, Large Language Models (LLMs), Natural Language Processing (NLP), Automatic Speech Recognition (ASR), Model Robustness, Defense Mechanisms, White-Box Attacks, Black-Box, Security of AI Systems
+\end{IEEEkeywords}
+
+\section{Introduction}
+Language models have become a cornerstone of artificial intelligence, enabling machines to process, understand, and generate human language. Evolving from simple statistical models to advanced deep learning architectures, these systems now underpin a wide range of applications, from speech recognition to text analysis and generative AI.
+
+This paper investigates the adversarial vulnerabilities of language models across three major domains:
+\begin{itemize}
+   
+    \item \textbf{Traditional Natural Language Processing (NLP):} Models focused on tasks like sentiment analysis and text classification, often using architectures such as RNNs or early Transformers.
+
+    \item \textbf{Large Language Models (LLMs):} Powerful, pre-trained models capable of advanced reasoning and generation, but with an expanded attack surface.
+
+     \item \textbf{Automatic Speech Recognition (ASR):} Systems that convert spoken language into text, serving as the first step for many language-based applications.
+\end{itemize}
+
+Across these domains, we demonstrate that language models—regardless of their complexity—are susceptible to adversarial attacks. Small, carefully crafted perturbations in input data can cause significant failures, highlighting critical security challenges for real-world AI deployments. This work provides a concise overview of these vulnerabilities and sets the stage for a deeper exploration of attack strategies and defense mechanisms in subsequent sections.
+
+\section{Related Work}
+
+Adversarial attacks on language models have become a major concern as these models are increasingly integrated into real-world systems. While early research centered on adversarial vulnerabilities in computer vision, recent studies have systematically exposed similar threats in natural language processing (NLP), large language models (LLMs), and automatic speech recognition (ASR)~\cite{goodfellow2015explaining, jin2019textfooler, li2018textbugger, qin2019imperceptible, zou2023universaltransferableadversarialattacks}.
+
+\subsection{Adversarial Attacks on NLP Models}
+
+Text-based adversarial attacks exploit the discrete and semantic structure of language. Word-level attacks such as TextFooler~\cite{jin2019textfooler} replace important words with semantically similar alternatives, maintaining grammaticality while causing model misclassification. Character-level attacks like TextBugger~\cite{li2018textbugger} and DeepWordBug~\cite{gao2018deepwordbug} introduce small character manipulations (insertions, deletions, swaps), which are often imperceptible to humans but highly effective against NLP models. These attacks are commonly evaluated in black-box settings, using frameworks like TextAttack~\cite{morris2020textattack} for standardized benchmarking.
+
+\subsection{Adversarial Attacks on Large Language Models}
+
+LLMs present a broader attack surface, with jailbreak and prompt injection attacks posing new risks. Jailbreak attacks craft adversarial prompts to bypass safety and alignment mechanisms, eliciting undesired or harmful outputs~\cite{perez2022ignorepreviouspromptattack, zou2023universaltransferableadversarialattacks}. Prompt injection attacks exploit retrieval-augmented or tool-integrated systems by embedding malicious instructions in external data, hijacking model behavior during inference~\cite{greshake2023youvesignedforcompromising}. Automated and transferable adversarial suffix generation~\cite{zou2023universaltransferableadversarialattacks}.
+
+\subsection{Adversarial Attacks on Audio and ASR Models}
+
+Adversarial attacks on ASR systems have revealed that even state-of-the-art speech recognition models are susceptible to carefully crafted audio perturbations. Early work demonstrated that adding imperceptible noise can cause ASR systems to transcribe incorrect or attacker-specified text~\cite{qin2019imperceptible}. Attacks such as the Fast Gradient Sign Method (FGSM) and Projected Gradient Descent (PGD), originally developed for vision, have been adapted to the audio domain, generating adversarial waveforms that remain intelligible to humans but deceive ASR models~\cite{qin2019imperceptible, esmaeilpour2021towards}.
+
+More advanced methods leverage psychoacoustic principles, hiding perturbations beneath the auditory masking threshold to ensure imperceptibility~\cite{qin2019imperceptible}. Optimization-based attacks, such as those using the Cramér Integral Probability Metric (Cramér-IPM), jointly optimize for transcription loss and perceptual similarity, achieving high attack success rates while preserving audio quality~\cite{esmaeilpour2021towards}. Transfer-based black-box attacks exploit the transferability of adversarial examples between different ASR architectures, but recent work has shown that architectural and training objective mismatches can significantly reduce transfer success~\cite{gao2024transferable}.
+
+\subsection{Defense Mechanisms}
+
+Defenses against adversarial attacks on language and ASR models combine proactive and reactive techniques. Virtual Adversarial Training (VAT)~\cite{miyato2017virtual} regularizes models by smoothing output distributions around perturbed inputs, improving robustness without requiring labeled adversarial examples. Character-level purification heuristics correct common adversarial text manipulations~\cite{morris2020textattack, li2023textpurification}. For LLMs, multi-stage input filtering systems, such as Adversarial Prompt Shield (APS), detect and block toxic or adversarial prompts~\cite{zou2023universaltransferableadversarialattacks}. In ASR, signal processing defenses like spectral gating, MP3 compression, and input quantization can remove or disrupt adversarial noise~\cite{oreilly2022voiceblock, andronic2020mp3, li2024investigating}.
+
+
+
+\section{Natural Language Processing}
+
+\section{Large Language Models}
+
+\section{Automatic Speech Recognition}
+
+\printbibliography[title=References]
+
+
+
+\end{document}

@@ -198,7 +198,7 @@ $\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER (\%)} & {$\
 \label{Im_table}
 \centering
 \footnotesize
-\resizebox{0.8\columnwidth}{!}{%
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]}
 \toprule
 \textbf{Stage} & {WER (\%)} & {CER (\%)} & {SNR (dB)} & {$\Delta$WER (\%)} & {$\Delta$CER (\%)} \\
@@ -247,6 +247,155 @@ Two-Stage (Stage 1) & Wav2vec2 (This Work) & - & 75.88 \\
 
 
 These results highlight the robustness of wav2vec2 against FGSM and PGD at lower \(\epsilon\) values, with WER significantly increasing only at higher perturbations. The Cramér-IPM attack proves highly effective, achieving near-perfect error rates, while the two-stage attack successfully refines perturbations for imperceptibility. Future work could explore optimizing SNR at higher \(\epsilon\) values to balance attack success and audio quality, especially for real-world applications.
+
+\subsection{Defenses}
+\subsubsection{Tested Defenses}
+\begin{enumerate}
+    \item \textbf{Randomized smoothing (RS):}  Randomized smoothing\cite{cohen2019certified} creates noise-invariant predictions. And it is an effective defense with speech to text models\cite{zelasko2021adversarial}. We implemented it with:
+
+\begin{itemize}
+    \item \textbf{Adaptive variance scaling \cite{li2024adaptive}:} adjusting the noise level (variance) added to an input signal based on its local characteristics, it dynamically scales the noise to be lower in high-variance regions (to preserve speech content) and higher in low-variance regions (to mask potential adversarial perturbations).
+    \item \textbf{ROVER voting \cite{olivier2022sequential}:} ROVER (Recognizer Output Voting Error Reduction) is a method for combining multiple transcription outputs from a speech recognition system. It aggregates transcriptions by voting on words at each position across noisy samples, selecting the most frequent word to produce a final, more robust transcription, reducing errors caused by noise or adversarial attacks.
+\end{itemize}
+
+\item \textbf{MP3 compression:} MP3 compression, a lossy audio encoding scheme based on psychoacoustic models, serves as an effective defense against Audio Adversarial Examples (AAEs) in Automatic Speech Recognition (ASR) systems \cite{andronic2020mp3}. By discarding audio information below human hearing thresholds, MP3 compression can reduce adversarial noise (AN) embedded in AAEs, which is often imperceptible to humans but misleads ASR systems into incorrect transcriptions \cite{andronic2020mp3}.
+\item \textbf{Spectral gating (SG):} Spectral gating is a defense strategy that applies noise reduction to audio signals to remove adversarial perturbations\cite{oreilly2022voiceblock}.
+The spectral gating defense works follows:
+\begin{enumerate}
+    \item \textbf{Voice Activity Detection}: Apply VAD to generate a boolean mask identifying speech segments.
+    \item \textbf{Noise Profile Extraction}: Extract non-speech segments based on the VAD mask. If no non-speech segments detected, use portions from the audio's beginning and end (0.5 seconds each).
+    \item \textbf{Noise Reduction}: Perform spectral subtraction, configured with parameters for stationary noise, proportion of noise to remove, and frequency/time smoothing.
+\end{enumerate}
+
+\item \textbf{Quantization (Q):} Input quantization reduces the precision of audio signals by mapping continuous values to discrete levels, effectively attenuating adversarial perturbations \cite{li2024investigating}. This process can disrupt adversarial perturbations while preserving speech intelligibility.
+\end{enumerate}
+
+\subsubsection{Comprehensive Pipeline Evaluation}\noindent
+\label{subsec:pipeline_evaluation}
+
+Table~\ref{tab:pipeline_summary} summarizes the performance of various pipeline configurations for defending against PGD adversarial attack with $\epsilon = 0.1$ on the target model, evaluated using Character Error Rate (CER), Word Error Rate (WER), change in CER relative to the baseline (\(\Delta\)CER), and average processing time per sample.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Comprehensive Pipeline Evaluation Summary}
+\label{tab:pipeline_summary}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=1.4]}
+\toprule
+{\textbf{Pipeline Configuration}} & {\textbf{CER (\%)}} & {\textbf{WER (\%)}} & {\textbf{\(\Delta\)CER (\%)}} & {\textbf{\(\Delta\)WER (\%)}} & {\textbf{Clean Data WER (\%)}} & {\textbf{Avg Time (s)}} \\
+\midrule
+Baseline (No Defense) & 37.90 & 61.98 & 0.00 & 0.00 & 2.83 & 0.0663 \\
+SG & 2.84 & 7.01 & 35.06 & 54.97 & 5.67 & 0.2268 \\
+MP3 & 7.08 & 14.94 & 30.82 & 47.04 & 4.49 & 0.4710 \\
+Q & 14.70 & 29.96 & 23.20 & 32.02 & 4.28 & 0.0547 \\
+RS & 11.46 & 22.95 & 26.44 & 39.03 & 3.21 & 1.1155 \\
+SG \(\to\) MP3 & 2.79 & 6.95 & 35.11 & 55.03 & 7.06 & 0.5753 \\
+SG \(\to\) Q & 3.35 & 8.50 & 34.55 & 53.48 & 6.47 & 0.1425 \\
+MP3 \(\to\) Q & 7.53 & 17.43 & 30.37 & 44.55 & 4.01 & 0.4888 \\
+SG \(\to\) MP3 \(\to\) Q & 3.52 & 8.66 & 34.38 & 53.32 & 7.54 & 0.5816 \\
+SG \(\to\) RS & 16.87 & 27.27 & 21.03 & 34.71 & 24.65 & 1.1237 \\
+MP3 \(\to\) RS & 5.28 & 11.12 & 32.62 & 50.86 & 5.03 & 1.4871 \\
+Q \(\to\) RS & 6.56 & 14.22 & 31.34 & 47.76 & 4.71 & 1.0738 \\
+SG \(\to\) MP3 \(\to\) RS & 20.20 & 30.59 & 17.70 & 31.39 & 28.98 & 1.5576 \\
+SG \(\to\) Q \(\to\) RS & 17.25 & 27.22 & 20.65 & 34.76 & 24.81 & 1.1653 \\
+MP3 \(\to\) Q \(\to\) RS & 5.11 & 11.12 & 32.79 & 50.86 & 5.29 & 1.4704 \\
+SG \(\to\) MP3 \(\to\) Q \(\to\) RS & 19.76 & 30.11 & 18.14 & 31.87 & 29.09 & 1.5762 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+
+
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Comparison of WER/CER Reduction: This Work vs. Original Papers in Comparable Conditions}
+\label{tab:defense_comparison}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccp{4cm}}
+\toprule
+\textbf{Defense} & \textbf{Metric} & \textbf{Reduction (This Work)} & \textbf{Reduction (Original)} \\
+\midrule
+RS & WER & 39.03\% & $\sim$30--40\%~\cite{zelasko2021adversarial} \\
+\addlinespace
+MP3 & CER & 30.82\% & 18--21\%~\cite{andronic2020mp3} \\
+\addlinespace
+SG & WER & 54.97\% & Not reported WER but 50--60\% in speaker ID (strong ASR)~\cite{oreilly2022voiceblock} \\
+\addlinespace
+Q & WER & 32.02\% & 10--30\%~\cite{li2024investigating} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+
+
+
+\subsubsection{Proposed Adaptive Defense Pipeline}
+\label{subsec:adaptive_defense}
+
+The adaptive defense pipeline combines lightweight detection with robust mitigation:
+\begin{enumerate}
+    \item \textbf{Detection Stage:} 8-bit quantization applied to input audio
+    \item \textbf{Decision Logic:} Classifies as adversarial if transcription dissimilarity (WER) larger than 12\%
+    \item \textbf{Mitigation Stage:} For detected attacks, applies Spectral Gating (SG) + MP3 compression (64kbps)
+\end{enumerate}
+
+\textbf{Evaluation on 100 samples (50 adversarial from all 4 tested attacks, 50 clean):}
+
+\begin{table}[H]
+\centering
+\caption{Adaptive Defense Performance}
+\label{tab:adaptive_defense}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Accuracy & 0.990 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Confusion Matrix}
+\label{tab:adaptive_confusion}
+\begin{tabular}{lcc}
+\toprule
+& \textbf{Predicted Adversarial} & \textbf{Predicted Clean} \\
+\midrule
+\textbf{Actual Adversarial} & 50 (TP) & 0 (FN) \\
+\textbf{Actual Clean} & 1 (FP) & 49 (TN) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Timing Analysis:}
+\begin{itemize}
+    \item \textbf{Average total time/sample:} 0.375s
+    \item \textbf{Breakdown:}
+    \begin{itemize}
+        \item Original transcription: 0.044s (11.7\%)
+        \item Quantization + transcription: 0.045s (12.1\%)
+        \item SG→MP3 defense: 0.534s
+    \end{itemize}
+\end{itemize}
+
+\noindent\textbf{Adversarial Samples (50):}
+\begin{itemize}
+    \item \textbf{Detection rate:} 100.0\% (50/50)
+    \item \textbf{WER reduction:} 57.49\% (65.91\% → 8.42\%)
+\end{itemize}
+
+\noindent\textbf{Clean Samples (50):}
+\begin{itemize}
+    \item \textbf{Correct classification:} 98.0\% (49/50)
+    \item \textbf{WER impact:} Minimal degradation (4.21\% → 3.93\%)
+\end{itemize}
+
+The adaptive pipeline achieves near-perfect attack detection (100\% recall) while maintaining low false positives (2\%). The defense reduces adversarial WER by 57.49 percentage points with minimal computational overhead, demonstrating an optimal balance between robustness and efficiency. The single false positive case confirms the pipeline's conservative design, prioritizing security over minimal clean-sample degradation.
+
 
 
 \bibliographystyle{IEEEtran}

@@ -105,13 +105,48 @@ We have chosen 3 metrics to evaluate our attacks and defenses:
 \begin{itemize}
     \item mean Average Precision (mAP50-95)
     \item mean Average Precision (mAP50)
+    \item Precision
+    \item Recall
     \item Inference Time (ms)
+
 \end{itemize}
 
 \subsection{Attacks}
 \subsubsection{Tested Attacks}
 
 \subsubsection{Results}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Overall Performance of YOLO under Clean and Various Adversarial Attacks}
+\label{tab:yolo_combined_performance}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{\hspace{0.2cm}}p{4cm}S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]S[table-format=1.3]@{\hspace{0.2cm}}}
+\toprule
+\textbf{Attack} & {\textbf{Precision}} & {\textbf{Recall}} & {\textbf{mAP@0.5}} & {\textbf{mAP@0.5:0.95}} \\
+\midrule
+Clean                          & 0.935 & 0.854 & 0.927 & 0.811 \\
+FGSM $\epsilon=0.01$           & 0.893 & 0.810 & 0.836 & 0.713 \\
+FGSM $\epsilon=0.05$           & 0.722 & 0.622 & 0.595 & 0.492 \\
+FGSM $\epsilon=0.1$            & 0.582 & 0.491 & 0.416 & 0.341 \\
+PGD $\epsilon=0.01$            & 0.756 & 0.682 & 0.699 & 0.614 \\
+PGD $\epsilon=0.05$            & 0.356 & 0.328 & 0.349 & 0.318 \\
+PGD $\epsilon=0.1$             & 0.127 & 0.140 & 0.174 & 0.165 \\
+Untargeted DAG                 & 0.693 & 0.385 & 0.547 & 0.441 \\
+Targeted DAG                   & 0.148 & 0.093 & 0.095 & 0.082 \\
+Adversarial Examples           & 0.238 & 0.160 & 0.155 & 0.125 \\
+Universal Adversarial Perturbation & 0.661 & 0.197 & 0.443 & 0.365 \\
+Square Attack $\epsilon=0.05$, 256px & 0.919 & 0.812 & 0.889 & 0.776 \\
+Square Attack $\epsilon=0.05$, 512px & 0.858 & 0.848 & 0.890 & 0.771 \\
+Square Attack $\epsilon=0.1$, 256px  & 0.801 & 0.759 & 0.821 & 0.708 \\
+Square Attack $\epsilon=0.1$, 512px  & 0.824 & 0.697 & 0.795 & 0.674 \\
+Square Attack $\epsilon=0.2$, 256px  & 0.761 & 0.536 & 0.681 & 0.579 \\
+Square Attack $\epsilon=0.2$, 512px  & 0.728 & 0.404 & 0.597 & 0.499 \\
+HopSkipJump $\epsilon=0.1$     & 0.726 & 0.563 & 0.638 & 0.507 \\
+\bottomrule
+\end{tabular}}
+\end{table}
 
 
 

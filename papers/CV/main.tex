@@ -1,0 +1,121 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{cite}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{url}
+\usepackage{arabtex}
+\usepackage{utf8}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{tcolorbox}
+\usepackage{siunitx} % Added for S column type in tables
+
+\begin{document}
+
+\title{Adversarial Attacks on Computer Vision Models}
+
+\author{
+    \IEEEauthorblockN{
+        \IEEEauthor{Ahmed Tamer Samir Mohamed},
+        \IEEEauthor{Salma Mohamed Hamed Mostafa},
+        \IEEEauthor{Saad Ahmed Saad Ali}
+    }
+    \IEEEauthorblockN{
+        \IEEEauthor{Omar Khaled Abdel Aleem Ali},
+        \IEEEauthor{Fatma Hussein Abdel Wahed Zaher},
+        \IEEEauthor{Youssef Hesham Abdel Fattah Mohamed}
+    }
+    \IEEEauthorblockA{
+        Department of Electronics and Electrical Communications Engineering \\
+        Cairo University \\
+        Supervised by: Prof. Dr. Hanan Ahmed Kamal and Dr. Mohamed Abdo Tolba\thanks{This work was supervised by Prof. Dr. Hanan Ahmed Kamal and Dr. Mohamed Abdo Tolba.}
+    }
+
+}
+
+\maketitle
+
+\begin{abstract}
+This paper presents a comprehensive study of adversarial attacks and defenses in deep learning models for computer vision. We systematically evaluate the vulnerability of state-of-the-art architectures—including EfficientNet-B1 for image classification, U-Net for image segmentation, and YOLOv8n for object detection—across standard benchmarks such as GTSRB, Carvana, and Self Driving Cars. Our investigation covers a wide spectrum of adversarial attack methodologies, ranging from foundational white-box approaches , to advanced black-box strategies.
+
+In parallel, we tested the effectiveness of diverse defense mechanisms. These include adversarial training, noise fusion, JPEG compression, and dynamic preprocessing pipelines that incorporate lightweight adversarial detectors and input purification stages. Our experiments reveal critical trade-offs between robustness, clean-data accuracy, and computational overhead.
+
+The findings establish unified benchmarks for adversarial robustness in computer vision and provide actionable guidelines for securing deep learning systems against evolving threats. This work advances the practical deployment of resilient AI solutions in domains where reliability and security are paramount.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Adversarial Attacks, Deep Learning, Image Classification, Semantic Segmentation, Object Detection, Model Robustness, Defense Mechanisms, White-Box Attacks, Black-Box Attacks, Security of AI Systems
+\end{IEEEkeywords}
+
+\section{Introduction}
+Computer vision has emerged as a foundational pillar of artificial intelligence, empowering machines to interpret, analyze, and act upon visual information. The field has rapidly advanced through the adoption of deep learning, particularly convolutional and transformer-based architectures, enabling breakthroughs in tasks such as object recognition, scene understanding, and autonomous navigation.
+
+This paper examines the adversarial vulnerabilities of computer vision models across three core domains:
+
+    \begin{itemize}
+        \item Image Classification: Assigning a single label to an entire image, using models like EfficientNet-B1, which are widely deployed in applications ranging from medical diagnostics to autonomous vehicles.
+        \item Image Segmentation: Partitioning images into meaningful regions at the pixel level, with architectures such as U-Net powering tasks in biomedical imaging and self-driving cars.
+        \item Object Detection: Simultaneously identifying and localizing multiple objects within a scene, exemplified by models like YOLOv8n, critical for real-time perception in safety-critical systems.
+    \end{itemize}
+
+Across these domains, we reveal that computer vision models—regardless of their sophistication—remain susceptible to adversarial attacks. Minor, often imperceptible perturbations to input images can induce significant misclassifications or detection failures, exposing fundamental security risks for AI systems in real-world environments.
+
+\section{Related Work}
+
+Adversarial attacks on computer vision systems have become a central concern as deep learning models are increasingly deployed in safety-critical applications such as autonomous vehicles, medical diagnostics, and surveillance. While early research established the vulnerability of image classifiers to adversarial examples, subsequent studies have revealed that a wide range of computer vision tasks—including object detection and segmentation—are susceptible to both digital and physical-world attacks~\cite{goodfellow2015explaining, szegedy2014intriguingpropertiesneuralnetworks, akhtar2018threatadversarialattacksdeep}.
+
+\subsection{Adversarial Attacks on Image Classification Models}
+
+Image classification was the first domain where adversarial vulnerabilities were systematically demonstrated. Foundational work by Szegedy et al.~\cite{szegedy2014intriguingpropertiesneuralnetworks} showed that small, quasi-imperceptible perturbations could cause deep neural networks to misclassify images with high confidence. This was further explained by Goodfellow et al.~\cite{goodfellow2015explaining}, who introduced the Fast Gradient Sign Method (FGSM), a single-step white-box attack leveraging the model's gradients. Iterative methods such as Projected Gradient Descent (PGD)~\cite{madry2018towardspgd} and Momentum Iterative Method (MIM)~\cite{dong2018momentum} were developed to create stronger adversarial examples. Optimization-based attacks like the Carlini \& Wagner (C\&W)~\cite{carlini2017evaluatingrobustnessneuralnetworks} and geometric attacks such as DeepFool~\cite{moosavidezfooli2016deepfoolsimpleaccuratemethod} seek minimal perturbations for successful misclassification.
+
+\subsection{Adversarial Attacks on Object Detection and Segmentation}
+
+Beyond classification, adversarial attacks have been extended to object detection and image segmentation. In object detection, attacks can render objects invisible to detectors or cause mislocalization~\cite{xie2017DAG, lu2017fooldetectors}. Segmentation models, such as U-Net, are also vulnerable to both white-box and black-box attacks that disrupt pixel-level predictions. Universal Adversarial Perturbations (UAPs)~\cite{moosavi2017universal} represent a particularly severe threat, as a single perturbation can fool a model across a large set of inputs. Physical-world attacks, such as adversarial patches or stickers, have demonstrated the feasibility of fooling models under real-world conditions~\cite{3d_physical_attacks}.
+
+\subsection{Defense Mechanisms}
+
+Defenses against adversarial attacks in computer vision can be broadly categorized as proactive, reactive, or certified. 
+
+\begin{itemize}
+    \item \textbf{Adversarial Training:} Incorporates adversarial examples during training to improve robustness, with PGD-based adversarial training being particularly effective~\cite{madry2018towardspgd}.
+    \item \textbf{Input Transformations:} Techniques such as JPEG compression~\cite{das2017keepingbadguysout}, noise fusion, and random resizing aim to disrupt adversarial perturbations before inference.
+    \item \textbf{Certified Defenses:} Randomized smoothing provides formal robustness guarantees within specific perturbation bounds~\cite{cohen2019certified}.
+    \item \textbf{Hybrid Pipelines:} Recent work proposes multi-stage defense pipelines that combine detection, purification, and robust inference for improved security and efficiency.
+\end{itemize}
+
+Despite significant progress, no single defense has proven universally effective, especially against adaptive and physical-world attacks. The ongoing arms race between attack and defense continues to drive research in adversarial robustness for computer vision~\cite{akhtar2018threatadversarialattacksdeep, yuan2018adversarialexamplesattacksdefenses}.
+
+\section{Image Classification}
+
+
+\section{Semantic Segmentation}
+
+\section{Object Detection}
+\subsection{Experimental Setup}
+\subsubsection{Model}
+YOLOv8n, High-performance YOLO model balanced for speed and accuracy with Real-world ready with a rapid ~3.9 ms inference time.
+\subsubsection{Dataset}
+Experiments are conducted on the clean Self Driving Cars Dataset with baseline performance of 92.7\% mAP50 on the clean dataset.
+\subsubsection{Metrics}
+We have chosen 3 metrics to evaluate our attacks and defenses:
+\begin{itemize}
+    \item mean Average Precision (mAP50-95)
+    \item mean Average Precision (mAP50)
+    \item Inference Time (ms)
+\end{itemize}
+
+\subsection{Attacks}
+\subsubsection{Tested Attacks}
+
+\subsubsection{Results}
+
+
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

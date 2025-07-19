@@ -84,206 +84,129 @@ This section will analyze adversarial attacks on traditional NLP models, such as
 \section{Large Language Models}
 % Placeholder content
 This section will explore adversarial vulnerabilities in large language models, such as Qwen-1.5, including jailbreak and prompt injection attacks. Experimental results and defense strategies will be detailed in the final manuscript.
-
+\newpage
 \section{Automatic Speech Recognition}
+
 \subsection{Experimental Setup}
 \subsubsection{Model}
-Pre-trained Wav2Vec 2.0, a state-of-the-art self-supervised Transformer-based ASR model.
+We use the pre-trained Wav2Vec 2.0 model.
 
 \subsubsection{Dataset}
-LibriSpeech test-clean subset (100 samples). LibriSpeech is a standard benchmark for ASR, ensuring reproducibility and comparability.
+LibriSpeech test-clean subset (100 samples).
 
 \subsubsection{Metrics}
-\begin{itemize}
-    \item \textbf{Character Error Rate (CER):} Measures the percentage of characters incorrectly predicted.
-    \item \textbf{Word Error Rate (WER):} Measures the percentage of words incorrectly predicted.
-    \item \textbf{Signal-to-Noise Ratio (SNR):} Ensures adversarial audio remains intelligible to humans, with SNR thresholds referenced from auditory science~\cite{MaLoizou2011} (greater than or equal to 7 dB for 100\% intelligibility in complex noise).
-\end{itemize}
+Character Error Rate (CER), Word Error Rate (WER), and Signal-to-Noise Ratio (SNR, $\geq$7 dB for intelligibility~\cite{MaLoizou2011}).
+
 
 \subsection{Attacks}
 \subsubsection{Tested Attacks}
-\begin{enumerate}
-    \item \textbf{Fast Gradient Sign Method (FGSM):} The Fast Gradient Sign Method (FGSM) is a seminal single-step adversarial attack technique designed to generate adversarial examples by introducing imperceptible perturbations to input data, thereby misleading machine learning models~\cite{goodfellow2015explaining}. Specifically, FGSM crafts adversarial examples using the equation \( x_{adv} = x + \epsilon \cdot \text{sign}(\nabla_x L(x, y_t)) \), where \( x_{adv} \) is the adversarial input, \( x \) is the original input, \( \epsilon \) controls the perturbation magnitude, and \( \nabla_x L(x, y_t) \) is the gradient of the loss function with respect to the input for a target transcription \( y_t \). In the context of automatic speech recognition (ASR), this attack crafts adversarial audio samples that force the model to produce a specified target transcription~\cite{zelasko2021adversarial}.
+We evaluate four adversarial attacks: Fast Gradient Sign Method (FGSM), Projected Gradient Descent (PGD), Cramér-IPM, and a two-stage imperceptible attack, adapted from prior work~\cite{goodfellow2015explaining, madry2018towardspgd, esmaeilpour2021towards, qin2019imperceptible, zelasko2021adversarial}.
 
-    \item \textbf{Projected Gradient Descent (PGD):} The Projected Gradient Descent (PGD) attack is a powerful iterative adversarial attack method that builds upon the principles of the Fast Gradient Sign Method (FGSM) by applying multiple small perturbations to optimize the adversarial example within an \(\ell_\infty\) norm constraint~\cite{madry2018towardspgd}. PGD iteratively updates the perturbation using \(\eta = \eta + \alpha \cdot \text{sign}(\nabla_{\eta} L(x + \eta, y_t))\), where \(\eta\) is the perturbation, \(\alpha\) is the step size, and \(\nabla_{\eta} L(x + \eta, y_t)\) is the gradient of the loss function with respect to the perturbation for a target transcription \(y_t\). The adversarial example is then computed as \(x_{adv} = x + \eta\), where \(x_{adv}\) is the adversarial input and \(x\) is the original input. In automatic speech recognition (ASR) systems, PGD generates adversarial audio samples by iteratively adjusting the input waveform to maximize the loss function, aiming to force the model to produce a specified target transcription~\cite{zelasko2021adversarial}.
-
-    \item \textbf{Cramér Integral Probability Metric (IPM):} The Cramér Integral Probability Metric (IPM) attack is an advanced adversarial method designed to generate robust adversarial audio signals for automatic speech recognition (ASR) systems~\cite{esmaeilpour2021towards}. The method employs an iterative update process defined by the equations:
-  \[
-  L = L_{CTC} + \lambda \cdot \text{mean}(\ell_{\text{Cramér}})
-  \]
-  \[
-  \delta \leftarrow \text{AdamUpdate}(\delta, \nabla_\delta L)
-  \]
-  where \(\ell_{\text{Cramér}} = \sum_{j=1}^m (F_{\text{org}}(t_j) - F_{\text{adv}}(t_j))^2 \cdot \Delta t\), with \(L_{CTC}\) being the Connectionist Temporal Classification loss, \(\lambda\) a weighting factor, \(\ell_{\text{Cramér}}\) the Cramér loss measuring distribution discrepancy, \(\delta\) the perturbation, and \(\text{AdamUpdate}\) the optimization step using the gradient \(\nabla_\delta L\). By leveraging the Cramér-IPM, this attack minimizes the discrepancy between the distributions of original and adversarial audio samples, ensuring the adversarial signals remain close to the legitimate speech manifold. Unlike traditional attacks like FGSM or PGD, the Cramér-IPM approach combines the CTC loss with a statistical distance metric, enhancing robustness against over-the-air playback without relying on costly Expectation Over Transformation (EOT) operations~\cite{esmaeilpour2021towards}. This method optimizes perturbations to maximize transcription errors while maintaining perceptual similarity, making it effective for both targeted and non-targeted attacks.
-
-  
-    \item \textbf{Imperceptible, Robust, and Targeted Attack:} The Imperceptible, Robust, and Targeted Attack algorithm~\cite{qin2019imperceptible} is designed to generate adversarial audio examples that force automatic speech recognition (ASR) systems to transcribe a specific target phrase, while ensuring the perturbations remain inaudible to human listeners using psychoacoustic principles. The algorithm operates through two stages with key equations:
-  \[
-  x_{adv} = x + \delta
-  \]
-  \[
-  l = l_{Net} + \alpha \cdot l_{Psd}
-  \]
-  where \(x_{adv}\) is the adversarial input, \(x\) is the original audio, \(\delta\) is the perturbation updated iteratively in Stage 1 using CTC loss optimization and clipped within an adaptive \(\epsilon\) constraint, \(l_{Net}\) is the CTC loss, \(l_{Psd}\) is the psychoacoustic loss based on the masking threshold, and \(\alpha\) is a weighting factor. It operates in two stages: Stage 1 generates an initial perturbation using CTC loss optimization with an adaptive \(\epsilon\) constraint, and Stage 2 refines this perturbation to stay below the psychoacoustic masking threshold. This ensures the adversarial audio is imperceptible while achieving targeted transcription errors, leveraging psychoacoustic principles for stealth.
-\end{enumerate}
-
+    
 \subsubsection{Results}\leavevmode\\
-Original CER: 0.9\% --- Original WER: 2.84\%.
+The original Character Error Rate (CER) is 0.9\%, and the Word Error Rate (WER) is 2.84\%.
 
 \begin{table}[H]
-\caption{Attack Effectiveness of FGSM}
-\label{fgsm_wav2vec2}
+\caption{Attack Effectiveness of FGSM, PGD, Cramér-IPM, and Imperceptible Attack}
+\label{tab:attack_effectiveness}
 \centering
 \footnotesize
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{cS[table-format=1.3]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]}
+\begin{tabular}{l l S[table-format=3.2] S[table-format=3.2] S[table-format=2.2] S[table-format=3.2] S[table-format=3.2]}
 \toprule
-$\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER} \\
+\textbf{Attack/Stage} & \textbf{Parameters} & {CER (\%)} & {WER (\%)} & {SNR (dB)} & {$\Delta$CER (\%)} & {$\Delta$WER (\%)} \\
 \midrule
-0.001 & 1.72 & 5.07 & 57.56 & 0.82 & 3.87 \\
-0.005 & 2.83 & 7.16 & 43.58 & 1.93 & 4.33 \\
-0.01  & 1.73 & 5.89 & 37.56 & 0.83 & 3.05 \\
-0.02  & 2.42 & 7.60 & 31.54 & 1.52 & 4.76 \\
-0.05  & 2.85 & 7.83 & 23.58 & 1.95 & 4.99 \\
-0.10  & 3.57 & 9.68 & 17.56 & 2.67 & 6.84 \\
-0.20  & 7.60 & 15.16 & 11.54 & 6.70 & 12.32 \\
+\multirow{7}{*}{FGSM} 
+& 0.001 & 1.72 & 5.07 & 57.56 & 0.82 & 3.87 \\
+& 0.005 & 2.83 & 7.16 & 43.58 & 1.93 & 4.33 \\
+& 0.01  & 1.73 & 5.89 & 37.56 & 0.83 & 3.05 \\
+& 0.02  & 2.42 & 7.60 & 31.54 & 1.52 & 4.76 \\
+& 0.05  & 2.85 & 7.83 & 23.58 & 1.95 & 4.99 \\
+& 0.10  & 3.57 & 9.68 & 17.56 & 2.67 & 6.84 \\
+& 0.20  & 7.60 & 15.16 & 11.54 & 6.70 & 12.32 \\
+\midrule
+\multirow{7}{*}{PGD} 
+& 0.001, 0.0001 & 4.00 & 9.00 & 62.48 & 2.90 & 6.76 \\
+& 0.005, 0.0005 & 4.50 & 11.00 & 50.05 & 3.40 & 8.76 \\
+& 0.01, 0.001   & 5.34 & 14.70 & 37.56 & 4.44 & 11.86 \\
+& 0.02, 0.002   & 9.80 & 22.72 & 31.54 & 8.90 & 19.88 \\
+& 0.05, 0.005   & 24.21 & 44.36 & 23.58 & 23.31 & 41.52 \\
+& 0.10, 0.01    & 37.90 & 61.98 & 17.56 & 37.00 & 59.14 \\
+& 0.20, 0.02    & 58.39 & 81.44 & 11.54 & 57.49 & 78.60 \\
+\midrule
+\multirow{7}{*}{Cramér-IPM} 
+& 0.001 & 20.5 & 26.1 & 18.39 & 19.6 & 23.3 \\
+& 0.005 & 18.8 & 32.1 & 16.17 & 17.9 & 29.3 \\
+& 0.010 & 40.8 & 59.6 & 14.27 & 39.9 & 56.8 \\
+& 0.020 & 61.8 & 81.1 & 12.08 & 60.9 & 78.3 \\
+& 0.050 & 93.4 & 99.0 & 9.42  & 92.5 & 96.2 \\
+& 0.100 & 95.5 & 98.9 & 8.19  & 94.6 & 96.1 \\
+& 0.200 & 92.9 & 98.4 & 8.05  & 92.0 & 95.6 \\
+\midrule
+\multirow{2}{*}{Imperceptible Attack} 
+& Stage 1 & 75.88 & 75.88 & 40.48 & 74.98 & 73.04 \\
+& Stage 2 & 100.00 & 100.00 & 30.39 & 99.10 & 97.16 \\
 \bottomrule
 \end{tabular}}
 \end{table}
-
-\begin{table}[H]
-\caption{Attack Effectiveness of PGD}
-\label{pgd_wav2vec2}
-\centering
-\footnotesize
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{cS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]}
-\toprule
-$\epsilon$, $\alpha$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER} & {$\Delta$WER} \\
-\midrule
-0.001, 0.0001 & 4.00 & 9.00 & 62.48 & 2.90 & 6.76 \\
-0.005, 0.0005 & 4.50 & 11.00 & 50.05 & 3.40 & 8.76 \\
-0.01, 0.001   & 5.34 & 14.70 & 37.56 & 4.44 & 11.86 \\
-0.02, 0.002   & 9.80 & 22.72 & 31.54 & 8.90 & 19.88 \\
-0.05, 0.005   & 24.21 & 44.36 & 23.58 & 23.31 & 41.52 \\
-0.10, 0.01    & 37.90 & 61.98 & 17.56 & 37.00 & 59.14 \\
-0.20, 0.02    & 58.39 & 81.44 & 11.54 & 57.49 & 78.60 \\
-\bottomrule
-\end{tabular}}
-\end{table}
-
-\begin{table}[H]
-\caption{Attack Effectiveness of Cramér-IPM}
-\label{cramer_ipm_results}
-\centering
-\footnotesize
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{cS[table-format=2.1]S[table-format=2.1]S[table-format=2.2]S[table-format=2.1]S[table-format=2.1]}
-\toprule
-$\epsilon$ & {A-CER (\%)} & {A-WER (\%)} & {SNR (dB)} & {$\Delta$CER (\%)} & {$\Delta$WER (\%)} \\
-\midrule
-0.001 & 20.5 & 26.1 & 18.39 & 19.6 & 23.3 \\
-0.005 & 18.8 & 32.1 & 16.17 & 17.9 & 29.3 \\
-0.010 & 40.8 & 59.6 & 14.27 & 39.9 & 56.8 \\
-0.020 & 61.8 & 81.1 & 12.08 & 60.9 & 78.3 \\
-0.050 & 93.4 & 99.0 & 9.42  & 92.5 & 96.2 \\
-0.100 & 95.5 & 98.9 & 8.19  & 94.6 & 96.1 \\
-0.200 & 92.9 & 98.4 & 8.05  & 92.0 & 95.6 \\
-\bottomrule
-\end{tabular}}
-\end{table}
-
-\begin{table}[H]
-\caption{Attack Effectiveness of Imperceptible Attack}
-\label{Im_table}
-\centering
-\footnotesize
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{lS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]S[table-format=2.2]}
-\toprule
-\textbf{Stage} & {WER (\%)} & {CER (\%)} & {SNR (dB)} & {$\Delta$WER (\%)} & {$\Delta$CER (\%)} \\
-\midrule
-Stage 1 & 75.88 & 75.88 & 40.48 & 73.04 & 74.98 \\
-Stage 2 & 100.00 & 100.00 & 30.39 & 97.16 & 99.10 \\
-\bottomrule
-\end{tabular}}
-\end{table}
-
-
-
 \begin{table}[H]
 \caption{Comparison of Attack Effectiveness: Wav2vec2 vs. Original Papers}
-\label{attack_comparison}
+\label{tab:attack_comparison}
 \centering
 \footnotesize
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{lccc}
+\begin{tabular}{l l c S[table-format=3.2]}
 \toprule
 \textbf{Attack} & \textbf{Model} & \textbf{Condition} & \textbf{WER (\%)} \\
 \midrule
-FGSM & Wav2vec2 (This Work) & \(\epsilon = 0.01\) & 5.89 \\
-     & Wav2vec2 (This Work) & \(\epsilon = 0.2\) & 15.16 \\
-     & DeepSpeech 2~\cite{zelasko2021adversarial} & \(\epsilon = 0.01\) & 77.9 \\
-     & DeepSpeech 2~\cite{zelasko2021adversarial} & \(\epsilon = 0.2\) & 100 \\
-     & Espresso~\cite{zelasko2021adversarial} & \(\epsilon = 0.01\) & 65.3 \\
-     & Espresso~\cite{zelasko2021adversarial} & \(\epsilon = 0.2\) & 108 \\
+\multirow{6}{*}{FGSM} 
+& Wav2vec2 (This Work) & \(\epsilon = 0.01\) & 5.89 \\
+& Wav2vec2 (This Work) & \(\epsilon = 0.2\) & 15.16 \\
+& DeepSpeech 2~\cite{zelasko2021adversarial} & \(\epsilon = 0.01\) & 77.9 \\
+& DeepSpeech 2~\cite{zelasko2021adversarial} & \(\epsilon = 0.2\) & 100 \\
+& Espresso~\cite{zelasko2021adversarial} & \(\epsilon = 0.01\) & 65.3 \\
+& Espresso~\cite{zelasko2021adversarial} & \(\epsilon = 0.2\) & 108 \\
 \midrule
-PGD & Wav2vec2 (This Work) & \(\epsilon = 0.01\) & 14.70 \\
-    & Wav2vec2 (This Work) & \(\epsilon = 0.2\) & 81.44 \\
-    & DeepSpeech~\cite{zelasko2021adversarial} & \(\epsilon = 0.01\) & 97.5 \\
-    & Espresso~\cite{zelasko2021adversarial} & \(\epsilon = 0.2\) & 139.3 \\
+\multirow{4}{*}{PGD} 
+& Wav2vec2 (This Work) & \(\epsilon = 0.01\) & 14.70 \\
+& Wav2vec2 (This Work) & \(\epsilon = 0.2\) & 81.44 \\
+& DeepSpeech~\cite{zelasko2021adversarial} & \(\epsilon = 0.01\) & 97.5 \\
+& Espresso~\cite{zelasko2021adversarial} & \(\epsilon = 0.2\) & 139.3 \\
 \midrule
-Cramér-IPM & Wav2vec2 (This Work)~\ref{cramer_ipm_results} & \(\epsilon = 0.05\) & 99.0 \\
-           & DeepSpeech~\cite{esmaeilpour2021towards} & Average & 88.19 \\
+\multirow{2}{*}{Cramér-IPM} 
+& Wav2vec2 (This Work) & \(\epsilon = 0.05\) & 99.0 \\
+& DeepSpeech~\cite{esmaeilpour2021towards} & Average & 88.19 \\
 \midrule
-Two-Stage (Stage 1) & Wav2vec2 (This Work) & - & 75.88 \\
-                   & Lingvo~\cite{qin2019imperceptible} & - & 100 (100\% success) \\
-                   & Wav2vec2 (This Work) (Stage 2) & - & 100 \\
-                   & Lingvo~\cite{qin2019imperceptible} (Stage 2) & - & 100 (100\% success) \\
+\multirow{4}{*}{Two-Stage} 
+& Wav2vec2 (This Work) & Stage 1 & 75.88 \\
+& Wav2vec2 (This Work) & Stage 2 & 100 \\
+& Lingvo~\cite{qin2019imperceptible} & Stage 1 & 100 \\
+& Lingvo~\cite{qin2019imperceptible} & Stage 2 & 100 \\
 \bottomrule
 \end{tabular}}
 \end{table}
 
+These results highlight the robustness of wav2vec2 against FGSM and PGD at lower \(\epsilon\) values. The Cramér-IPM attack proves highly effective, while the two-stage attack successfully refines perturbations for imperceptibility.
 
-
-These results highlight the robustness of wav2vec2 against FGSM and PGD at lower \(\epsilon\) values, with WER significantly increasing only at higher perturbations. The Cramér-IPM attack proves highly effective, achieving near-perfect error rates, while the two-stage attack successfully refines perturbations for imperceptibility. Future work could explore optimizing SNR at higher \(\epsilon\) values to balance attack success and audio quality, especially for real-world applications.
 
 \subsection{Defenses}
 \subsubsection{Tested Defenses}
-\begin{enumerate}
-    \item \textbf{Randomized smoothing (RS):}  Randomized smoothing\cite{cohen2019certified} creates noise-invariant predictions. And it is an effective defense with speech to text models\cite{zelasko2021adversarial}. We implemented it with:
+We evaluate four defenses against adversarial attacks: Randomized Smoothing (RS), MP3 compression, Spectral Gating (SG), and Quantization (Q)~\cite{zelasko2021adversarial, li2024adaptive, olivier2022sequential, andronic2020mp3, oreilly2022voiceblock, li2024investigating}.
 
-\begin{itemize}
-    \item \textbf{Adaptive variance scaling \cite{li2024adaptive}:} adjusting the noise level (variance) added to an input signal based on its local characteristics, it dynamically scales the noise to be lower in high-variance regions (to preserve speech content) and higher in low-variance regions (to mask potential adversarial perturbations).
-    \item \textbf{ROVER voting \cite{olivier2022sequential}:} ROVER (Recognizer Output Voting Error Reduction) is a method for combining multiple transcription outputs from a speech recognition system. It aggregates transcriptions by voting on words at each position across noisy samples, selecting the most frequent word to produce a final, more robust transcription, reducing errors caused by noise or adversarial attacks.
-\end{itemize}
-
-\item \textbf{MP3 compression:} MP3 compression, a lossy audio encoding scheme based on psychoacoustic models, serves as an effective defense against Audio Adversarial Examples (AAEs) in Automatic Speech Recognition (ASR) systems \cite{andronic2020mp3}. By discarding audio information below human hearing thresholds, MP3 compression can reduce adversarial noise (AN) embedded in AAEs, which is often imperceptible to humans but misleads ASR systems into incorrect transcriptions \cite{andronic2020mp3}.
-\item \textbf{Spectral gating (SG):} Spectral gating is a defense strategy that applies noise reduction to audio signals to remove adversarial perturbations\cite{oreilly2022voiceblock}.
-The spectral gating defense works follows:
-\begin{enumerate}
-    \item \textbf{Voice Activity Detection}: Apply VAD to generate a boolean mask identifying speech segments.
-    \item \textbf{Noise Profile Extraction}: Extract non-speech segments based on the VAD mask. If no non-speech segments detected, use portions from the audio's beginning and end (0.5 seconds each).
-    \item \textbf{Noise Reduction}: Perform spectral subtraction, configured with parameters for stationary noise, proportion of noise to remove, and frequency/time smoothing.
-\end{enumerate}
-
-\item \textbf{Quantization (Q):} Input quantization reduces the precision of audio signals by mapping continuous values to discrete levels, effectively attenuating adversarial perturbations \cite{li2024investigating}. This process can disrupt adversarial perturbations while preserving speech intelligibility.
-\end{enumerate}
-
-\subsubsection{Comprehensive Pipeline Evaluation}\noindent
-\label{subsec:pipeline_evaluation}
-
-Table~\ref{tab:pipeline_summary} summarizes the performance of various pipeline configurations for defending against PGD adversarial attack with $\epsilon = 0.1$ on the target model, evaluated using Character Error Rate (CER), Word Error Rate (WER), change in CER relative to the baseline (\(\Delta\)CER), and average processing time per sample.
+\subsubsection{Comprehensive Pipeline Evaluation and Comparison}
+Table~\ref{tab:pipeline_and_comparison} summarizes the performance of defense pipeline configurations against PGD adversarial attack (\(\epsilon = 0.1\)) and compares WER/CER reduction with original papers.
 
 \begin{table}[H]
 \centering
-\small
-\caption{Comprehensive Pipeline Evaluation Summary}
-\label{tab:pipeline_summary}
+\footnotesize
+\caption{Defense Pipeline Evaluation and Comparison with Original Papers}
+\label{tab:pipeline_and_comparison}
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{l@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=2.2]@{\hskip 0.3cm}S[table-format=1.4]}
+\begin{tabular}{l S[table-format=2.2] S[table-format=2.2] S[table-format=2.2] S[table-format=2.2] S[table-format=2.2] S[table-format=1.4]}
 \toprule
-{\textbf{Pipeline Configuration}} & {\textbf{CER (\%)}} & {\textbf{WER (\%)}} & {\textbf{\(\Delta\)CER (\%)}} & {\textbf{\(\Delta\)WER (\%)}} & {\textbf{Clean Data WER (\%)}} & {\textbf{Avg Time (s)}} \\
+\textbf{Configuration} & \textbf{CER (\%)} & \textbf{WER (\%)} & \textbf{\(\Delta\)CER (\%)} & \textbf{\(\Delta\)WER (\%)} & \textbf{Clean WER (\%)} & \textbf{Avg Time (s)} \\
+\midrule
+\multicolumn{7}{c}{\textbf{Pipeline Evaluation (This Work, PGD \(\epsilon = 0.1\))}} \\
 \midrule
 Baseline (No Defense) & 37.90 & 61.98 & 0.00 & 0.00 & 2.83 & 0.0663 \\
 SG & 2.84 & 7.01 & 35.06 & 54.97 & 5.67 & 0.2268 \\
@@ -301,101 +224,51 @@ SG \(\to\) MP3 \(\to\) RS & 20.20 & 30.59 & 17.70 & 31.39 & 28.98 & 1.5576 \\
 SG \(\to\) Q \(\to\) RS & 17.25 & 27.22 & 20.65 & 34.76 & 24.81 & 1.1653 \\
 MP3 \(\to\) Q \(\to\) RS & 5.11 & 11.12 & 32.79 & 50.86 & 5.29 & 1.4704 \\
 SG \(\to\) MP3 \(\to\) Q \(\to\) RS & 19.76 & 30.11 & 18.14 & 31.87 & 29.09 & 1.5762 \\
-\bottomrule
-\end{tabular}}
-\end{table}
-
-
-
-
-\begin{table}[H]
-\centering
-\footnotesize
-\caption{Comparison of WER/CER Reduction: This Work vs. Original Papers in Comparable Conditions}
-\label{tab:defense_comparison}
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{lccp{4cm}}
-\toprule
-\textbf{Defense} & \textbf{Metric} & \textbf{Reduction (This Work)} & \textbf{Reduction (Original)} \\
 \midrule
-RS & WER & 39.03\% & $\sim$30--40\%~\cite{zelasko2021adversarial} \\
-\addlinespace
-MP3 & CER & 30.82\% & 18--21\%~\cite{andronic2020mp3} \\
-\addlinespace
-SG & WER & 54.97\% & Not reported WER but 50--60\% in speaker ID (strong ASR)~\cite{oreilly2022voiceblock} \\
-\addlinespace
-Q & WER & 32.02\% & 10--30\%~\cite{li2024investigating} \\
+\multicolumn{7}{c}{\textbf{Comparison with Original Papers}} \\
+\midrule
+RS~\cite{zelasko2021adversarial} & {} & {} & {} & 39.03 & {} & {} \\
+MP3~\cite{andronic2020mp3} & {} & {} & 30.82 & {} & {} & {} \\
+SG~\cite{oreilly2022voiceblock} & {} & {} & {} & 54.97 & {} & {} \\
+Q~\cite{li2024investigating} & {} & {} & {} & 32.02 & {} & {} \\
 \bottomrule
 \end{tabular}}
 \end{table}
-
-
-
 
 \subsubsection{Proposed Adaptive Defense Pipeline}
-\label{subsec:adaptive_defense}
-
 The adaptive defense pipeline combines lightweight detection with robust mitigation:
 \begin{enumerate}
     \item \textbf{Detection Stage:} 8-bit quantization applied to input audio
     \item \textbf{Decision Logic:} Classifies as adversarial if transcription dissimilarity (WER) larger than 12\%
     \item \textbf{Mitigation Stage:} For detected attacks, applies Spectral Gating (SG) + MP3 compression (64kbps)
 \end{enumerate}
-
 \textbf{Evaluation on 100 samples (50 adversarial from all 4 tested attacks, 50 clean):}
 
 \begin{table}[H]
 \centering
+\scriptsize
 \caption{Adaptive Defense Performance}
 \label{tab:adaptive_defense}
-\begin{tabular}{lcc}
+\begin{tabular}{l c}
 \toprule
 \textbf{Metric} & \textbf{Value} \\
 \midrule
-Accuracy & 0.990 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[H]
-\centering
-\caption{Confusion Matrix}
-\label{tab:adaptive_confusion}
-\begin{tabular}{lcc}
-\toprule
-& \textbf{Predicted Adversarial} & \textbf{Predicted Clean} \\
+\textbf{Confusion Matrix} \\
+TP/FN/FP/TN & 50/0/1/49 \\
 \midrule
-\textbf{Actual Adversarial} & 50 (TP) & 0 (FN) \\
-\textbf{Actual Clean} & 1 (FP) & 49 (TN) \\
+\textbf{Performance} \\
+Acc./Det. Rate (Adv.) & 0.990/100\% (50/50) \\
+WER Red. (Adv.) & 57.49\% (65.91\%$\to$8.42\%) \\
+Corr. Class./WER (Clean) & 98\% (49/50)/4.21\%$\to$3.93\% \\
+\midrule
+\textbf{Timing} \\
+Avg. Total/Orig./Quant. & 0.375s/0.044s (11.7\%)/0.045s (12.1\%) \\
+SG$\to$MP3 Defense & 0.534s \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Timing Analysis:}
-\begin{itemize}
-    \item \textbf{Average total time/sample:} 0.375s
-    \item \textbf{Breakdown:}
-    \begin{itemize}
-        \item Original transcription: 0.044s (11.7\%)
-        \item Quantization + transcription: 0.045s (12.1\%)
-        \item SG→MP3 defense: 0.534s
-    \end{itemize}
-\end{itemize}
-
-\noindent\textbf{Adversarial Samples (50):}
-\begin{itemize}
-    \item \textbf{Detection rate:} 100.0\% (50/50)
-    \item \textbf{WER reduction:} 57.49\% (65.91\% → 8.42\%)
-\end{itemize}
-
-\noindent\textbf{Clean Samples (50):}
-\begin{itemize}
-    \item \textbf{Correct classification:} 98.0\% (49/50)
-    \item \textbf{WER impact:} Minimal degradation (4.21\% → 3.93\%)
-\end{itemize}
-
-The adaptive pipeline achieves near-perfect attack detection (100\% recall) while maintaining low false positives (2\%). The defense reduces adversarial WER by 57.49 percentage points with minimal computational overhead, demonstrating an optimal balance between robustness and efficiency. The single false positive case confirms the pipeline's conservative design, prioritizing security over minimal clean-sample degradation.
-
+The adaptive pipeline defeated the WER reduction, timing and clean performance pipeline three-way trade-off.
 
 
 \bibliographystyle{IEEEtran}

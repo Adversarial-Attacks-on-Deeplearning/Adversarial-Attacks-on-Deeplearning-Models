@@ -267,6 +267,56 @@ SG$\to$MP3 Defense & 0.534s \\
 \end{table}
 
 The adaptive pipeline defeated the WER reduction, timing and clean performance pipeline three-way trade-off.
+\newpage
+\section{Large Language Models}
+\subsection{Attacks}
+We implemented two white-box Jailbreak attacks that induce aligned language models to produce virtually any objectionable content. Experiments were conducted on the aligned Qwen-1.5-1.8B model and using the AdvBench dataset. Attack performance was assessed via attack success rate (ASR), where outputs without refusal were considered successful, in addition to manual review and metrics including Precision, Recall, and F1 Score to reduce false negatives and false positives.\\
+\subsubsection{Greedy Coordinate Gradient Attack}
+The GCG \cite{zou2023universaltransferableadversarialattacks} is a greedy and gradient based white-box jailbreak attack. It appends an adversarial suffix to the query that attempts to confuse the model to respond. 
+
+The key objective is to minimize the adversarial loss function, defined as the negative log-likelihood of a target affirmative response sequence (e.g., ``Sure, here is...'').
+We implemented two distinct approaches for adversarial suffix optimization:
+ \begin{enumerate}
+    \item Optimizing an adversarial suffix for each individual harmful prompt.
+    \item  Optimizing a single universal suffix for a set of prompts using a weighted loss function that prioritizes prompts with higher difficulty.
+\end{enumerate}
+Gradients are computed to identify \( k = 256 \) candidate token substitutions, evaluating \( B = 128 \) random substitutions using greedy search to yield the lowest loss. This process repeats for \( T = 50 \) iterations, targeting a 20-token suffix. 
+\begin{table}[H]
+\centering
+\caption{GCG Jailbreak Attack Success Metrics}
+\label{tab:GCG Attack success metrics}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Method} & \textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
+\midrule
+Individual Suffix   & 84 & 0.92  & 0.83  & 0.87  \\
+Universal Suffix  & 75 & 0.93  & 0.94  & 0.93  \\
+\bottomrule
+\end{tabular}
+\end{table}
+\\
+\subsubsection{Beam search-based Adversarial Attack}
+The BEAST attack \cite{zou2023universaltransferableadversarialattacks} also appends an adversarial suffix to individual user prompts. Unlike
+the Greedy Coordinate Gradient (GCG) attack, BEAST utilizes a computationally efficient, gradient-free beam
+search optimization scheme. This approach processes one prompt at a time,
+optimizing the adversarial suffix with tunable hyperparameters to balance attack speed, success rate, and prompt readability.
+
+The key objective is to minimize the perplexity of the target harmful string. It iteratively expands a beam of \( k_1 = 15 \) candidates, sampling \( k_2 = 15\) tokens per candidate, and selecting the top \( k_1 \) candidates with the lowest perplexity for a 30-token suffix.
+
+\begin{table}[H]
+\centering
+\caption{Jailbreak Attack Success Metrics}
+\label{tab:BEAST Attack success metrics}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
+\midrule
+    88 & 1.0  & 0.68 & 0.81  \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+The results in Table \ref{tab:BEAST Attack success metrics} are comparable to those achieved by GCG. Notably, this approach is computationally efficient and produces a readable suffix. However, it required a longer suffix of 30 tokens to achieve these outcomes.
 
 
 \bibliographystyle{IEEEtran}

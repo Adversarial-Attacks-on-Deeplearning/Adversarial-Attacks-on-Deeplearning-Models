@@ -76,13 +76,74 @@ Defenses include:
 While hybrid defenses improve resilience, adaptive attacks remain a challenge, necessitating ongoing research~\cite{akhtar2018threatadversarialattacksdeep}.
 
 \section{Natural Language Processing}
-% Placeholder content
-This section will analyze adversarial attacks on traditional NLP models, such as BiLSTM-GloVe, focusing on sentiment analysis and text classification tasks. Detailed experiments and results will be provided in the final manuscript.
 
-\section{Large Language Models}
-% Placeholder content
-This section will explore adversarial vulnerabilities in large language models, such as Qwen-1.5, including jailbreak and prompt injection attacks. Experimental results and defense strategies will be detailed in the final manuscript.
-\newpage
+\subsection{Experimental Setup}
+\subsubsection{Model}
+We employ a BiLSTM architecture with pre-trained GloVe 6B.100d embeddings, featuring 32 hidden units, L2 regularization (0.001), and global average pooling for binary sentiment classification.
+
+\subsubsection{Dataset}
+Yelp Polarity Reviews dataset with 560,000 training samples and 38,000 test samples, balanced across positive and negative sentiment classes.
+
+\subsubsection{Metrics}
+Attack Success Rate (ASR), Accuracy Under Attack (AuA), and ASR Reduction percentage measuring defense effectiveness.
+
+\subsection{Attacks}
+\subsubsection{Tested Attacks}
+We evaluate three black-box adversarial attacks using the TextAttack framework~\cite{morris2020textattack}: TextFooler (synonym-based word substitution)~\cite{jin2019textfooler}, TextBugger (character and word-level transformations)~\cite{li2018textbugger}, and DeepWordBug (character-level perturbations)~\cite{gao2018deepwordbug}.
+
+\subsubsection{Results}
+The original model achieves 95.70\% accuracy on clean data. Attack effectiveness varies by perturbation granularity.
+
+\begin{table}[H]
+\caption{NLP Adversarial Attack Effectiveness}
+\label{tab:nlp_attack_effectiveness}
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l S[table-format=2.2] S[table-format=2.2] S[table-format=3.0] S[table-format=3.0]}
+\toprule
+\textbf{Attack Method} & \textbf{AuA (\%)} & \textbf{ASR (\%)} & \textbf{Successful} & \textbf{Failed} \\
+\midrule
+TextFooler & 3.97 & 96.03 & 919 & 38 \\
+TextBugger & 7.31 & 92.69 & 887 & 70 \\
+DeepWordBug & 7.42 & 92.58 & 886 & 71 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Results demonstrate high vulnerability across all attack types, with TextFooler achieving the highest success rate through semantic word substitutions while maintaining readability.
+
+\subsection{Defenses}
+We adopt a layered strategy that first purifies input text and then relies on a model trained with Virtual Adversarial Training (VAT).
+
+\subsubsection{Virtual Adversarial Training (VAT)}
+VAT adds embedding-space regularization during training by injecting small worst-case perturbations ($\epsilon\!=\!2.0$, $\xi\!=\!10^{-6}$) into the word-embedding layer, smoothing decision boundaries and improving baseline robustness~\cite{miyato2017virtual}.
+
+\subsubsection{Character-Level Purification}
+Before inference, each sentence passes through a lightweight purifier that (i) normalizes excessive letter repetitions, (ii) repairs single-edit errors (deletions, insertions, substitutions) via edit-distance search, and (iii) corrects adjacent character swaps. Corrections are accepted only when the result matches the vocabulary.
+
+\subsubsection{Comprehensive Defense Evaluation}
+Table~\ref{tab:nlp_defense_effectiveness} summarizes defense performance against all three attacks, demonstrating attack-specific effectiveness.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{NLP Defense Effectiveness Against Adversarial Attacks}
+\label{tab:nlp_defense_effectiveness}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l S[table-format=2.2] S[table-format=2.2] S[table-format=2.2] S[table-format=2.2]}
+\toprule
+\textbf{Attack Method} & \textbf{Original ASR (\%)} & \textbf{VAT ASR (\%)} & \textbf{VAT+Purif ASR (\%)} & \textbf{Total Reduction (\%)} \\
+\midrule
+TextFooler & 96.03 & 50.26 & 50.26 & 45.77 \\
+TextBugger & 92.69 & 47.02 & 42.32 & 50.37 \\
+DeepWordBug & 92.58 & 56.32 & 15.67 & 76.91 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+The hybrid defense demonstrates granularity-dependent effectiveness: character-level purification provides no benefit against word-level attacks (TextFooler) but achieves substantial improvement against character-level attacks (DeepWordBug), validating our multi-stage defense strategy. VAT consistently improves robustness across all attack types, while the combination achieves up to 76.91\% ASR reduction against pure character-level perturbations.
+
 \section{Automatic Speech Recognition}
 
 \subsection{Experimental Setup}

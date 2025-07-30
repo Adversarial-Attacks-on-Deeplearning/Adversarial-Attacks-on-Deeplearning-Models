@@ -216,8 +216,187 @@ We evaluated various adversarial defenses, Adversarial Training, Noise-Fusion Me
 \label{tab:combined_defense_results}
 \end{table}
 \section{Semantic Segmentation}
+Image segmentation is the process of partitioning a digital image into multiple segments (sets of pixels) to simplify or change the representation of an image into something more meaningful and easier to analyze.
+\subsection{Experimental Setup}
+We employ the Carvana image masking dataset \cite{carvana2024}, which comprises 5,087 RGB images of vehicles and corresponding binary masks. The dataset was randomly split into:
+\begin{itemize}
+\item \textbf{Training set:} 4,087 images
+\item \textbf{Validation set:} 1,000 images
+\end{itemize}
+We obtained dice scores around 0.98
+\subsection{Attacks}
+We evaluated various adversarial attacks. White-box: The Fast Gradient Sign Method (FGSM), Projected Gradient Descent (PGD), Momentum Iterative Fast Gradient Sign Method (MI-FGSM), Universal Adversarial Perturbation (UAP), DeepFool \cite{goodfellow2015explaining,madry2018towardspgd,dong2018boosting,papernot2016limitations,moosavidezfooli2017universaladversarialperturbations,moosavidezfooli2016deepfoolsimpleaccuratemethod}.
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Overall Performance of U‑Net under Clean and Various Adversarial Attacks}
+\label{tab:unet_combined_performance}
+\resizebox{\columnwidth}{!}{%
+  \begin{tabular}{@{\hspace{0.2cm}}p{4cm}
+                  S[table-format=1.3]
+                  S[table-format=1.3]
+                  S[table-format=2.2]@{\hspace{0.2cm}}}
+    \toprule
+    \textbf{Attack}                         & {\textbf{Dice (Before)}} & {\textbf{Dice (After)}} & {\textbf{Drop (\%)}} \\
+    \midrule
+    FGSM $\epsilon=0.031$                   & 0.980                    & 0.410                   & 58.16                 \\
+    FGSM $\epsilon=0.062$                   & 0.980                    & 0.360                   & 63.27                 \\
+    PGD $\epsilon=0.031$                    & 0.980                    & 0.396                   & 59.59                 \\
+    PGD $\epsilon=0.062$                    & 0.980                    & 0.371                   & 62.14                 \\
+    MI‑FGSM $\epsilon=0.031$                & 0.980                    & 0.600                   & 38.78                 \\
+    MI‑FGSM $\epsilon=0.062$                & 0.980                    & 0.380                   & 61.22                 \\
+    UAP $\epsilon=0.2$& 0.980                   & 0.3263                  & 66.83                 \\
+    DeepFool $\epsilon=0.02$                                & 0.980                   & 0.6758                  & 31.30                 \\
+    \bottomrule
+  \end{tabular}%
+}
+\end{table}
 
-\newpage
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Comparison of Adversarial Attack Impacts on U‑Net Segmentation (Carvana vs.\ Medical MRI Literature)}
+\label{tab:unet_attack_comparison_updated}
+\resizebox{\columnwidth}{!}{%
+  \begin{tabular}{@{\hspace{0.2cm}}l
+                  l
+                  S[table-format=1.3]
+                  S[table-format=1.3]
+                  S[table-format=2.2]
+                  p{4.5cm}@{\hspace{0.2cm}}}
+    \toprule
+    \textbf{Attack} 
+      & \textbf{Dataset / Model} 
+      & {\textbf{Dice (Before)}} 
+      & {\textbf{Dice (After)}} 
+      & {\textbf{Drop (\%)}} 
+      & \textbf{Source / Notes} \\
+    \midrule
+    \multirow{2}{*}{FGSM ($\epsilon=0.031$)}  
+      & Carvana / U‑Net            & 0.980 & 0.410 & 58.16 & This work; Carvana dataset \cite{carvana2024} \\
+      & MRI / EffB7 U‑Net         & ~0.800 & ~0.460 & ~42.80 & Wang et al.\ 2024 \cite{wang2024adversarial} \\
+    \addlinespace
+    \multirow{2}{*}{FGSM ($\epsilon=0.062$)}  
+      & Carvana / U‑Net            & 0.980 & 0.360 & 63.27 & This work; Carvana dataset \cite{carvana2024} \\
+      & MRI / EffB7 U‑Net         & ~0.800 & ~0.460 & ~42.80 & Wang et al.\ 2024 \cite{wang2024adversarial} \\
+    \addlinespace
+    \multirow{2}{*}{PGD ($\epsilon=0.031$)}   
+      & Carvana / U‑Net            & 0.980 & 0.396 & 59.59 & This work; Carvana dataset \cite{carvana2024} \\
+      & MRI / EffB7 U‑Net         & ~0.800 & ~0.460 & ~42.80 & Wang et al.\ 2024 \cite{wang2024adversarial} \\
+    \addlinespace
+    \multirow{2}{*}{PGD ($\epsilon=0.062$)}   
+      & Carvana / U‑Net            & 0.980 & 0.371 & 62.14 & This work; Carvana dataset \cite{carvana2024} \\
+      & MRI / EffB7 U‑Net         & ~0.800 & ~0.460 & ~42.80 & Wang et al.\ 2024 \cite{wang2024adversarial} \\
+    \addlinespace
+    \multirow{2}{*}{MI‑FGSM ($\epsilon=0.031$)} 
+      & Carvana / U‑Net            & 0.980 & 0.600 & 38.78 & This work; Carvana dataset \cite{carvana2024} \\
+      & MRI / U‑Net (approx.)     & ~0.750 & ~0.350 & ~53.00 & Estimated from Wang et al.\ 2024 \cite{wang2024adversarial} \\
+    \addlinespace
+    \multirow{2}{*}{MI‑FGSM ($\epsilon=0.062$)} 
+      & Carvana / U‑Net            & 0.980 & 0.380 & 61.22 & This work; Carvana dataset \cite{carvana2024} \\
+      & —                           &       &       &       & — \\
+    \addlinespace
+    \multirow{2}{*}{Universal AP (UAP)}       
+      & Carvana / U‑Net            & 0.980 & 0.3263 & 66.83 & This work; Carvana dataset \cite{carvana2024} \\
+      & MRI / U‑Net (approx.)     & ~0.750 & ~0.330 & ~56.00 & Wang et al.\ 2024; Moosavi‑Dezfooli et al.\ 2017 \cite{moosavi2017universal} \\
+    \addlinespace
+    \multirow{2}{*}{DeepFool}                
+      & Carvana / U‑Net            & 0.980 & 0.6758 & 31.30 & This work; Carvana dataset \cite{carvana2024} \\
+      & MRI / U‑Net (approx.)     & ~0.750 & ~0.380 & ~49.00 & Wang et al.\ 2024 \cite{wang2024adversarial} \\
+    \bottomrule
+  \end{tabular}%
+}
+\end{table}
+
+\subsection{Defenses}
+We applied adversarial training to a U‑Net segmentation model by jointly training on clean images and FGSM‐generated adversarial examples at \(\epsilon=8/255\), \(16/255\), and \(32/255\). Each batch contains both clean inputs and perturbed versions created by adding the sign of the loss gradient scaled by \(\epsilon\) and clamping to \([0,1]\). The overall loss is a weighted sum  
+\[
+0.5\,L_{\text{clean}} + 0.2\,L_{\text{adv}_{8/255}} + 0.2\,L_{\text{adv}_{16/255}} + 0.1\,L_{\text{adv}_{32/255}},
+\]  
+balancing clean‐image accuracy with robustness. All losses are computed using binary cross‐entropy.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Original, Post‑Attack, and Post‑Defense Dice Scores for U‑Net under FGSM Attacks}
+\label{tab:unet_fgsm_defense_comparison}
+\begin{tabular}{@{\hspace{0.3cm}}l
+                S[table-format=1.3]
+                S[table-format=1.3]
+                S[table-format=1.3]@{\hspace{0.3cm}}}
+  \toprule
+  \textbf{Attack} 
+    & {\textbf{Original Dice}} 
+    & {\textbf{Dice After Attack}} 
+    & {\textbf{Dice After Defense}} \\
+  \midrule
+  Clean                                 & 0.980 & 0.980 & 0.980 \\
+  FGSM $\epsilon=0.031$                 & 0.980 & 0.410 & 0.960 \\
+  FGSM $\epsilon=0.062$                 & 0.980 & 0.360 & 0.960 \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Original, Post‑Attack, and Post‑Defense Dice Scores for U‑Net under Iterative Adversarial Attacks}
+\label{tab:unet_iterative_defense_comparison}
+\begin{tabular}{@{\hspace{0.3cm}}l
+                S[table-format=1.3]
+                S[table-format=1.3]
+                S[table-format=1.3]@{\hspace{0.3cm}}}
+  \toprule
+  \textbf{Attack}
+    & {\textbf{Original Dice}}
+    & {\textbf{Dice After Attack}}
+    & {\textbf{Dice After Defense}} \\
+  \midrule
+  Clean                      
+    & 0.980 & 0.980 & 0.980 \\
+  PGD ($\epsilon=0.031$)     
+    & 0.980 & 0.396 & 0.600 \\
+  MI‑FGSM ($\epsilon=0.031$) 
+    & 0.980 & 0.600 & 0.940 \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\scriptsize
+\caption{Comparison of U‑Net Robustness: Ours vs.\ MedicalGuard\cite{kwon2021medicalguard}}
+\label{tab:comparison_medicalguard}
+\begin{tabular}{@{\hspace{0.1cm}}p{2.0cm}p{2.2cm}p{2.2cm}@{\hspace{0.1cm}}}
+  \toprule
+  \textbf{Aspect} 
+    & \textbf{Ours} 
+    & \textbf{MedicalGuard\cite{kwon2021medicalguard}} \\
+  \midrule
+  Model 
+    & U‑Net 
+    & U‑Net \\
+  Dataset 
+    & Carvana image‑masking\cite{carvana2024} 
+    & ISBI 2012 segmentation\cite{kwon2021medicalguard} \\
+  Attacks 
+    & FGSM, MI‑FGSM 
+    & FGSM \\
+  Dice (Before) 
+    & ~0.98 
+    & ~0.79 \\
+  Dice (After, No Defense) 
+    & 0.36–0.60 (varies by attack$\epsilon$) 
+    & ~0.73 \\
+  Dice (After Training) 
+    & up to 0.94 
+    & ~0.79 (full recovery) \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
 \section{Object Detection}
 \subsection{Experimental Setup}
 \subsubsection{Model}

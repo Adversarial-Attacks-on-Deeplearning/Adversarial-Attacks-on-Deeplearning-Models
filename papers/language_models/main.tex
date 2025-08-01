@@ -208,7 +208,7 @@ APS is an input filtering defense designed to block harmful or jailbreak prompts
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.4\textwidth, keepaspectratio=false]{images/flowchart_v2.png}
+    \includegraphics[width=0.35\textwidth, keepaspectratio=false]{images/flowchart.png}
     \caption{APS Workflow}
     \label{fig:aps_flowchart}
 \end{figure}
@@ -235,6 +235,7 @@ The distilbert-base-uncased model was fine-tuned with LoRA (r=4, alpha=16, dropo
 \centering
 \caption{Adversarial Prompt Shield (APS) Results}
 \label{tab:aps_results}
+\resizebox{\columnwidth}{!}{
 \begin{tabular}{lcccc}
 \toprule
 \textbf{Dataset} & \textbf{ASR Before (\%)} & \textbf{ASR After (\%)} & \textbf{Recall} & \textbf{FPR (\%)} \\
@@ -243,7 +244,7 @@ AdvBench & 87.00 & 0.00 & 1.00 & 2.00 \\
 JailbreakBench & 52.00 & 6.00 & 0.94 & 8.00 \\
 HarmBench & 82.00 & 16.00 & 0.84 & 2.00 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{table}[H]
@@ -300,7 +301,6 @@ LLM Self Defense proves effective, particularly with TinyLlama and GPT-3.5, whil
 
 
 
-\newpage
 \section{Automatic Speech Recognition}
 
 \subsection{Experimental Setup}
@@ -485,6 +485,17 @@ SG$\to$MP3 Defense & 0.534s \\
 \end{table}
 
 The adaptive pipeline defeated the WER reduction, timing and clean performance pipeline three-way trade-off.
+
+
+
+\section{Conclusion}
+Our study reveals significant adversarial vulnerabilities in language processing systems, including LLMs, ASR, and NLP tasks like sentiment analysis and translation. Carefully crafted inputs, such as prompt injections and universal triggers, can bypass safety and ethical constraints, highlighting the need for robust defenses in critical applications like secure communications and automated assistants. This work lays the foundation for developing trustworthy systems resilient to sophisticated adversarial threats.
+\section{Future Work}
+\begin{itemize}
+\item \textbf{Multi-Modal Attacks}: Craft adversarial examples across text, audio, and code to target prompt injection vulnerabilities \cite{multimodal_attacks}.
+\item \textbf{Physical ASR Attacks}: Develop over-air audio attacks using EoT methods to evaluate ASR robustness \cite{eot_methods}.
+\item \textbf{Safety Evasion}: Create attacks to bypass ethical constraints in LLMs using universal triggers \cite{safety_alignment_evasion}.
+\end{itemize}
 
 
 \bibliographystyle{IEEEtran}

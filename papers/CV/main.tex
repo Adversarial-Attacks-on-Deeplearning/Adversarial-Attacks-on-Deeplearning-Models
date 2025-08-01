@@ -80,10 +80,37 @@ No defense is universally effective, especially against adaptive attacks, drivin
 
 \section{Image Classification}
 \subsection{Experimental Setup}
+\subsubsection{Model}
+EfficientNet-B1.
+\subsubsection{Dataset}
+GTSRB - German Traffic Sign Recognition Benchmark.
+\subsubsection{Metrics}
+Accuracy.
 \subsection{Attacks}
 \subsubsection{Tested Attacks}
-We evaluated various adversarial attacks. White-box: The Fast Gradient Sign Method (FGSM), Projected Gradient Descent (PGD), Momentum Iterative Fast Gradient Sign Method (MI-FGSM), Jacobian-based Saliency Map Attack (JSMA), Universal Adversarial Perturbation (UAP), DeepFool \cite{goodfellow2015explaining,madry2018towardspgd,dong2018boosting,papernot2016limitations,moosavidezfooli2017universaladversarialperturbations,moosavidezfooli2016deepfoolsimpleaccuratemethod}. Black-box: The HopSkipJumpAttack, One-Pixel Attack, Simple Black-box \cite{chen2020hopskipjumpattackqueryefficientdecisionbasedattack,Su_2019,guo2019simple}.
+To comprehensively assess the model's vulnerabilities, we deployed a diverse arsenal of adversarial attacks, spanning both white-box and black-box threat models.
 
+\subsection*{White-Box Attacks}
+In the \textbf{white-box} setting, where the attacker has full knowledge of the model's architecture and parameters, our evaluation included:
+
+\begin{itemize}
+    \item \textbf{Gradient-Based Methods:} We began with foundational attacks like the \textbf{Fast Gradient Sign Method (FGSM)}, a single-step method that creates perturbations by moving in the direction of the loss function's gradient. We then employed its powerful iterative extension, \textbf{Projected Gradient Descent (PGD)}, which applies multiple smaller steps to find more optimal perturbations. To test against more advanced techniques, we used the \textbf{Momentum Iterative FGSM (MI-FGSM)}, which integrates a momentum term to stabilize update directions and create more transferable adversarial examples~\cite{goodfellow2015explaining,madry2018towardspgd,dong2018boosting}.
+
+    \item \textbf{Minimal Perturbation Attacks:} We utilized \textbf{DeepFool}, an iterative attack that geometrically projects an input to the nearest decision boundary, aiming to find the minimum possible perturbation required to cause a misclassification~\cite{moosavidezfooli2016deepfoolsimpleaccuratemethod}.
+
+    \item \textbf{Targeted and Saliency-Based Attacks:} The \textbf{Jacobian-based Saliency Map Attack (JSMA)} was used to evaluate targeted threats. This method uses the model's Jacobian matrix to identify and modify the most influential input pixels to steer the model's prediction toward a specific incorrect class~\cite{papernot2016limitations}.
+
+    \item \textbf{Universal, Image-Agnostic Attacks:} We also generated a \textbf{Universal Adversarial Perturbation (UAP)}, a single, fixed noise pattern designed to fool the model on a wide variety of inputs, demonstrating systemic vulnerabilities rather than input-specific ones~\cite{moosavidezfooli2017universaladversarialperturbations}.
+\end{itemize}
+
+\subsection*{Black-Box Attacks}
+For the more realistic \textbf{black-box} scenario, where the attacker has limited to no knowledge of the model's internals, we evaluated:
+
+\begin{itemize}
+    \item \textbf{Decision-Based Attacks:} These attacks only require the model's final predicted label. We tested the \textbf{HopSkipJumpAttack}, a highly query-efficient method that estimates the gradient direction at the decision boundary to find minimal perturbations with few model queries~\cite{chen2020hopskipjumpattackqueryefficientdecisionbasedattack}.
+
+    \item \textbf{Score-Based and Minimalist Attacks:} We employed the \textbf{One-Pixel Attack}, an extreme method using an evolutionary algorithm to find a successful adversarial example by changing just a single pixel~\cite{Su_2019}. Additionally, we used the \textbf{Simple Black-box Attack (SimBA)}, which iteratively probes the model by adding or subtracting small values along random directions (in either pixel or frequency space) to reduce the confidence score of the correct class~\cite{guo2019simple}.
+\end{itemize}
 
 
 
@@ -106,7 +133,7 @@ Baseline & - & 96.70 \\
     & $\epsilon=0.100$ & 9.30 \\
 \midrule
 \multirow{4}{*}{PGD} 
-    & $\epsilon=0.007$, $\alpha=0.00175$ & 36 plagiator.43 \\
+    & $\epsilon=0.007$, $\alpha=0.00175$ & 36.43 \\
     & $\epsilon=0.01$, $\alpha=0.0025$ & 21.71 \\
     & $\epsilon=0.03$, $\alpha=0.0075$ & 2.71 \\
     & $\epsilon=0.10$, $\alpha=0.0250$ & 0.00 \\
@@ -146,7 +173,15 @@ One-Pixel
 
 \subsection{Defenses}
 \subsubsection{Tested Defeses}
-We evaluated various adversarial defenses, Adversarial Training, Noise-Fusion Method (NFM), JPEG Compression \cite{zheng2020efficientadversarialtrainingtransferable,shi2022noisefusion,das2017keepingbadguysout}.
+\paragraph{Adversarial Training}
+ Adversarial examples are generated dynamically during each training step using the current model, ensuring evolving and challenging perturbations. Training starts with mostly clean data and gradually increases adversarial exposure, using FGSM early and PGD later with adaptive strength. This approach builds robust decision boundaries and prevents memorization of specific attack patterns\cite{zheng2020efficientadversarialtrainingtransferable}.
+\paragraph{Noise Fusion}
+Noise matrix sampled from Uniform, Gaussian, or Poisson distributions is blended with the input image using a weighted sum controlled by amplitude $\alpha$. During training, noise is added to enhance robustness via data augmentation. During inference, noise suppresses adversarial perturbations. The same fusion formula $\mathbf{x}_{\text{noise}} = (1 - \alpha) \cdot \mathbf{x} + \alpha \cdot \mathbf{n}$ is applied in both phases.
+
+\cite{shi2022noisefusion}
+\paragraph{JPEG Compression}
+JPEG compression serves as a simple yet effective preprocessing defense by targeting high-frequency adversarial noise. Gradient-based attacks like FGSM and PGD often rely on fine-tuned high-frequency perturbations, which are disrupted during JPEG's quantization step. This model-agnostic approach can help restore correct classifications by smoothing out adversarial effects.
+\cite{das2017keepingbadguysout}
 \subsubsection{Results}
 \begin{table}[H]
 \centering
@@ -329,8 +364,8 @@ balancing clean‐image accuracy with robustness. All losses are computed using 
   \toprule
   \textbf{Attack} 
     & {\textbf{Original Dice}} 
-    & {\textbf{Dice After Attack}} 
-    & {\textbf{Dice After Defense}} \\
+    & {\textbf{After Attack}} 
+    & {\textbf{After Defense}} \\
   \midrule
   Clean                                 & 0.980 & 0.980 & 0.980 \\
   FGSM $\epsilon=0.031$                 & 0.980 & 0.410 & 0.960 \\
@@ -352,8 +387,8 @@ balancing clean‐image accuracy with robustness. All losses are computed using 
   \toprule
   \textbf{Attack}
     & {\textbf{Original Dice}}
-    & {\textbf{Dice After Attack}}
-    & {\textbf{Dice After Defense}} \\
+    & {\textbf{After Attack}}
+    & {\textbf{After Defense}} \\
   \midrule
   Clean                      
     & 0.980 & 0.980 & 0.980 \\

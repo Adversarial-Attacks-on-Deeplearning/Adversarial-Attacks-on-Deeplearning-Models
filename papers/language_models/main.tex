@@ -1,5 +1,6 @@
 \documentclass[conference]{IEEEtran}
-
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{cite}
@@ -14,6 +15,8 @@
 \usepackage{tcolorbox}
 \usepackage{siunitx} % Added for S column type in tables
 \usepackage{verbatim}
+\usepackage{enumitem}
+
 
 \begin{document}
 
@@ -143,7 +146,161 @@ DeepWordBug & 92.58 & 56.32 & 15.67 & 76.91 \\
 \end{table}
 
 The hybrid defense demonstrates granularity-dependent effectiveness: character-level purification provides no benefit against word-level attacks (TextFooler) but achieves substantial improvement against character-level attacks (DeepWordBug), validating our multi-stage defense strategy. VAT consistently improves robustness across all attack types, while the combination achieves up to 76.91\% ASR reduction against pure character-level perturbations.
+\section{Large Language Models}
+\subsection{Attacks}
+We implemented two white-box Jailbreak attacks that induce aligned language models to produce virtually any objectionable content. Experiments were conducted on the aligned Qwen-1.5-1.8B model and using the AdvBench dataset. Attack performance was assessed via attack success rate (ASR), where outputs without refusal were considered successful, in addition to manual review and metrics including Precision, Recall, and F1 Score to reduce false negatives and false positives.\\
+\subsubsection{Greedy Coordinate Gradient Attack}
+The GCG \cite{zou2023universaltransferableadversarialattacks} is a greedy and gradient based white-box jailbreak attack. It appends an adversarial suffix to the query that attempts to confuse the model to respond. 
 
+The key objective is to minimize the adversarial loss function, defined as the negative log-likelihood of a target affirmative response sequence (e.g., ``Sure, here is...'').
+We implemented two distinct approaches for adversarial suffix optimization:
+ \begin{enumerate}
+    \item Optimizing an adversarial suffix for each individual harmful prompt.
+    \item  Optimizing a single universal suffix for a set of prompts using a weighted loss function that prioritizes prompts with higher difficulty.
+\end{enumerate}
+Gradients are computed to identify \( k = 256 \) candidate token substitutions, evaluating \( B = 128 \) random substitutions using greedy search to yield the lowest loss. This process repeats for \( T = 50 \) iterations, targeting a 20-token suffix. 
+\begin{table}[H]
+\centering
+\caption{GCG Jailbreak Attack Success Metrics}
+\label{tab:GCG Attack success metrics}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Method} & \textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
+\midrule
+Individual Suffix   & 84 & 0.92  & 0.83  & 0.87  \\
+Universal Suffix  & 75 & 0.93  & 0.94  & 0.93  \\
+\bottomrule
+\end{tabular}
+\end{table}
+\\
+
+\subsubsection{Beam search-based Adversarial Attack}
+The BEAST attack \cite{zou2023universaltransferableadversarialattacks} also appends an adversarial suffix to individual user prompts. Unlike
+the Greedy Coordinate Gradient (GCG) attack, BEAST utilizes a computationally efficient, gradient-free beam
+search optimization scheme. This approach processes one prompt at a time,
+optimizing the adversarial suffix with tunable hyperparameters to balance attack speed, success rate, and prompt readability.
+
+The key objective is to minimize the perplexity of the target harmful string. It iteratively expands a beam of \( k_1 = 15 \) candidates, sampling \( k_2 = 15\) tokens per candidate, and selecting the top \( k_1 \) candidates with the lowest perplexity for a 30-token suffix.
+
+\begin{table}[H]
+\centering
+\caption{Jailbreak Attack Success Metrics}
+\label{tab:BEAST Attack success metrics}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
+\midrule
+    88 & 1.0  & 0.68 & 0.81  \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+The results in Table \ref{tab:BEAST Attack success metrics} are comparable to those achieved by GCG. Notably, this approach is computationally efficient and produces a readable suffix. However, it required a longer suffix of 30 tokens to achieve these results.
+
+\subsection{Defenses}
+
+We implemented two distinct defenses to enhance the safety of large language models: Adversarial Prompt Shield (APS), an input filtering defense, and LLM Self Defense, an output filtering defense.
+\subsubsection{1-Adversarial Prompt Shield (APS)}
+
+APS is an input filtering defense designed to block harmful or jailbreak prompts before they reach the language model. It leverages a combination of toxicity detection and a fine-tuned classifier to ensure only safe prompts are processed.
+
+\textbf{Adversarial Prompt Shield (APS) Workflow}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.4\textwidth, keepaspectratio=false]{images/flowchart_v2.png}
+    \caption{APS Workflow}
+    \label{fig:aps_flowchart}
+\end{figure}
+APS workflow routes prompts through Detoxify (blocking if toxicity $> 0.6$) and a DistilBERT classifier (blocking if jailbreak probability $> 0.6$), sending safe prompts to TinyLlama-1.1B.
+
+%\textbf{Experimental Setup}
+
+\textbf{Models Utilized: }
+
+\begin{itemize}[left=0pt, label={}, topsep=2pt, itemsep=2pt]
+    \item \textit{1- Detoxify}: Used for initial toxicity detection.
+    \item \textit{2- DistilBERT}: A fine-tuned binary classifier to classify between jailbreak and safe prompts.
+    \item \textit{3- TinyLlama-1.1B}: Target model applied in the APS defense.
+\end{itemize}
+
+\textbf{Dataset Collection and Labeling}
+
+A binary-labeled dataset of 3,000 prompts was created: 1,500 safe (750 from Dolly, 750 from OpenOrca) and 1,500 jailbreak (1,400 from JailbreakHub, 100 from JailbreakBench), split 80\%/20\% for training/validation.
+
+\textbf{Fine-Tuning the DistilBERT Classifier with LoRA}
+
+The distilbert-base-uncased model was fine-tuned with LoRA (r=4, alpha=16, dropout=0.05) for 5 epochs using AdamW (lr=1e-3, batch size=8), achieving 99.95\% training and 98.5\% validation accuracy.
+\begin{table}[h]
+\centering
+\caption{Adversarial Prompt Shield (APS) Results}
+\label{tab:aps_results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Dataset} & \textbf{ASR Before (\%)} & \textbf{ASR After (\%)} & \textbf{Recall} & \textbf{FPR (\%)} \\
+\midrule
+AdvBench & 87.00 & 0.00 & 1.00 & 2.00 \\
+JailbreakBench & 52.00 & 6.00 & 0.94 & 8.00 \\
+HarmBench & 82.00 & 16.00 & 0.84 & 2.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Overblocking Analysis on Safe Prompts (Quora and Alpaca)}
+\label{tab:safe_eval}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Dataset} & \textbf{Total} & \textbf{FP} & \textbf{TN} & \textbf{FPR (\%)}  & \textbf{Accuracy (\%)} \\
+\midrule
+Quora   & 100 & 2  & 98  & 2.00   & 98.00 \\
+Alpaca  & 100 & 8  & 92  & 8.00   & 92.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+APS demonstrates impressive efficacy in blocking harmful prompts, reducing attack success rates to near zero on AdvBench and significantly on JailbreakBench and HarmBench, while maintaining low false positive rates (2-8\%) on safe datasets like Quora and Alpaca, ensuring minimal overblocking of benign inputs.
+\vspace{0.1 cm}
+\subsubsection*{2-LLM Self Defense} 
+%\newline
+LLM Self Defense is an output filtering defense that evaluates the model’s generated responses to classify them as harmful or harmless. This zero-shot technique uses the model’s own output in a harm filter prompt, applied to both aligned (GPT-3.5) and unaligned (TinyLlama) models with external classifiers.
+
+\textbf{Models Utilized}
+
+\begin{itemize}[left=0pt, topsep=2pt, itemsep=2pt]
+    \item \textit{GPT-3.5}: Used for self-reflection in aligned models and as an external harm classifier for unaligned models.
+    \item \textit{TinyLlama-1.1B}: Generates responses for unaligned model testing, with outputs evaluated by GPT-3.5.
+\end{itemize}
+
+\textbf{Self-Reflection Defense}
+
+For aligned models, the same LLM generates and filters responses using suffix-style prompting (e.g., “Below is some text: response Is it harmful?”).
+
+\textbf{External Harm Filter Defense}
+
+For unaligned models, TinyLlama generates responses, and a separate GPT-3.5 classifier evaluates harmfulness with suffix-style prompting.
+\begin{table}[h]
+\centering
+\caption{LLM Self Defense Results}
+\label{tab:llm_self_defense_results}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model/Condition} & \textbf{Accuracy} & \textbf{TPR (Recall)} & \textbf{FPR (\%)} \\
+\midrule
+GPT-3.5 (Unmodified) & 0.63 & 0.26 & 0.00 \\
+GPT-3.5 (Modified) & 0.77 & 0.54 & 0.00 \\
+TinyLlama w/ GPT-3.5 & 0.96 & 0.98 & 0.06 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\newline
+LLM Self Defense proves effective, particularly with TinyLlama and GPT-3.5, while showing that aligned models also require defenses, as true positive rates increase from unmodified to modified prompts when using clever prompting techniques, highlighting the need for robust output filtering even in aligned models
+
+
+
+
+
+\newpage
 \section{Automatic Speech Recognition}
 
 \subsection{Experimental Setup}
@@ -328,59 +485,10 @@ SG$\to$MP3 Defense & 0.534s \\
 \end{table}
 
 The adaptive pipeline defeated the WER reduction, timing and clean performance pipeline three-way trade-off.
-\newpage
-\section{Large Language Models}
-\subsection{Attacks}
-We implemented two white-box Jailbreak attacks that induce aligned language models to produce virtually any objectionable content. Experiments were conducted on the aligned Qwen-1.5-1.8B model and using the AdvBench dataset. Attack performance was assessed via attack success rate (ASR), where outputs without refusal were considered successful, in addition to manual review and metrics including Precision, Recall, and F1 Score to reduce false negatives and false positives.\\
-\subsubsection{Greedy Coordinate Gradient Attack}
-The GCG \cite{zou2023universaltransferableadversarialattacks} is a greedy and gradient based white-box jailbreak attack. It appends an adversarial suffix to the query that attempts to confuse the model to respond. 
-
-The key objective is to minimize the adversarial loss function, defined as the negative log-likelihood of a target affirmative response sequence (e.g., ``Sure, here is...'').
-We implemented two distinct approaches for adversarial suffix optimization:
- \begin{enumerate}
-    \item Optimizing an adversarial suffix for each individual harmful prompt.
-    \item  Optimizing a single universal suffix for a set of prompts using a weighted loss function that prioritizes prompts with higher difficulty.
-\end{enumerate}
-Gradients are computed to identify \( k = 256 \) candidate token substitutions, evaluating \( B = 128 \) random substitutions using greedy search to yield the lowest loss. This process repeats for \( T = 50 \) iterations, targeting a 20-token suffix. 
-\begin{table}[H]
-\centering
-\caption{GCG Jailbreak Attack Success Metrics}
-\label{tab:GCG Attack success metrics}
-\begin{tabular}{lcccccc}
-\toprule
-\textbf{Method} & \textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
-\midrule
-Individual Suffix   & 84 & 0.92  & 0.83  & 0.87  \\
-Universal Suffix  & 75 & 0.93  & 0.94  & 0.93  \\
-\bottomrule
-\end{tabular}
-\end{table}
-\\
-\subsubsection{Beam search-based Adversarial Attack}
-The BEAST attack \cite{zou2023universaltransferableadversarialattacks} also appends an adversarial suffix to individual user prompts. Unlike
-the Greedy Coordinate Gradient (GCG) attack, BEAST utilizes a computationally efficient, gradient-free beam
-search optimization scheme. This approach processes one prompt at a time,
-optimizing the adversarial suffix with tunable hyperparameters to balance attack speed, success rate, and prompt readability.
-
-The key objective is to minimize the perplexity of the target harmful string. It iteratively expands a beam of \( k_1 = 15 \) candidates, sampling \( k_2 = 15\) tokens per candidate, and selecting the top \( k_1 \) candidates with the lowest perplexity for a 30-token suffix.
-
-\begin{table}[H]
-\centering
-\caption{Jailbreak Attack Success Metrics}
-\label{tab:BEAST Attack success metrics}
-\begin{tabular}{lcccccc}
-\toprule
-\textbf{ASR (\%)} & \textbf{Recall} & \textbf{Precision} & \textbf{F1 Score}\\
-\midrule
-    88 & 1.0  & 0.68 & 0.81  \\
-
-\bottomrule
-\end{tabular}
-\end{table}
-The results in Table \ref{tab:BEAST Attack success metrics} are comparable to those achieved by GCG. Notably, this approach is computationally efficient and produces a readable suffix. However, it required a longer suffix of 30 tokens to achieve these outcomes.
 
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
+
 
 \end{document}

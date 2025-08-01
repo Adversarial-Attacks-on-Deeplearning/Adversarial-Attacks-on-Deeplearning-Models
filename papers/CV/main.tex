@@ -167,6 +167,7 @@ One-Pixel
 \bottomrule
 \end{tabular}
 }
+\vspace*{1px}
 \caption{Accuracy of various adversarial attacks on EfficientNetB1}
 \label{tab:combined_attack_results}
 \end{table}
@@ -182,8 +183,9 @@ Noise matrix sampled from Uniform, Gaussian, or Poisson distributions is blended
 \paragraph{JPEG Compression}
 JPEG compression serves as a simple yet effective preprocessing defense by targeting high-frequency adversarial noise. Gradient-based attacks like FGSM and PGD often rely on fine-tuned high-frequency perturbations, which are disrupted during JPEG's quantization step. This model-agnostic approach can help restore correct classifications by smoothing out adversarial effects.
 \cite{das2017keepingbadguysout}
-\subsubsection{Results}
-\begin{table}[H]
+\subsubsection{Results} 
+Table~\ref{tab:combined_defense_results} presents the accuracy results of FGSM and PGD attacks on EfficientNetB1 under various defense mechanisms, including no defense, adversarial training, noise filtering (Gaussian, Uniform, and Poisson), and JPEG compression at different quality levels.
+\begin{table}[!h]
 \centering
 \footnotesize
 \resizebox{\columnwidth}{!}{
@@ -251,6 +253,8 @@ JPEG compression serves as a simple yet effective preprocessing defense by targe
 \caption{Accuracy of FGSM and PGD attacks on EfficientNetB1 after applying defense techniques.}
 \label{tab:combined_defense_results}
 \end{table}
+
+
 \section{Semantic Segmentation}
 Image segmentation is the process of partitioning a digital image into multiple segments (sets of pixels) to simplify or change the representation of an image into something more meaningful and easier to analyze.
 \subsection{Experimental Setup}
@@ -561,7 +565,8 @@ Purification & 204.6 \\
 \bottomrule
 \end{tabular}}
 \end{table}
-
+\section{Conclusion and Future Work}
+This work has provided a comprehensive analysis of adversarial vulnerabilities in computer vision, demonstrating how carefully crafted perturbations can compromise image classification, segmentation, and object detection systems. Our findings highlight that these weaknesses are a fundamental challenge to the reliability of AI in critical applications. We emphasized the necessity of evaluating attacks and defenses within a unified framework to understand the trade-offs between robustness and accuracy. Future work will focus on improving cross-architectural attack transferability and developing physically robust adversarial objects to ensure the security of real-world AI systems. These advancements are crucial for building resilient AI for domains like autonomous vehicles and healthcare.
 
 
 
@@ -570,3 +575,4 @@ Purification & 204.6 \\
 \bibliography{references}
 
 \end{document}
+
